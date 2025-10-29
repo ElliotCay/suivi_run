@@ -33,13 +33,13 @@ async def get_dashboard_summary(
     ).all()
 
     # Calculate stats
-    total_km = sum(w.distance for w in this_week_workouts if w.distance)
+    total_km = sum(w.distance for w in this_week_workouts if w.distance is not None)
     count = len(this_week_workouts)
-    avg_hr = sum(w.avg_hr for w in this_week_workouts if w.avg_hr) / count if count > 0 else None
+    avg_hr = sum(w.avg_hr for w in this_week_workouts if w.avg_hr is not None) / count if count > 0 else None
 
     # Total all-time stats
     all_workouts = db.query(Workout).filter(Workout.user_id == user_id).all()
-    total_all_time_km = sum(w.distance for w in all_workouts if w.distance)
+    total_all_time_km = sum(w.distance for w in all_workouts if w.distance is not None)
     total_all_time_count = len(all_workouts)
 
     return {
@@ -62,7 +62,7 @@ async def get_volume_history(
     from datetime import timedelta
 
     today = date.today()
-    start_date = today - timedelta(weeks=weeks * 7)
+    start_date = today - timedelta(weeks=weeks)
 
     workouts = db.query(Workout).filter(
         Workout.user_id == user_id,
@@ -252,7 +252,7 @@ async def get_pace_progression_by_type(
     from datetime import timedelta
 
     today = date.today()
-    start_date = today - timedelta(weeks=weeks * 7)
+    start_date = today - timedelta(weeks=weeks)
 
     workouts = db.query(Workout).filter(
         and_(
@@ -357,7 +357,7 @@ async def get_training_load(
     return {
         "acute_load_km": round(acute_load, 2),
         "chronic_load_km": round(chronic_load, 2),
-        "ratio": round(ratio, 2) if ratio else None,
+        "ratio": round(ratio, 2) if ratio is not None else None,
         "status": status,
         "last_7_days_count": len(acute_workouts),
         "last_28_days_count": len(chronic_workouts)
@@ -409,10 +409,10 @@ async def get_volume_progression_alert(
     return {
         "current_week_km": round(current_volume, 2),
         "previous_week_km": round(previous_volume, 2),
-        "progression_percent": round(progression_pct, 1) if progression_pct else None,
+        "progression_percent": round(progression_pct, 1) if progression_pct is not None else None,
         "alert": alert,
         "status": "warning" if alert else "ok",
-        "message": f"Progression de {progression_pct:.1f}% - Risque de blessure !" if alert and progression_pct else
-                   f"Progression de {progression_pct:.1f}% - Dans la norme" if progression_pct else
+        "message": f"Progression de {progression_pct:.1f}% - Risque de blessure !" if alert and progression_pct is not None else
+                   f"Progression de {progression_pct:.1f}% - Dans la norme" if progression_pct is not None else
                    "Pas assez de données pour calculer la progression"
     }

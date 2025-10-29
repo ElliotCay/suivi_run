@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/Users/elliotcayuela/PythonTools/suivi_run/backend/venv/bin/pip install -r requirements.txt)",
+      "Read(//Users/elliotcayuela/PythonTools/**)",
+      "Bash(unzip:*)",
+      "Bash(uvicorn:*)",
+      "Bash(curl:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm install:*)",
+      "Bash(python3:*)",
+      "Bash(find:*)",
+      "WebSearch",
+      "Bash(sqlite3:*)",
+      "Bash(column:*)",
+      "Bash(for i in 1 2 3)",
+      "Bash(do echo \"Generating suggestion $i...\")",
+      "Bash(/dev/null)",
+      "Bash(echo:*)",
+      "Bash(done)",
+      "Read(//private/tmp/**)",
+      "Read(//Users/elliotcayuela/Downloads/**)",
+      "Read(//tmp/**)",
+      "Bash(cat:*)",
+      "Bash(pip install:*)",
+      "Bash(source:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs:*)",
+      "Bash(python -m uvicorn:*)",
+      "Bash(python:*)",
+      "Bash(git init:*)",
+      "Bash(git branch:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nInitial commit - Running tracker app with AI suggestions\n\nFeatures:\n- FastAPI backend with SQLAlchemy ORM\n- Next.js 16 frontend with TypeScript\n- Apple Health auto-import via iCloud Drive\n- Personal records management with history\n- Dashboard with metrics and charts\n- AI-powered workout suggestions via Claude\n- Training load analysis (7d/28d ratio)\n- Volume progression alerts\n\nTech stack:\n- Backend: Python 3.13, FastAPI, SQLite\n- Frontend: Next.js, React 19, TailwindCSS, shadcn/ui\n- AI: Anthropic Claude API\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(gh repo create:*)",
+      "Bash(git push:*)",
+      "Bash(git rm:*)",
+      "Bash(git commit:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

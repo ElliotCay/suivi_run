@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE HealthData [
+  <!ELEMENT HealthData (ExportDate, Me, Record*, Workout*, ActivitySummary*, ClinicalRecord*, Correlation*, WorkoutRoute*)>
+  <!ELEMENT ExportDate EMPTY>
+  <!ATTLIST ExportDate value CDATA #REQUIRED>
+  <!ELEMENT Me EMPTY>
+  <!ATTLIST Me HKCharacteristicTypeIdentifierDateOfBirth CDATA #REQUIRED
+               HKCharacteristicTypeIdentifierBiologicalSex CDATA #REQUIRED>
+  <!ELEMENT Workout (WorkoutStatistics*, WorkoutEvent*, WorkoutRoute*)>
+  <!ATTLIST Workout workoutActivityType CDATA #REQUIRED
+                    duration CDATA #REQUIRED
+                    durationUnit CDATA #REQUIRED
+                    totalDistance CDATA #IMPLIED
+                    totalDistanceUnit CDATA #IMPLIED
+                    totalEnergyBurned CDATA #IMPLIED
+                    totalEnergyBurnedUnit CDATA #IMPLIED
+                    startDate CDATA #REQUIRED
+                    endDate CDATA #REQUIRED
+                    creationDate CDATA #IMPLIED
+                    sourceName CDATA #REQUIRED
+                    sourceVersion CDATA #IMPLIED>
+  <!ELEMENT WorkoutStatistics EMPTY>
+  <!ATTLIST WorkoutStatistics type CDATA #REQUIRED
+                              startDate CDATA #REQUIRED
+                              endDate CDATA #REQUIRED
+                              average CDATA #IMPLIED
+                              minimum CDATA #IMPLIED
+                              maximum CDATA #IMPLIED
+                              sum CDATA #IMPLIED
+                              unit CDATA #REQUIRED>
+]>
+<HealthData locale="en_US">
+ <ExportDate value="2025-10-27 10:00:00 +0200"/>
+ <Me HKCharacteristicTypeIdentifierDateOfBirth="1990-01-01" HKCharacteristicTypeIdentifierBiologicalSex="HKBiologicalSexMale"/>
+
+ <!-- Running Workout 1: Easy 5K run -->
+ <Workout workoutActivityType="HKWorkoutActivityTypeRunning"
+          duration="30.5" durationUnit="min"
+          totalDistance="5.2" totalDistanceUnit="km"
+          totalEnergyBurned="320" totalEnergyBurnedUnit="kcal"
+          sourceName="Apple Watch"
+          sourceVersion="10.0"
+          startDate="2025-10-20 08:00:00 +0200"
+          endDate="2025-10-20 08:30:30 +0200"
+          creationDate="2025-10-20 08:31:00 +0200">
+  <WorkoutStatistics type="HKQuantityTypeIdentifierHeartRate"
+                     startDate="2025-10-20 08:00:00 +0200"
+                     endDate="2025-10-20 08:30:30 +0200"
+                     average="152"
+                     minimum="135"
+                     maximum="168"
+                     unit="count/min"/>
+  <WorkoutStatistics type="HKQuantityTypeIdentifierStepCount"
+                     startDate="2025-10-20 08:00:00 +0200"
+                     endDate="2025-10-20 08:30:30 +0200"
+                     sum="6800"
+                     unit="count"/>
+ </Workout>
+
+ <!-- Running Workout 2: Tempo 10K run with elevation -->
+ <Workout workoutActivityType="HKWorkoutActivityTypeRunning"
+          duration="55" durationUnit="min"
+          totalDistance="10.5" totalDistanceUnit="km"
+          totalEnergyBurned="680" totalEnergyBurnedUnit="kcal"
+          sourceName="Apple Watch"
+          sourceVersion="10.0"
+          startDate="2025-10-22 18:00:00 +0200"
+          endDate="2025-10-22 18:55:00 +0200"
+          creationDate="2025-10-22 18:56:00 +0200">
+  <WorkoutStatistics type="HKQuantityTypeIdentifierHeartRate"
+                     startDate="2025-10-22 18:00:00 +0200"
+                     endDate="2025-10-22 18:55:00 +0200"
+                     average="165"
+                     minimum="145"
+                     maximum="182"
+                     unit="count/min"/>
+  <WorkoutStatistics type="HKQuantityTypeIdentifierDistanceWalkingRunning"
+                     startDate="2025-10-22 18:00:00 +0200"
+                     endDate="2025-10-22 18:55:00 +0200"
+                     sum="10.5"
+                     unit="km"/>
+ </Workout>
+
+ <!-- Running Workout 3: Long run with distance in miles -->
+ <Workout workoutActivityType="HKWorkoutActivityTypeRunning"
+          duration="90" durationUnit="min"
+          totalDistance="10.0" totalDistanceUnit="mi"
+          totalEnergyBurned="1050" totalEnergyBurnedUnit="kcal"
+          sourceName="Apple Watch"
+          sourceVersion="10.0"
+          startDate="2025-10-25 09:00:00 +0200"
+          endDate="2025-10-25 10:30:00 +0200"
+          creationDate="2025-10-25 10:31:00 +0200">
+  <WorkoutStatistics type="HKQuantityTypeIdentifierHeartRate"
+                     startDate="2025-10-25 09:00:00 +0200"
+                     endDate="2025-10-25 10:30:00 +0200"
+                     average="148"
+                     minimum="130"
+                     maximum="172"
+                     unit="count/min"/>
+  <WorkoutStatistics type="HKQuantityTypeIdentifierStepCount"
+                     startDate="2025-10-25 09:00:00 +0200"
+                     endDate="2025-10-25 10:30:00 +0200"
+                     sum="21000"
+                     unit="count"/>
+ </Workout>
+
+ <!-- Non-running workout (should be filtered out) -->
+ <Workout workoutActivityType="HKWorkoutActivityTypeCycling"
+          duration="45" durationUnit="min"
+          totalDistance="15.0" totalDistanceUnit="km"
+          totalEnergyBurned="450" totalEnergyBurnedUnit="kcal"
+          sourceName="Apple Watch"
+          sourceVersion="10.0"
+          startDate="2025-10-23 17:00:00 +0200"
+          endDate="2025-10-23 17:45:00 +0200"
+          creationDate="2025-10-23 17:46:00 +0200">
+  <WorkoutStatistics type="HKQuantityTypeIdentifierHeartRate"
+                     startDate="2025-10-23 17:00:00 +0200"
+                     endDate="2025-10-23 17:45:00 +0200"
+                     average="140"
+                     minimum="120"
+                     maximum="165"
+                     unit="count/min"/>
+ </Workout>
+
+ <!-- Walking workout (should be filtered out) -->
+ <Workout workoutActivityType="HKWorkoutActivityTypeWalking"
+          duration="30" durationUnit="min"
+          totalDistance="2.5" totalDistanceUnit="km"
+          totalEnergyBurned="120" totalEnergyBurnedUnit="kcal"
+          sourceName="Apple Watch"
+          sourceVersion="10.0"
+          startDate="2025-10-24 12:00:00 +0200"
+          endDate="2025-10-24 12:30:00 +0200"
+          creationDate="2025-10-24 12:31:00 +0200">
+  <WorkoutStatistics type="HKQuantityTypeIdentifierHeartRate"
+                     startDate="2025-10-24 12:00:00 +0200"
+                     endDate="2025-10-24 12:30:00 +0200"
+                     average="110"
+                     minimum="95"
+                     maximum="125"
+                     unit="count/min"/>
+ </Workout>
+
+</HealthData>

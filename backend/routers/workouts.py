@@ -126,7 +126,7 @@ async def get_weekly_stats(
     from sqlalchemy import func
     
     today = date.today()
-    start_date = today - timedelta(weeks=weeks * 7)
+    start_date = today - timedelta(weeks=weeks)
     
     workouts = db.query(Workout).filter(
         and_(
@@ -209,7 +209,7 @@ async def classify_workouts(
         pace_min_km = round(w.avg_pace / 60, 2) if w.avg_pace else None
         ref_entry = {
             "type": w.workout_type,
-            "distance_km": round(w.distance, 2) if w.distance else None,
+            "distance_km": round(w.distance, 2) if w.distance is not None else None,
             "pace_min_km": pace_min_km,
             "avg_hr": w.avg_hr
         }
@@ -230,7 +230,7 @@ async def classify_workouts(
         workout_entry = {
             "id": w.id,
             "date": w.date.strftime("%Y-%m-%d"),
-            "distance_km": round(w.distance, 2) if w.distance else None,
+            "distance_km": round(w.distance, 2) if w.distance is not None else None,
             "duration_min": round(w.duration / 60, 1) if w.duration else None,
             "pace_min_km": pace_min_km,
             "avg_hr": w.avg_hr,

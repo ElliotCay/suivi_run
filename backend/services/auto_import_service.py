@@ -1,20 +1,17 @@
-"""
-Auto-import service for monitoring iCloud Drive folder.
-"""
+"""Auto-import service for monitoring iCloud Drive folder."""
 
-import os
 import asyncio
 import logging
-from datetime import datetime
+from collections import defaultdict
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
-import tempfile
-import shutil
 
 from sqlalchemy.orm import Session
+
 from database import SessionLocal
 from models import Workout
-from services.health_parser import extract_zip, parse_workouts_xml, check_duplicate
+from services.health_parser import check_duplicate, extract_zip, parse_workouts_xml
 
 logger = logging.getLogger(__name__)
 
@@ -86,114 +83,150 @@ class AutoImportService:
         """
         logger.info(f"Starting import of {file_path}")
 
-        temp_dir = tempfile.mkdtemp()
-
         try:
             # Extract ZIP and get export.xml path
-            xml_path = extract_zip(str(file_path))
+            with extract_zip(str(file_path)) as xml_path:
+                # Parse workouts from XML
+                parsed_workouts = parse_workouts_xml(str(xml_path))
 
-            # Parse workouts from XML
-            parsed_workouts = parse_workouts_xml(xml_path)
-
-            if not parsed_workouts:
-                logger.info("No running workouts found in export")
-                return {
-                    "success": True,
-                    "workouts_imported": 0,
-                    "duplicates_skipped": 0,
-                    "message": "No running workouts found"
-                }
-
-            # Get database session
-            db: Session = SessionLocal()
-
-            try:
-                # Get existing workouts for duplicate checking
-                existing_workouts = db.query(Workout).filter(Workout.user_id == self.user_id).all()
-                existing_workouts_dict = [
-                    {
-                        'date': w.date.date() if isinstance(w.date, datetime) else w.date,
-                        'distance': w.distance,
-                        'duration': w.duration
-                    }
-                    for w in existing_workouts
-                ]
-
-                # Import workouts
-                imported_count = 0
-                duplicates_count = 0
-                dates = []
-
-                for workout_data in parsed_workouts:
-                    # Check for duplicates
-                    if check_duplicate(workout_data, existing_workouts_dict):
-                        duplicates_count += 1
-                        continue
-
-                    # Prepare raw_data including GPX metrics
-                    raw_data = {
-                        'avg_speed_kmh': workout_data.get('avg_speed'),
-                        'source_name': workout_data.get('source')
+                if not parsed_workouts:
+                    logger.info("No running workouts found in export")
+                    return {
+                        "success": True,
+                        "workouts_imported": 0,
+                        "duplicates_skipped": 0,
+                        "message": "No running workouts found"
                     }
 
-                    # Add GPX data if available
-                    if 'gpx_data' in workout_data:
-                        gpx_data = workout_data['gpx_data']
-                        raw_data['gpx'] = {
-                            'splits': gpx_data.get('splits', []),
-                            'pace_variability': gpx_data.get('pace_variability', 0),
-                            'laps': gpx_data.get('laps', []),
-                            'elevation_gain': gpx_data.get('elevation_gain', 0),
-                            'trackpoint_count': gpx_data.get('trackpoint_count', 0)
+                # Get database session
+                db: Session = SessionLocal()
+
+                try:
+                    # Determine relevant date range
+                    workout_dates = [
+                        workout['start_time']
+                        for workout in parsed_workouts
+                        if workout.get('start_time')
+                    ]
+
+                    query = db.query(Workout).filter(Workout.user_id == self.user_id)
+                    if workout_dates:
+                        start_bound = min(workout_dates).replace(
+                            hour=0, minute=0, second=0, microsecond=0
+                        )
+                        end_bound = (max(workout_dates) + timedelta(days=1)).replace(
+                            hour=0, minute=0, second=0, microsecond=0
+                        )
+                        query = query.filter(Workout.date >= start_bound, Workout.date < end_bound)
+
+                    existing_workouts = query.all()
+                    existing_index = defaultdict(list)
+                    for existing in existing_workouts:
+                        if isinstance(existing.date, datetime):
+                            date_key = existing.date.date()
+                        else:
+                            date_key = existing.date
+
+                        existing_index[date_key].append(
+                            {
+                                'date': date_key,
+                                'distance': existing.distance,
+                                'duration': existing.duration
+                            }
+                        )
+
+                    # Import workouts
+                    imported_count = 0
+                    duplicates_count = 0
+                    dates = []
+
+                    for workout_data in parsed_workouts:
+                        workout_date = workout_data.get('date')
+                        date_key = (
+                            workout_date.date()
+                            if hasattr(workout_date, 'date')
+                            else workout_date
+                        )
+
+                        if date_key is None:
+                            logger.warning("Skipping workout without date metadata")
+                            continue
+
+                        candidates = existing_index.get(date_key, [])
+                        if check_duplicate(workout_data, candidates):
+                            duplicates_count += 1
+                            continue
+
+                        raw_data = {
+                            'avg_speed_kmh': workout_data.get('avg_speed'),
+                            'source_name': workout_data.get('source')
                         }
 
-                    # Create new workout
-                    new_workout = Workout(
-                        user_id=self.user_id,
-                        date=workout_data['start_time'],
-                        start_time=workout_data['start_time'],
-                        end_time=workout_data['end_time'],
-                        distance=workout_data['distance'],
-                        duration=workout_data['duration'],
-                        avg_pace=workout_data['avg_pace'],
-                        avg_hr=workout_data['avg_hr'],
-                        max_hr=workout_data['max_hr'],
-                        elevation_gain=workout_data['elevation_gain'],
-                        source='apple_watch',
-                        raw_data=raw_data
+                        if 'gpx_data' in workout_data:
+                            gpx_data = workout_data['gpx_data']
+                            raw_data['gpx'] = {
+                                'splits': gpx_data.get('splits', []),
+                                'pace_variability': gpx_data.get('pace_variability', 0),
+                                'laps': gpx_data.get('laps', []),
+                                'elevation_gain': gpx_data.get('elevation_gain', 0),
+                                'trackpoint_count': gpx_data.get('trackpoint_count', 0)
+                            }
+
+                        new_workout = Workout(
+                            user_id=self.user_id,
+                            date=workout_data['start_time'],
+                            start_time=workout_data['start_time'],
+                            end_time=workout_data['end_time'],
+                            distance=workout_data['distance'],
+                            duration=workout_data['duration'],
+                            avg_pace=workout_data['avg_pace'],
+                            avg_hr=workout_data['avg_hr'],
+                            max_hr=workout_data['max_hr'],
+                            elevation_gain=workout_data['elevation_gain'],
+                            source='apple_watch',
+                            raw_data=raw_data
+                        )
+
+                        db.add(new_workout)
+                        imported_count += 1
+                        dates.append(date_key)
+
+                        existing_index[date_key].append(
+                            {
+                                'date': date_key,
+                                'distance': workout_data['distance'],
+                                'duration': workout_data['duration']
+                            }
+                        )
+
+                    db.commit()
+
+                    date_range = None
+                    if dates:
+                        dates.sort()
+                        date_range = {
+                            "start": dates[0].isoformat(),
+                            "end": dates[-1].isoformat()
+                        }
+
+                    logger.info(
+                        "Auto-import complete: %s imported, %s duplicates",
+                        imported_count,
+                        duplicates_count,
                     )
 
-                    db.add(new_workout)
-                    imported_count += 1
-                    dates.append(workout_data['start_time'].date())
+                    self.last_modified_time = file_path.stat().st_mtime
 
-                # Commit all workouts
-                db.commit()
-
-                # Calculate date range
-                date_range = None
-                if dates:
-                    dates.sort()
-                    date_range = {
-                        "start": dates[0].isoformat(),
-                        "end": dates[-1].isoformat()
+                    return {
+                        "success": True,
+                        "workouts_imported": imported_count,
+                        "duplicates_skipped": duplicates_count,
+                        "date_range": date_range,
+                        "timestamp": datetime.now().isoformat()
                     }
 
-                logger.info(f"Auto-import complete: {imported_count} imported, {duplicates_count} duplicates")
-
-                # Update last modified time on success
-                self.last_modified_time = file_path.stat().st_mtime
-
-                return {
-                    "success": True,
-                    "workouts_imported": imported_count,
-                    "duplicates_skipped": duplicates_count,
-                    "date_range": date_range,
-                    "timestamp": datetime.now().isoformat()
-                }
-
-            finally:
-                db.close()
+                finally:
+                    db.close()
 
         except Exception as e:
             logger.error(f"Auto-import error: {e}", exc_info=True)
@@ -202,13 +235,6 @@ class AutoImportService:
                 "error": str(e),
                 "timestamp": datetime.now().isoformat()
             }
-
-        finally:
-            # Cleanup temp directory
-            try:
-                shutil.rmtree(temp_dir)
-            except:
-                pass
 
     async def watch_loop(self):
         """Main loop that watches for file changes."""

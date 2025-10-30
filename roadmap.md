@@ -188,6 +188,9 @@
 - [ ] Test après re-export complet Apple Health
 - [ ] Test gestion erreurs (fichier corrompu, etc.)
 
+### Sécurité & Maintenance
+- [x] Sécuriser et nettoyer l'extraction Apple Health (validation des chemins, nettoyage automatique des temporaires)
+
 **Statut**: Backend et structure testés ✅, intégration API Claude à déboguer ⚠️
 
 ---

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import axios from 'axios'
 import { Sparkles, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface Workout {
   id: number
@@ -44,11 +45,11 @@ export default function WorkoutsPage() {
     setClassifying(true)
     try {
       const response = await axios.post('http://localhost:8000/api/workouts/classify')
-      alert(`Classification terminée ! ${response.data.classified} séances classifiées.`)
+      toast.success(`Classification terminée ! ${response.data.classified} séances classifiées.`)
       loadWorkouts() // Reload to show updated types
     } catch (error) {
       console.error('Error classifying workouts:', error)
-      alert('Erreur lors de la classification')
+      toast.error('Erreur lors de la classification')
     } finally {
       setClassifying(false)
     }

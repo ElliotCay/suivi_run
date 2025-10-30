@@ -128,29 +128,118 @@ class SuggestionResponse(SuggestionBase):
         from_attributes = True
 
 
+# Training Session schemas
+class TrainingSessionBase(BaseModel):
+    day_of_week: str
+    session_order: int
+    session_type: str
+    description: Optional[str] = None
+    distance: Optional[float] = None
+    pace_target: Optional[str] = None
+    structure: Optional[str] = None
+    notes: Optional[str] = None
+    status: Optional[str] = "scheduled"
+    scheduled_date: Optional[datetime] = None
+
+
+class TrainingSessionCreate(TrainingSessionBase):
+    week_id: int
+
+
+class TrainingSessionUpdate(BaseModel):
+    status: Optional[str] = None
+    completed_workout_id: Optional[int] = None
+
+
+class TrainingSessionResponse(TrainingSessionBase):
+    id: int
+    week_id: int
+    completed_workout_id: Optional[int] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# Training Week schemas
+class TrainingWeekBase(BaseModel):
+    week_number: int
+    phase: str
+    description: Optional[str] = None
+    status: Optional[str] = "pending"
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+
+
+class TrainingWeekCreate(TrainingWeekBase):
+    plan_id: int
+    sessions: Optional[List[TrainingSessionBase]] = None
+
+
+class TrainingWeekUpdate(BaseModel):
+    status: Optional[str] = None
+    description: Optional[str] = None
+
+
+class TrainingWeekResponse(TrainingWeekBase):
+    id: int
+    plan_id: int
+    sessions: List[TrainingSessionResponse] = []
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # Training Plan schemas
 class TrainingPlanBase(BaseModel):
     name: str
+    goal_type: str  # 5km, 10km, semi, marathon
+    target_date: Optional[datetime] = None
+    current_level: Optional[str] = None  # beginner, intermediate, advanced
+    weeks_count: int = 8
     start_date: datetime
     end_date: datetime
-    weeks: Optional[List[Dict[str, Any]]] = None
-    target_event: Optional[str] = None
     status: Optional[str] = "active"
 
 
-class TrainingPlanCreate(TrainingPlanBase):
-    user_id: int
+class TrainingPlanCreate(BaseModel):
+    name: str
+    goal_type: str
+    target_date: Optional[datetime] = None
+    current_level: Optional[str] = None
+    weeks_count: int = 8
+    use_sonnet: bool = True
 
 
 class TrainingPlanUpdate(BaseModel):
     name: Optional[str] = None
     status: Optional[str] = None
-    weeks: Optional[List[Dict[str, Any]]] = None
+    target_date: Optional[datetime] = None
 
 
 class TrainingPlanResponse(TrainingPlanBase):
     id: int
     user_id: int
+    weeks: List[TrainingWeekResponse] = []
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TrainingPlanListResponse(BaseModel):
+    id: int
+    user_id: int
+    name: str
+    goal_type: str
+    target_date: Optional[datetime] = None
+    weeks_count: int
+    start_date: datetime
+    end_date: datetime
+    status: str
+    progress_percentage: float = 0.0
     created_at: datetime
 
     class Config:
@@ -175,6 +264,32 @@ class PersonalRecordResponse(BaseModel):
     notes: Optional[str]
     created_at: datetime
     superseded_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+# User Preferences schemas
+class UserPreferencesBase(BaseModel):
+    preferred_days: Optional[List[str]] = None  # ["monday", "wednesday", "friday"]
+    preferred_time: Optional[str] = None  # "18:00"
+    calendar_sync_enabled: Optional[bool] = False
+    reminder_minutes: Optional[List[int]] = None  # [15, 60, 1440]
+
+
+class UserPreferencesCreate(UserPreferencesBase):
+    user_id: int
+
+
+class UserPreferencesUpdate(UserPreferencesBase):
+    pass
+
+
+class UserPreferencesResponse(UserPreferencesBase):
+    id: int
+    user_id: int
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         from_attributes = True

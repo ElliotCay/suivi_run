@@ -290,3 +290,253 @@ def parse_suggestion_response(content: str) -> Dict[str, Any]:
             "structure": "Échauffement: 10 min de marche\nCorps de séance: 5km facile\nRetour au calme: 5 min étirements",
             "raison": "Consolidation\nPrévention blessure\nPréparation séance qualité"
         }
+
+
+def build_training_plan_prompt(
+    user_profile: Dict,
+    recent_workouts: List,
+    goal_type: str,
+    weeks_count: int = 8,
+    current_level: str = "intermediate"
+) -> str:
+    """
+    Build prompt for generating a complete training plan (8-12 weeks).
+
+    Args:
+        user_profile: User profile dictionary
+        recent_workouts: List of recent workouts (last 4 weeks)
+        goal_type: Training goal (5km, 10km, semi, marathon)
+        weeks_count: Number of weeks (8-12)
+        current_level: Current fitness level (beginner, intermediate, advanced)
+
+    Returns:
+        Formatted prompt for Claude
+    """
+    # Format workout history
+    workout_lines = []
+    for w in recent_workouts[:20]:
+        date_str = w.date.strftime("%Y-%m-%d")
+        duration_min = w.duration // 60 if w.duration else 0
+        workout_lines.append(
+            f"- {date_str}: {w.distance:.1f}km en {duration_min}min, "
+            f"FC moy {w.avg_hr or 'N/A'} bpm, Type: {w.workout_type or 'non défini'}"
+        )
+
+    history_text = "\n".join(workout_lines) if workout_lines else "Aucune séance récente"
+
+    current_level_info = user_profile.get('current_level', {})
+    easy_pace = current_level_info.get('easy_pace', '6:00/km')
+    tempo_pace = current_level_info.get('tempo_pace', '5:30/km')
+    volume = user_profile.get('weekly_volume', 23)
+
+    # Calculate phase distribution
+    base_weeks = int(weeks_count * 0.30)
+    build_weeks = int(weeks_count * 0.40)
+    peak_weeks = int(weeks_count * 0.20)
+    taper_weeks = weeks_count - (base_weeks + build_weeks + peak_weeks)
+
+    prompt = f"""Tu es un coach running expert en périodisation et prévention des blessures.
+
+PROFIL UTILISATEUR:
+- Niveau actuel: {current_level}
+- Allure facile: {easy_pace}
+- Allure tempo: {tempo_pace}
+- Volume hebdo actuel: {volume} km
+- Objectif: {goal_type.upper()}
+- Durée du plan: {weeks_count} semaines
+
+HISTORIQUE 4 DERNIÈRES SEMAINES:
+{history_text}
+
+CONSIGNE:
+Crée-moi un plan d'entraînement complet de {weeks_count} semaines avec périodisation:
+
+PÉRIODISATION:
+- Phase BASE ({base_weeks} semaines): Endurance fondamentale, construction volume progressif
+- Phase BUILD ({build_weeks} semaines): Introduction qualité (tempo, seuil, VMA), maintien volume
+- Phase PEAK ({peak_weeks} semaines): Intensité maximale, séances spécifiques objectif
+- Phase TAPER ({taper_weeks} semaines): Réduction volume (-30-50%), maintien intensité
+
+RÈGLES STRICTES:
+- Max +10% volume par semaine
+- 3 séances/semaine (facile, qualité, longue)
+- Semaine récupération toutes les 3-4 semaines (-20% volume)
+- Progression graduelle: 80% facile en phase base → 70% en build → 60% en peak
+- Toujours 1 jour repos entre runs
+
+RÉPONDS EN FORMAT JSON STRICT (sans markdown):
+{{
+  "plan_name": "Plan {goal_type.upper()} - {weeks_count} semaines",
+  "weeks": [
+    {{
+      "week_number": 1,
+      "phase": "base",
+      "description": "Description objectif de la semaine",
+      "sessions": [
+        {{
+          "day": "Lundi",
+          "order": 1,
+          "type": "facile",
+          "distance_km": 7.0,
+          "pace_target": "6:00-6:15/km",
+          "structure": "Échauffement: description\nCorps de séance: description\nRetour au calme: description",
+          "reasoning": "Raison 1\nRaison 2\nRaison 3"
+        }},
+        {{
+          "day": "Jeudi",
+          "order": 2,
+          "type": "tempo",
+          "distance_km": 8.0,
+          "pace_target": "5:30-5:40/km",
+          "structure": "Échauffement: description\nCorps de séance: description\nRetour au calme: description",
+          "reasoning": "Raison 1\nRaison 2\nRaison 3"
+        }},
+        {{
+          "day": "Dimanche",
+          "order": 3,
+          "type": "longue",
+          "distance_km": 10.0,
+          "pace_target": "6:00-6:15/km",
+          "structure": "Échauffement: description\nCorps de séance: description\nRetour au calme: description",
+          "reasoning": "Raison 1\nRaison 2\nRaison 3"
+        }}
+      ]
+    }}
+  ]
+}}
+
+IMPORTANT:
+- Génère EXACTEMENT {weeks_count} semaines
+- Volume total/semaine doit progresser de {volume}km à {volume * 1.5:.0f}km environ
+- Types de séances: facile, tempo, fractionne, longue
+- Chaque semaine doit avoir EXACTEMENT 3 séances
+- Respecter la périodisation (phases base/build/peak/taper)
+"""
+    return prompt
+
+
+def generate_training_plan(
+    user_profile: Dict,
+    recent_workouts: List,
+    goal_type: str,
+    weeks_count: int = 8,
+    current_level: str = "intermediate",
+    use_sonnet: bool = True
+) -> Dict[str, Any]:
+    """
+    Generate a complete training plan via Claude API.
+
+    Args:
+        user_profile: User profile dictionary
+        recent_workouts: List of recent workouts
+        goal_type: Training goal (5km, 10km, semi, marathon)
+        weeks_count: Number of weeks (8-12)
+        current_level: Current fitness level
+        use_sonnet: Use Sonnet (True) or Haiku (False)
+
+    Returns:
+        Dictionary with plan_name, weeks array, and API metadata
+    """
+    prompt = build_training_plan_prompt(
+        user_profile,
+        recent_workouts,
+        goal_type,
+        weeks_count,
+        current_level
+    )
+
+    response = call_claude_api(prompt, use_sonnet=use_sonnet)
+    plan_data = parse_suggestion_response(response["content"])
+
+    return {
+        "plan_data": plan_data,
+        "model_used": response["model"],
+        "tokens_used": response["tokens"]
+    }
+
+
+def build_adapt_plan_prompt(
+    plan_data: Dict,
+    missed_sessions: List[Dict],
+    user_feedback: str
+) -> str:
+    """
+    Build prompt for adapting an existing training plan based on performance.
+
+    Args:
+        plan_data: Current training plan data
+        missed_sessions: List of missed/skipped sessions
+        user_feedback: User feedback (fatigue, injury, feeling great, etc.)
+
+    Returns:
+        Formatted prompt for Claude
+    """
+    missed_count = len(missed_sessions)
+    missed_text = "\n".join([
+        f"- Semaine {s['week']}, {s['day']}: {s['type']} {s['distance']}km (raison: {s.get('reason', 'non précisée')})"
+        for s in missed_sessions[:10]
+    ])
+
+    prompt = f"""Tu es un coach running expert en adaptation de plans d'entraînement.
+
+SITUATION ACTUELLE:
+- Plan en cours: {plan_data.get('plan_name', 'Plan d\'entraînement')}
+- Semaines restantes: {plan_data.get('remaining_weeks', 'N/A')}
+- Séances manquées: {missed_count}
+
+SÉANCES MANQUÉES:
+{missed_text if missed_text else "Aucune séance manquée"}
+
+FEEDBACK UTILISATEUR:
+{user_feedback}
+
+CONSIGNE:
+Propose des ajustements au plan pour les prochaines semaines. Considère:
+1. Réduire/augmenter le volume si signes de fatigue/surentraînement
+2. Réorganiser les séances si pattern de séances manquées
+3. Ajuster l'intensité selon le ressenti
+4. Maintenir la périodisation globale
+
+RÉPONDS EN FORMAT JSON:
+{{
+  "analysis": "Analyse de la situation en 2-3 phrases",
+  "adjustments": [
+    {{
+      "week_number": 5,
+      "changes": "Description des changements pour cette semaine",
+      "reasoning": "Pourquoi ces changements"
+    }}
+  ],
+  "recommendation": "Recommandation générale pour la suite"
+}}
+"""
+    return prompt
+
+
+def adapt_training_plan(
+    plan_data: Dict,
+    missed_sessions: List[Dict],
+    user_feedback: str,
+    use_sonnet: bool = True
+) -> Dict[str, Any]:
+    """
+    Adapt a training plan based on user performance and feedback.
+
+    Args:
+        plan_data: Current plan data
+        missed_sessions: List of missed sessions
+        user_feedback: User feedback text
+        use_sonnet: Use Sonnet vs Haiku
+
+    Returns:
+        Adaptation recommendations
+    """
+    prompt = build_adapt_plan_prompt(plan_data, missed_sessions, user_feedback)
+    response = call_claude_api(prompt, use_sonnet=use_sonnet)
+    adaptation = parse_suggestion_response(response["content"])
+
+    return {
+        "adaptation": adaptation,
+        "model_used": response["model"],
+        "tokens_used": response["tokens"]
+    }

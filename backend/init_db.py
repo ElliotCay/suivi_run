@@ -5,7 +5,7 @@ Creates all tables and seeds initial data.
 """
 
 from database import Base, engine, SessionLocal
-from models import User, Workout, StrengthSession, Suggestion, TrainingPlan
+from models import User, Workout, StrengthSession, Suggestion, TrainingPlan, TrainingWeek, TrainingSession, PersonalRecord, UserPreferences
 import logging
 
 logging.basicConfig(level=logging.INFO)

@@ -70,12 +70,16 @@ export function ImportResults({ result }: ImportResultsProps) {
                 Période couverte
               </p>
             </div>
-            <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-              {formatDate(result.date_range.start)}
-            </p>
-            <p className="text-xs text-blue-700 dark:text-blue-300">
-              au {formatDate(result.date_range.end)}
-            </p>
+            {result.date_range && (
+              <>
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  {formatDate(result.date_range.start)}
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  au {formatDate(result.date_range.end)}
+                </p>
+              </>
+            )}
           </div>
         </div>
 

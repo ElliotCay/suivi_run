@@ -3,7 +3,8 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Home, Activity, BarChart3, Sparkles, User, Upload, Award } from 'lucide-react'
+import { Home, Activity, BarChart3, Sparkles, User, Upload, Award, Settings, Calendar } from 'lucide-react'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 const navItems = [
   { href: '/', label: 'Accueil', icon: Home },
@@ -11,7 +12,9 @@ const navItems = [
   { href: '/workouts', label: 'Séances', icon: Activity },
   { href: '/records', label: 'Records', icon: Award },
   { href: '/suggestions', label: 'Suggestions', icon: Sparkles },
+  { href: '/training-plans', label: 'Plans', icon: Calendar },
   { href: '/profile', label: 'Profil', icon: User },
+  { href: '/settings', label: 'Paramètres', icon: Settings },
   { href: '/import', label: 'Import', icon: Upload },
 ]
 
@@ -48,6 +51,7 @@ export default function Navigation() {
                 </Link>
               )
             })}
+            <ThemeToggle />
           </div>
         </div>
       </div>

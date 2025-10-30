@@ -19,6 +19,7 @@ interface Suggestion {
     allure_cible: string
     structure: string
     raison: string
+    day?: string
   }
   reasoning: string | null
   model_used: string
@@ -305,7 +306,7 @@ export default function SuggestionsPage() {
                     <div>
                       <h3 className="font-semibold mb-2">Raison</h3>
                       <ul className="text-sm text-muted-foreground space-y-1.5 list-none">
-                        {(suggestion.structure?.raison || suggestion.reasoning)
+                        {(suggestion.structure?.raison || suggestion.reasoning || '')
                           .split('\n')
                           .filter((line: string) => line.trim())
                           .map((line: string, index: number) => (

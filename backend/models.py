@@ -5,7 +5,7 @@ SQLAlchemy database models for the running tracking application.
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, JSON, Text
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, JSON, Text, Boolean
 from sqlalchemy.orm import relationship
 
 from database import Base
@@ -33,6 +33,7 @@ class User(Base):
     strength_sessions = relationship("StrengthSession", back_populates="user")
     suggestions = relationship("Suggestion", back_populates="user")
     training_plans = relationship("TrainingPlan", back_populates="user")
+    preferences = relationship("UserPreferences", back_populates="user", uselist=False)
 
 
 class Workout(Base):
@@ -112,15 +113,64 @@ class TrainingPlan(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     name = Column(String, nullable=False)
+    goal_type = Column(String, nullable=False)  # 5km, 10km, semi, marathon
+    target_date = Column(DateTime, nullable=True)
+    current_level = Column(String, nullable=True)  # beginner, intermediate, advanced
+    weeks_count = Column(Integer, nullable=False, default=8)  # 8-12 weeks
     start_date = Column(DateTime, nullable=False)
     end_date = Column(DateTime, nullable=False)
-    weeks = Column(JSON, nullable=True)  # Weekly structure with workouts
-    target_event = Column(String, nullable=True)  # e.g., 10K, Half Marathon, Marathon
-    status = Column(String, default="active")  # active, completed, paused
+    status = Column(String, default="active")  # active, completed, paused, abandoned
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
     user = relationship("User", back_populates="training_plans")
+    weeks = relationship("TrainingWeek", back_populates="plan", cascade="all, delete-orphan")
+
+
+class TrainingWeek(Base):
+    """Training week model - each week in a training plan."""
+
+    __tablename__ = "training_weeks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    plan_id = Column(Integer, ForeignKey("training_plans.id"), nullable=False)
+    week_number = Column(Integer, nullable=False)  # 1-12
+    phase = Column(String, nullable=False)  # base, build, peak, taper
+    description = Column(Text, nullable=True)  # Week objective
+    status = Column(String, default="pending")  # pending, in_progress, completed
+    start_date = Column(DateTime, nullable=True)
+    end_date = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    plan = relationship("TrainingPlan", back_populates="weeks")
+    sessions = relationship("TrainingSession", back_populates="week", cascade="all, delete-orphan")
+
+
+class TrainingSession(Base):
+    """Individual training session within a week."""
+
+    __tablename__ = "training_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    week_id = Column(Integer, ForeignKey("training_weeks.id"), nullable=False)
+    day_of_week = Column(String, nullable=False)  # Lundi, Mardi, etc.
+    session_order = Column(Integer, nullable=False)  # 1, 2, 3 for ordering
+    session_type = Column(String, nullable=False)  # VMA, Tempo, Endurance, Sortie Longue
+    description = Column(Text, nullable=True)  # Description courte
+    distance = Column(Float, nullable=True)
+    pace_target = Column(String, nullable=True)  # "6:00/km" or "5:30-5:40/km"
+    structure = Column(Text, nullable=True)  # Echauffement, corps, retour au calme
+    notes = Column(Text, nullable=True)  # Notes additionnelles
+    status = Column(String, default="scheduled")  # scheduled, completed, missed
+    scheduled_date = Column(DateTime, nullable=True)  # Date planifiée
+    completed_workout_id = Column(Integer, ForeignKey("workouts.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    week = relationship("TrainingWeek", back_populates="sessions")
+    completed_workout = relationship("Workout", foreign_keys=[completed_workout_id])
 
 
 class PersonalRecord(Base):
@@ -140,3 +190,21 @@ class PersonalRecord(Base):
 
     # Relationships
     user = relationship("User")
+
+
+class UserPreferences(Base):
+    """User preferences model for calendar sync and workout scheduling."""
+
+    __tablename__ = "user_preferences"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+    preferred_days = Column(JSON, nullable=True)  # e.g., ["tuesday", "thursday", "saturday"]
+    preferred_time = Column(String, nullable=True)  # e.g., "18:00"
+    calendar_sync_enabled = Column(Boolean, default=False)
+    reminder_minutes = Column(JSON, nullable=True)  # e.g., [15, 60, 1440] for 15min, 1h, 1 day
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User", back_populates="preferences")

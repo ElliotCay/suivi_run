@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import axios from 'axios'
 import { Award, Plus, History, Edit2, Save, X } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface PersonalRecord {
   id: number
@@ -120,7 +121,7 @@ export default function RecordsPage() {
 
   const saveRecord = async () => {
     if (!formData.distance || !formData.minutes || !formData.seconds) {
-      alert('Veuillez remplir tous les champs obligatoires')
+      toast.error('Veuillez remplir tous les champs obligatoires')
       return
     }
 
@@ -134,12 +135,12 @@ export default function RecordsPage() {
         notes: formData.notes || null
       })
 
-      alert('Record enregistré !')
+      toast.success('Record enregistré !')
       loadRecords()
       cancelEdit()
     } catch (error: any) {
       const errorMessage = error.response?.data?.detail || 'Erreur lors de l\'enregistrement'
-      alert(errorMessage)
+      toast.error(errorMessage)
     }
   }
 

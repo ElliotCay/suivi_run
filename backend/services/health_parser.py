@@ -59,16 +59,43 @@ def extract_zip(zip_path: str) -> Iterator[Path]:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 
-def _safe_extract(zip_ref: zipfile.ZipFile, target_dir: Path) -> None:
-    """Extract ZIP members while preventing path traversal attacks."""
+def _safe_extract(
+    zip_ref: zipfile.ZipFile,
+    target_dir: Path,
+    max_size: int = 500 * 1024 * 1024  # 500MB default limit
+) -> None:
+    """Extract ZIP members while preventing path traversal attacks and ZIP bombs.
+
+    Args:
+        zip_ref: The ZIP file to extract.
+        target_dir: Directory to extract files into.
+        max_size: Maximum allowed uncompressed size in bytes (default: 500MB).
+
+    Raises:
+        ValueError: If path traversal is detected or uncompressed size exceeds limit.
+    """
 
     target_root = target_dir.resolve()
 
+    # Calculate total uncompressed size to prevent ZIP bombs
+    total_size = sum(info.file_size for info in zip_ref.infolist())
+    if total_size > max_size:
+        logger.warning(
+            "ZIP bomb detected: uncompressed size %d bytes exceeds limit %d bytes",
+            total_size,
+            max_size
+        )
+        raise ValueError(
+            f"Uncompressed size {total_size} bytes exceeds limit {max_size} bytes"
+        )
+
+    # Validate paths to prevent traversal attacks
     for member in zip_ref.infolist():
         member_path = target_dir / member.filename
         resolved_path = member_path.resolve()
 
         if not str(resolved_path).startswith(str(target_root)):
+            logger.warning("Path traversal attempt detected: %s", member.filename)
             raise ValueError(
                 f"Unsafe ZIP entry detected: {member.filename}"
             )

@@ -190,8 +190,12 @@
 
 ### Sécurité & Maintenance
 - [x] Sécuriser et nettoyer l'extraction Apple Health (validation des chemins, nettoyage automatique des temporaires)
+- [x] Protection contre les attaques Path Traversal
+- [x] Protection contre les ZIP bombs (limite 500MB décompressé)
+- [x] Monitoring de sécurité avec logs d'alertes
+- [x] Tests unitaires complets pour les fonctions de sécurité (13 tests)
 
-**Statut**: Backend et structure testés ✅, intégration API Claude à déboguer ⚠️
+**Statut**: Backend et structure testés ✅, sécurité renforcée ✅, intégration API Claude à déboguer ⚠️
 
 ---
 

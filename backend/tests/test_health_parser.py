@@ -3,12 +3,20 @@
 import os
 import tempfile
 import zipfile
+from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 
-from services.health_parser import extract_zip, _safe_extract, _locate_export_xml
+from services.health_parser import (
+    check_duplicate,
+    extract_zip,
+    merge_gpx_raw_data,
+    _locate_export_xml,
+    _safe_extract,
+)
 
 
 class TestSecureExtraction:
@@ -203,6 +211,58 @@ class TestLocateExportXml:
             # Should prefer standard location
             assert result == standard_file
             assert result.read_text() == "<xml>standard</xml>"
+
+
+class TestGpxMergeAndDeduplication:
+    """Test helpers related to GPX merging and duplicate detection."""
+
+    def test_merge_gpx_raw_data_updates_best_efforts(self):
+        existing_raw = {'notes': 'keep me', 'gpx': {'splits': [1, 2, 3]}}
+        gpx_data = {
+            'splits': [4, 5, 6],
+            'pace_variability': 0.12,
+            'best_efforts': {'1km': {'time_seconds': 260}},
+        }
+
+        merged = merge_gpx_raw_data(existing_raw, gpx_data)
+
+        assert merged['notes'] == 'keep me'
+        assert merged['gpx']['splits'] == [4, 5, 6]
+        assert merged['gpx']['pace_variability'] == 0.12
+        assert merged['gpx']['best_efforts']['1km']['time_seconds'] == 260
+
+    def test_check_duplicate_returns_matching_workout(self):
+        start_time = datetime(2024, 1, 1, 7, 0, 0)
+        candidate = SimpleNamespace(
+            date=start_time,
+            distance=5.01,
+            duration=1500,
+            raw_data=None,
+        )
+
+        result = check_duplicate(
+            {
+                'date': start_time,
+                'distance': 5.0,
+                'duration': 1500,
+            },
+            [candidate],
+        )
+
+        assert result is candidate
+
+    def test_check_duplicate_returns_none_when_not_found(self):
+        start_time = datetime(2024, 1, 1, 7, 0, 0)
+        result = check_duplicate(
+            {
+                'date': start_time,
+                'distance': 5.0,
+                'duration': 1500,
+            },
+            [],
+        )
+
+        assert result is None
 
 
 class TestStreamingUpload:

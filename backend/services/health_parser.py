@@ -415,19 +415,32 @@ def _extract_elevation(workout_elem) -> Optional[float]:
         return None
 
 
+def merge_gpx_raw_data(existing_raw: Optional[Dict], gpx_data: Dict) -> Dict:
+    """Merge GPX-derived metrics into a workout's ``raw_data`` field."""
+
+    merged_raw: Dict = dict(existing_raw) if isinstance(existing_raw, dict) else {}
+    existing_gpx = merged_raw.get('gpx') if isinstance(merged_raw.get('gpx'), dict) else {}
+
+    gpx_section = dict(existing_gpx)
+    for key in (
+        'splits',
+        'pace_variability',
+        'laps',
+        'elevation_gain',
+        'trackpoint_count',
+        'best_efforts',
+    ):
+        if key in gpx_data:
+            gpx_section[key] = gpx_data[key]
+
+    merged_raw['gpx'] = gpx_section
+    return merged_raw
+
+
 def check_duplicate(
     workout_dict: Dict, existing_workouts: List
-) -> bool:
-    """
-    Check if a workout is a duplicate of an existing workout.
-
-    Args:
-        workout_dict: Workout data dictionary to check
-        existing_workouts: List of existing workout objects from database
-
-    Returns:
-        bool: True if duplicate found, False otherwise
-    """
+) -> Optional[object]:
+    """Return the matching workout when a duplicate is detected."""
     workout_date = workout_dict["date"]
     workout_distance = workout_dict["distance"]
     workout_duration = workout_dict["duration"]
@@ -460,6 +473,6 @@ def check_duplicate(
             f"Duplicate found: {workout_date.date()} - "
             f"{workout_distance}km - {workout_duration}s"
         )
-        return True
+        return existing
 
-    return False
+    return None

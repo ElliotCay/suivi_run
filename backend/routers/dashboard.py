@@ -136,49 +136,102 @@ async def get_personal_records(
         {"name": "marathon", "target": 42.2, "min": 41.5, "max": 43.0},
     ]
 
+    workouts = db.query(Workout).filter(Workout.user_id == user_id).all()
+
+    def format_mmss(seconds: Optional[float]) -> Optional[str]:
+        if seconds is None:
+            return None
+        total_seconds = int(round(seconds))
+        minutes, secs = divmod(total_seconds, 60)
+        return f"{minutes}:{secs:02d}"
+
+    def default_record(distance_config: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "distance": distance_config["name"],
+            "target_km": distance_config["target"],
+            "best_pace_seconds_per_km": None,
+            "best_pace_display": None,
+            "date": None,
+            "actual_distance": None,
+            "workout_type": None,
+            "segment_time_seconds": None,
+            "segment_time_display": None,
+            "source": None,
+        }
+
     records = []
 
     for distance_config in distance_targets:
-        # Query workouts within distance range that have pace data
-        workouts_in_range = db.query(Workout).filter(
-            and_(
-                Workout.user_id == user_id,
-                Workout.distance >= distance_config["min"],
-                Workout.distance <= distance_config["max"],
-                Workout.avg_pace.isnot(None),
-                Workout.avg_pace > 0
-            )
-        ).all()
+        best_record: Optional[Dict[str, Any]] = None
 
-        if workouts_in_range:
-            # Find workout with best (minimum) pace
-            best_workout = min(workouts_in_range, key=lambda w: w.avg_pace)
+        # First, look for GPX-derived best efforts (Strava-like segments)
+        for workout in workouts:
+            raw_data = workout.raw_data if isinstance(workout.raw_data, dict) else None
+            gpx_data = raw_data.get("gpx") if raw_data else None
+            if not gpx_data:
+                continue
+            best_efforts = gpx_data.get("best_efforts") or {}
+            effort = best_efforts.get(distance_config["name"])
+            if not effort:
+                continue
 
-            # Convert pace to minutes:seconds format
-            pace_seconds = best_workout.avg_pace
-            pace_minutes = int(pace_seconds // 60)
-            pace_secs = int(pace_seconds % 60)
+            pace_seconds = effort.get("pace_seconds_per_km")
+            time_seconds = effort.get("time_seconds")
+            if pace_seconds is None and time_seconds and distance_config["target"] > 0:
+                pace_seconds = time_seconds / distance_config["target"]
 
-            records.append({
-                "distance": distance_config["name"],
-                "target_km": distance_config["target"],
-                "best_pace_seconds_per_km": pace_seconds,
-                "best_pace_display": f"{pace_minutes}:{pace_secs:02d}",
-                "date": best_workout.date.isoformat(),
-                "actual_distance": round(best_workout.distance, 2),
-                "workout_type": best_workout.workout_type
-            })
-        else:
-            # No record for this distance yet
-            records.append({
-                "distance": distance_config["name"],
-                "target_km": distance_config["target"],
-                "best_pace_seconds_per_km": None,
-                "best_pace_display": None,
-                "date": None,
-                "actual_distance": None,
-                "workout_type": None
-            })
+            if not pace_seconds or pace_seconds <= 0:
+                continue
+
+            if (
+                best_record is None
+                or pace_seconds < best_record["best_pace_seconds_per_km"]
+            ):
+                best_record = {
+                    "distance": distance_config["name"],
+                    "target_km": distance_config["target"],
+                    "best_pace_seconds_per_km": pace_seconds,
+                    "best_pace_display": format_mmss(pace_seconds),
+                    "date": workout.date.isoformat() if workout.date else None,
+                    "actual_distance": round(
+                        (effort.get("distance_m") or distance_config["target"] * 1000) / 1000,
+                        2,
+                    ),
+                    "workout_type": workout.workout_type,
+                    "segment_time_seconds": time_seconds,
+                    "segment_time_display": format_mmss(time_seconds) if time_seconds else None,
+                    "source": "best_effort",
+                }
+
+        # Fallback: use workout-level average pace if no best effort available
+        if best_record is None:
+            workouts_in_range = [
+                w
+                for w in workouts
+                if w.distance is not None
+                and w.avg_pace is not None
+                and w.avg_pace > 0
+                and w.distance >= distance_config["min"]
+                and w.distance <= distance_config["max"]
+            ]
+
+            if workouts_in_range:
+                best_workout = min(workouts_in_range, key=lambda w: w.avg_pace)
+                pace_seconds = best_workout.avg_pace
+                best_record = {
+                    "distance": distance_config["name"],
+                    "target_km": distance_config["target"],
+                    "best_pace_seconds_per_km": pace_seconds,
+                    "best_pace_display": format_mmss(pace_seconds),
+                    "date": best_workout.date.isoformat() if best_workout.date else None,
+                    "actual_distance": round(best_workout.distance, 2),
+                    "workout_type": best_workout.workout_type,
+                    "segment_time_seconds": None,
+                    "segment_time_display": None,
+                    "source": "workout_avg",
+                }
+
+        records.append(best_record or default_record(distance_config))
 
     return records
 

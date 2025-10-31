@@ -169,7 +169,8 @@ class AutoImportService:
                                 'pace_variability': gpx_data.get('pace_variability', 0),
                                 'laps': gpx_data.get('laps', []),
                                 'elevation_gain': gpx_data.get('elevation_gain', 0),
-                                'trackpoint_count': gpx_data.get('trackpoint_count', 0)
+                                'trackpoint_count': gpx_data.get('trackpoint_count', 0),
+                                'best_efforts': gpx_data.get('best_efforts', {}),
                             }
 
                         new_workout = Workout(

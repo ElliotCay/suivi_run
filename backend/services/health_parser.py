@@ -1,62 +1,120 @@
-"""
-Apple Health XML parser for extracting running workout data.
-"""
+"""Apple Health XML parser for extracting running workout data."""
 
 import logging
 import os
+import shutil
 import tempfile
 import zipfile
+from contextlib import contextmanager
 from datetime import datetime
-from typing import Dict, List, Optional
+from pathlib import Path
+from typing import Dict, Iterator, List, Optional
 
 from lxml import etree
-from .gpx_parser import parse_gpx_file, match_gpx_to_workout
+
+from .gpx_parser import match_gpx_to_workout, parse_gpx_file
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def extract_zip(zip_path: str) -> str:
-    """
-    Extract ZIP file to temp directory and return path to export.xml.
+@contextmanager
+def extract_zip(zip_path: str) -> Iterator[Path]:
+    """Safely extract a ZIP archive and yield the path to ``export.xml``.
+
+    The extraction happens inside an isolated temporary directory that is
+    automatically cleaned up when the context manager exits.
 
     Args:
-        zip_path: Path to the Apple Health export ZIP file
+        zip_path: Path to the Apple Health export ZIP file.
 
-    Returns:
-        str: Path to the extracted export.xml file
+    Yields:
+        Path: Path object pointing to the extracted ``export.xml`` file.
 
     Raises:
-        ValueError: If ZIP is invalid or export.xml is missing
-        zipfile.BadZipFile: If the file is not a valid ZIP
+        ValueError: If the archive does not contain ``export.xml`` or if a
+            member attempts to escape the extraction directory.
+        zipfile.BadZipFile: If the file is not a valid ZIP archive.
     """
+
+    temp_dir = Path(tempfile.mkdtemp(prefix="apple_health_"))
+    logger.info("Extracting ZIP to temporary directory: %s", temp_dir)
+
     try:
-        # Create temp directory for extraction
-        temp_dir = tempfile.mkdtemp(prefix="apple_health_")
-        logger.info(f"Extracting ZIP to temporary directory: {temp_dir}")
-
-        # Extract ZIP file
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            zip_ref.extractall(temp_dir)
+            _safe_extract(zip_ref, temp_dir)
 
-        # Look for export.xml in the extracted files
-        export_xml_path = os.path.join(temp_dir, "apple_health_export", "export.xml")
-        if not os.path.exists(export_xml_path):
-            # Try alternative path (some exports might have different structure)
-            export_xml_path = os.path.join(temp_dir, "export.xml")
-            if not os.path.exists(export_xml_path):
-                raise ValueError("export.xml not found in ZIP archive")
+        export_xml_path = _locate_export_xml(temp_dir)
+        logger.info("Found export.xml at: %s", export_xml_path)
+        yield export_xml_path
 
-        logger.info(f"Found export.xml at: {export_xml_path}")
-        return export_xml_path
-
-    except zipfile.BadZipFile as e:
-        logger.error(f"Invalid ZIP file: {e}")
+    except zipfile.BadZipFile:
+        logger.exception("Invalid ZIP file")
         raise
-    except Exception as e:
-        logger.error(f"Error extracting ZIP: {e}")
+    except Exception:
+        logger.exception("Error extracting ZIP")
         raise
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def _safe_extract(
+    zip_ref: zipfile.ZipFile,
+    target_dir: Path,
+    max_size: int = 500 * 1024 * 1024  # 500MB default limit
+) -> None:
+    """Extract ZIP members while preventing path traversal attacks and ZIP bombs.
+
+    Args:
+        zip_ref: The ZIP file to extract.
+        target_dir: Directory to extract files into.
+        max_size: Maximum allowed uncompressed size in bytes (default: 500MB).
+
+    Raises:
+        ValueError: If path traversal is detected or uncompressed size exceeds limit.
+    """
+
+    target_root = target_dir.resolve()
+
+    # Calculate total uncompressed size to prevent ZIP bombs
+    total_size = sum(info.file_size for info in zip_ref.infolist())
+    if total_size > max_size:
+        logger.warning(
+            "ZIP bomb detected: uncompressed size %d bytes exceeds limit %d bytes",
+            total_size,
+            max_size
+        )
+        raise ValueError(
+            f"Uncompressed size {total_size} bytes exceeds limit {max_size} bytes"
+        )
+
+    # Validate paths to prevent traversal attacks
+    for member in zip_ref.infolist():
+        member_path = target_dir / member.filename
+        resolved_path = member_path.resolve()
+
+        if not str(resolved_path).startswith(str(target_root)):
+            logger.warning("Path traversal attempt detected: %s", member.filename)
+            raise ValueError(
+                f"Unsafe ZIP entry detected: {member.filename}"
+            )
+
+    zip_ref.extractall(target_dir)
+
+
+def _locate_export_xml(extracted_dir: Path) -> Path:
+    """Find the export.xml file inside the extracted archive."""
+
+    primary = extracted_dir / "apple_health_export" / "export.xml"
+    if primary.exists():
+        return primary
+
+    fallback = extracted_dir / "export.xml"
+    if fallback.exists():
+        return fallback
+
+    raise ValueError("export.xml not found in ZIP archive")
 
 
 def parse_workouts_xml(xml_path: str) -> List[Dict]:

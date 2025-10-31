@@ -10,7 +10,12 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from models import Workout
-from services.health_parser import check_duplicate, extract_zip, parse_workouts_xml
+from services.health_parser import (
+    check_duplicate,
+    extract_zip,
+    merge_gpx_raw_data,
+    parse_workouts_xml,
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -110,13 +115,7 @@ async def import_apple_health(
                     else:
                         date_key = existing.date
 
-                    existing_index[date_key].append(
-                        {
-                            'date': date_key,
-                            'distance': existing.distance,
-                            'duration': existing.duration
-                        }
-                    )
+                    existing_index[date_key].append(existing)
 
                 # Import workouts
                 imported_count = 0
@@ -136,8 +135,19 @@ async def import_apple_health(
                         continue
 
                     candidates = existing_index.get(date_key, [])
-                    if check_duplicate(workout_data, candidates):
+                    duplicate_entry = check_duplicate(workout_data, candidates)
+                    if duplicate_entry:
                         duplicates_count += 1
+
+                        if (
+                            'gpx_data' in workout_data
+                            and hasattr(duplicate_entry, 'raw_data')
+                        ):
+                            gpx_data = workout_data['gpx_data']
+                            duplicate_entry.raw_data = merge_gpx_raw_data(
+                                duplicate_entry.raw_data,
+                                gpx_data,
+                            )
                         continue
 
                     # avg_pace is already in seconds/km from the parser
@@ -179,13 +189,7 @@ async def import_apple_health(
                     imported_count += 1
                     dates.append(date_key)
 
-                    existing_index[date_key].append(
-                        {
-                            'date': date_key,
-                            'distance': workout_data['distance'],
-                            'duration': workout_data['duration']
-                        }
-                    )
+                    existing_index[date_key].append(new_workout)
 
                 # Commit all workouts
                 db.commit()

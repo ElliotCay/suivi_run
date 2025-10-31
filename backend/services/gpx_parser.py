@@ -4,7 +4,7 @@ Parses second-by-second GPS data to calculate splits, pace variability, and lap 
 """
 
 import xml.etree.ElementTree as ET
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 import math
 import logging
@@ -90,33 +90,59 @@ def parse_gpx_file(file_path: str) -> Optional[Dict]:
         total_distance = 0
         cumulative_data = []
 
-        for i in range(len(trackpoints)):
-            if i > 0:
-                dist = haversine_distance(
-                    trackpoints[i-1]['lat'], trackpoints[i-1]['lon'],
-                    trackpoints[i]['lat'], trackpoints[i]['lon']
-                )
-                total_distance += dist
+        distance_time_series = []
+        elapsed_time = 0.0
 
-                # Calculate time difference
-                time_diff = 0
-                if trackpoints[i]['timestamp'] and trackpoints[i-1]['timestamp']:
-                    time_diff = (trackpoints[i]['timestamp'] - trackpoints[i-1]['timestamp']).total_seconds()
+        if trackpoints[0]['timestamp']:
+            distance_time_series.append({
+                'distance': 0.0,
+                'time': 0.0,
+                'timestamp': trackpoints[0]['timestamp'],
+            })
+        else:
+            distance_time_series.append({
+                'distance': 0.0,
+                'time': 0.0,
+                'timestamp': None,
+            })
 
-                cumulative_data.append({
-                    'distance': total_distance,
-                    'timestamp': trackpoints[i]['timestamp'],
-                    'elevation': trackpoints[i]['elevation'],
-                    'speed': trackpoints[i]['speed'],
-                    'time_diff': time_diff,
-                    'segment_distance': dist
-                })
+        for i in range(1, len(trackpoints)):
+            dist = haversine_distance(
+                trackpoints[i-1]['lat'], trackpoints[i-1]['lon'],
+                trackpoints[i]['lat'], trackpoints[i]['lon']
+            )
+            total_distance += dist
+
+            # Calculate time difference
+            time_diff = 0.0
+            if trackpoints[i]['timestamp'] and trackpoints[i-1]['timestamp']:
+                time_diff = (trackpoints[i]['timestamp'] - trackpoints[i-1]['timestamp']).total_seconds()
+
+            elapsed_time += time_diff
+
+            cumulative_data.append({
+                'distance': total_distance,
+                'timestamp': trackpoints[i]['timestamp'],
+                'elevation': trackpoints[i]['elevation'],
+                'speed': trackpoints[i]['speed'],
+                'time_diff': time_diff,
+                'segment_distance': dist
+            })
+
+            distance_time_series.append({
+                'distance': total_distance,
+                'time': elapsed_time,
+                'timestamp': trackpoints[i]['timestamp'],
+            })
 
         # Calculate km splits
         splits = calculate_km_splits(cumulative_data, total_distance / 1000)
 
         # Calculate pace variability
         variability = calculate_pace_variability(splits)
+
+        # Calculate Strava-like best efforts for standard distances
+        best_efforts = calculate_best_efforts(distance_time_series)
 
         # Detect laps (400m for track workouts)
         laps = detect_laps(cumulative_data, total_distance)
@@ -130,7 +156,8 @@ def parse_gpx_file(file_path: str) -> Optional[Dict]:
             'pace_variability': variability,
             'laps': laps,
             'elevation_gain': elevation_gain,
-            'trackpoint_count': len(trackpoints)
+            'trackpoint_count': len(trackpoints),
+            'best_efforts': best_efforts,
         }
 
     except Exception as e:
@@ -175,6 +202,115 @@ def calculate_km_splits(cumulative_data: List[Dict], total_km: float) -> List[Di
                 break
 
     return splits
+
+
+def calculate_best_efforts(distance_time_series: List[Dict],
+                           targets: Optional[List[Tuple[str, float]]] = None) -> Dict[str, Dict]:
+    """Compute best efforts for given target distances using a sliding window.
+
+    Args:
+        distance_time_series: List of dicts with cumulative ``distance`` in meters,
+            cumulative ``time`` in seconds, and optional ``timestamp``.
+        targets: Optional list of tuples ``(label, distance_km)``. If ``None``,
+            standard race distances are used (0.5 km, 1 km, 2 km, 5 km, 10 km,
+            15 km, 21.1 km, 42.2 km).
+
+    Returns:
+        Dict mapping distance labels to effort metadata. The dictionary includes
+        ``time_seconds`` and ``pace_seconds_per_km`` among other fields. Distances
+        that cannot be computed (workout too short) are omitted.
+    """
+
+    if not distance_time_series or len(distance_time_series) < 2:
+        return {}
+
+    if targets is None:
+        targets = [
+            ("500m", 0.5),
+            ("1km", 1.0),
+            ("2km", 2.0),
+            ("5km", 5.0),
+            ("10km", 10.0),
+            ("15km", 15.0),
+            ("semi", 21.1),
+            ("marathon", 42.2),
+        ]
+
+    efforts: Dict[str, Dict] = {}
+
+    for label, distance_km in targets:
+        target_m = distance_km * 1000
+        best_effort: Optional[Dict] = None
+
+        end_idx = 0
+        for start_idx in range(len(distance_time_series)):
+            # Ensure the end index is always ahead of the start index
+            if end_idx < start_idx:
+                end_idx = start_idx
+
+            start_point = distance_time_series[start_idx]
+            start_distance = start_point['distance']
+            start_time = start_point['time']
+
+            # Advance end index until we cover the target distance
+            while end_idx < len(distance_time_series) and (
+                distance_time_series[end_idx]['distance'] - start_distance < target_m
+            ):
+                end_idx += 1
+
+            if end_idx == len(distance_time_series):
+                break
+
+            end_point = distance_time_series[end_idx]
+            distance_delta = end_point['distance'] - start_distance
+            time_delta = end_point['time'] - start_time
+
+            interpolated_time = time_delta
+            interpolated_timestamp = end_point['timestamp']
+
+            if distance_delta > target_m and end_idx > start_idx:
+                prev_point = distance_time_series[end_idx - 1]
+                before_distance = prev_point['distance'] - start_distance
+                before_time = prev_point['time'] - start_time
+                segment_distance = distance_delta - before_distance
+                segment_time = time_delta - before_time
+
+                if segment_distance > 0:
+                    ratio = (target_m - before_distance) / segment_distance
+                    ratio = max(0.0, min(1.0, ratio))
+                    interpolated_time = before_time + ratio * segment_time
+
+                    if prev_point['timestamp'] and end_point['timestamp']:
+                        span_seconds = (
+                            end_point['timestamp'] - prev_point['timestamp']
+                        ).total_seconds()
+                        if span_seconds > 0:
+                            interpolated_timestamp = prev_point['timestamp'] + timedelta(
+                                seconds=span_seconds * ratio
+                            )
+                else:
+                    # No distance difference between points, skip this start index
+                    continue
+
+            if interpolated_time <= 0:
+                continue
+
+            pace_seconds_per_km = interpolated_time / distance_km if distance_km > 0 else None
+
+            if best_effort is None or interpolated_time < best_effort['time_seconds']:
+                best_effort = {
+                    'label': label,
+                    'distance_m': target_m,
+                    'time_seconds': interpolated_time,
+                    'pace_seconds_per_km': pace_seconds_per_km,
+                    'start_timestamp': start_point['timestamp'],
+                    'end_timestamp': interpolated_timestamp,
+                }
+
+        if best_effort:
+            efforts[label] = best_effort
+
+    return efforts
 
 
 def calculate_pace_variability(splits: List[Dict]) -> float:

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import axios from 'axios'
 import { Loader2, Sparkles, Check, Clock, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface Suggestion {
   id: number
@@ -77,17 +78,21 @@ export default function SuggestionsPage() {
       if (generateWeek && response.data.suggestions) {
         // Week generation returns multiple suggestions
         setSuggestions([...response.data.suggestions, ...suggestions])
-        alert(`Semaine générée ! ${response.data.suggestions.length} séances créées.\n${response.data.week_description || ''}`)
+        toast.success(`Semaine générée ! ${response.data.suggestions.length} séances créées.`, {
+          description: response.data.week_description || ''
+        })
       } else {
         // Single workout generation
         setSuggestions([response.data, ...suggestions])
-        alert('Suggestion générée avec succès!')
+        toast.success('Suggestion générée avec succès!')
       }
 
       loadSuggestions() // Reload to ensure consistency
     } catch (error) {
       console.error('Error generating suggestion:', error)
-      alert('Erreur lors de la génération de la suggestion. Vérifiez que ANTHROPIC_API_KEY est configuré.')
+      toast.error('Erreur lors de la génération', {
+        description: 'Vérifiez que ANTHROPIC_API_KEY est configuré.'
+      })
     } finally {
       setGenerating(false)
     }
@@ -96,10 +101,11 @@ export default function SuggestionsPage() {
   const markComplete = async (suggestionId: number) => {
     try {
       await axios.patch(`http://localhost:8000/api/suggestions/${suggestionId}/complete`)
+      toast.success('Séance marquée comme complétée !')
       loadSuggestions()
     } catch (error) {
       console.error('Error marking suggestion complete:', error)
-      alert('Erreur lors de la mise à jour')
+      toast.error('Erreur lors de la mise à jour')
     }
   }
 
@@ -110,10 +116,11 @@ export default function SuggestionsPage() {
 
     try {
       await axios.delete(`http://localhost:8000/api/suggestions/${suggestionId}`)
+      toast.success('Suggestion supprimée')
       loadSuggestions()
     } catch (error) {
       console.error('Error deleting suggestion:', error)
-      alert('Erreur lors de la suppression')
+      toast.error('Erreur lors de la suppression')
     }
   }
 

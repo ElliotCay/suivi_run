@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { usePreferences } from '@/hooks/usePreferences'
 import { CalendarDownloadAllButton } from '@/components/CalendarExportButton'
-import { Calendar, Clock, Bell, Info } from 'lucide-react'
+import { Calendar, Clock, Bell, Info, Activity, RefreshCw, CheckCircle2, XCircle } from 'lucide-react'
+import axios from 'axios'
 
 const DAYS = [
   { value: 'monday', label: 'Lundi' },
@@ -35,6 +36,13 @@ export default function SettingsPage() {
   const [selectedReminders, setSelectedReminders] = useState<number[]>([])
   const [saving, setSaving] = useState(false)
 
+  // Strava state
+  const [stravaConnected, setStravaConnected] = useState(false)
+  const [stravaAthleteId, setStravaAthleteId] = useState<number | null>(null)
+  const [stravaLastSync, setStravaLastSync] = useState<string | null>(null)
+  const [stravaSyncing, setStravaSyncing] = useState(false)
+  const [stravaLoading, setStravaLoading] = useState(true)
+
   // Initialize state when preferences load
   useEffect(() => {
     if (preferences) {
@@ -44,6 +52,69 @@ export default function SettingsPage() {
       setSelectedReminders(preferences.reminder_minutes || [])
     }
   }, [preferences])
+
+  // Load Strava status
+  useEffect(() => {
+    loadStravaStatus()
+  }, [])
+
+  const loadStravaStatus = async () => {
+    try {
+      const response = await axios.get('http://localhost:8000/api/strava/status')
+      setStravaConnected(response.data.connected)
+      setStravaAthleteId(response.data.athlete_id)
+      setStravaLastSync(response.data.last_sync)
+    } catch (error) {
+      console.error('Error loading Strava status:', error)
+    } finally {
+      setStravaLoading(false)
+    }
+  }
+
+  const connectStrava = async () => {
+    try {
+      const response = await axios.get('http://localhost:8000/api/strava/auth')
+      window.location.href = response.data.auth_url
+    } catch (error) {
+      console.error('Error initiating Strava auth:', error)
+      toast.error('Erreur lors de la connexion à Strava')
+    }
+  }
+
+  const disconnectStrava = async () => {
+    if (!confirm('Êtes-vous sûr de vouloir déconnecter Strava ?')) {
+      return
+    }
+
+    try {
+      await axios.delete('http://localhost:8000/api/strava/disconnect')
+      setStravaConnected(false)
+      setStravaAthleteId(null)
+      setStravaLastSync(null)
+      toast.success('Strava déconnecté')
+    } catch (error) {
+      console.error('Error disconnecting Strava:', error)
+      toast.error('Erreur lors de la déconnexion')
+    }
+  }
+
+  const syncStravaActivities = async () => {
+    setStravaSyncing(true)
+    try {
+      const response = await axios.post('http://localhost:8000/api/strava/sync')
+      toast.success('Synchronisation terminée !', {
+        description: `${response.data.activities_processed} activités traitées, ${response.data.records_updated} records mis à jour`
+      })
+      loadStravaStatus()
+    } catch (error: any) {
+      console.error('Error syncing Strava:', error)
+      toast.error('Erreur lors de la synchronisation', {
+        description: error.response?.data?.detail || 'Une erreur est survenue'
+      })
+    } finally {
+      setStravaSyncing(false)
+    }
+  }
 
   const toggleDay = (day: string) => {
     setSelectedDays(prev =>
@@ -109,6 +180,99 @@ export default function SettingsPage() {
       </div>
 
       <div className="space-y-6">
+        {/* Strava Integration Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-orange-500" />
+              Connexion Strava
+            </CardTitle>
+            <CardDescription>
+              Importez vos records personnels depuis Strava (meilleurs temps 400m, 1km, 5km, etc.)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {stravaLoading ? (
+              <p className="text-sm text-muted-foreground">Chargement...</p>
+            ) : stravaConnected ? (
+              <>
+                <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
+                  <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-green-900 dark:text-green-100">
+                      Strava connecté
+                    </p>
+                    <p className="text-xs text-green-700 dark:text-green-300">
+                      Athlete ID: {stravaAthleteId}
+                      {stravaLastSync && ` • Dernière sync: ${new Date(stravaLastSync).toLocaleDateString('fr-FR')}`}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={syncStravaActivities}
+                    disabled={stravaSyncing}
+                    className="flex-1"
+                  >
+                    {stravaSyncing ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Synchronisation...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Synchroniser maintenant
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={disconnectStrava}
+                    variant="outline"
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    Déconnecter
+                  </Button>
+                </div>
+
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground">
+                    <strong>Info :</strong> La synchronisation importe vos meilleurs temps (best efforts) depuis vos activités Strava.
+                    Seuls les records personnels (PR) sont récupérés : 400m, 1km, 5km, 10km, semi, marathon, etc.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 p-3 bg-muted/50 border rounded-lg">
+                  <XCircle className="h-5 w-5 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    Strava non connecté
+                  </p>
+                </div>
+
+                <Button
+                  onClick={connectStrava}
+                  className="w-full bg-orange-600 hover:bg-orange-700"
+                >
+                  <Activity className="h-4 w-4 mr-2" />
+                  Connecter avec Strava
+                </Button>
+
+                <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <p className="text-xs text-blue-900 dark:text-blue-100">
+                    <strong>Pourquoi connecter Strava ?</strong><br/>
+                    Strava calcule automatiquement vos meilleurs temps sur différentes distances (splits).
+                    En connectant votre compte, vous importez ces records précis : meilleur 1km pendant un 10km,
+                    meilleur 400m, etc. Bien plus précis que les records calculés sur workouts complets !
+                  </p>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Calendar Sync Section */}
         <Card>
           <CardHeader>

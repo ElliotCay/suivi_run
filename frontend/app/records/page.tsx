@@ -3,12 +3,10 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import axios from 'axios'
-import { Award, Plus, History, Edit2, Save, X } from 'lucide-react'
+import { Award, History, RefreshCw, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface PersonalRecord {
   id: number
@@ -31,10 +29,11 @@ interface RecordHistory {
 
 const DISTANCES = [
   { value: '400m', label: '400 m' },
-  { value: 'half_mile', label: '1/2 mile (800 m)' },
+  { value: '800m', label: '800 m' },
   { value: '1km', label: '1 km' },
   { value: '1_mile', label: '1 mile (1.6 km)' },
-  { value: '2_miles', label: '2 miles (3.2 km)' },
+  { value: '2km', label: '2 km' },
+  { value: '3km', label: '3 km' },
   { value: '5km', label: '5 km' },
   { value: '10km', label: '10 km' },
   { value: 'semi', label: 'Semi-marathon (21.1 km)' },
@@ -45,15 +44,8 @@ export default function RecordsPage() {
   const [records, setRecords] = useState<PersonalRecord[]>([])
   const [history, setHistory] = useState<{ [key: string]: RecordHistory[] }>({})
   const [showHistoryFor, setShowHistoryFor] = useState<string | null>(null)
-  const [editingDistance, setEditingDistance] = useState<string | null>(null)
-  const [formData, setFormData] = useState({
-    distance: '',
-    minutes: '',
-    seconds: '',
-    date: new Date().toISOString().split('T')[0],
-    notes: ''
-  })
   const [loading, setLoading] = useState(true)
+  const [detecting, setDetecting] = useState(false)
 
   useEffect(() => {
     loadRecords()
@@ -65,8 +57,27 @@ export default function RecordsPage() {
       setRecords(response.data)
     } catch (error) {
       console.error('Error loading records:', error)
+      toast.error('Erreur lors du chargement des records')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const autoDetectRecords = async () => {
+    setDetecting(true)
+    try {
+      const response = await axios.post('http://localhost:8000/api/records/auto-detect')
+      toast.success(response.data.message, {
+        description: `${response.data.records_found} records trouvés, ${response.data.records_updated} mis à jour`
+      })
+      loadRecords()
+    } catch (error: any) {
+      console.error('Error auto-detecting records:', error)
+      toast.error('Erreur lors de la détection automatique', {
+        description: error.response?.data?.detail || 'Une erreur est survenue'
+      })
+    } finally {
+      setDetecting(false)
     }
   }
 
@@ -74,9 +85,10 @@ export default function RecordsPage() {
     try {
       const response = await axios.get(`http://localhost:8000/api/records/${distance}`)
       setHistory(prev => ({ ...prev, [distance]: response.data }))
-      setShowHistoryFor(distance)
+      setShowHistoryFor(showHistoryFor === distance ? null : distance)
     } catch (error) {
       console.error('Error loading history:', error)
+      toast.error('Erreur lors du chargement de l\'historique')
     }
   }
 
@@ -84,232 +96,181 @@ export default function RecordsPage() {
     return records.find(r => r.distance === distance && r.is_current) || null
   }
 
-  const startEdit = (distance: string) => {
-    const record = getRecordForDistance(distance)
-    if (record) {
-      const minutes = Math.floor(record.time_seconds / 60)
-      const seconds = record.time_seconds % 60
-      setFormData({
-        distance,
-        minutes: minutes.toString(),
-        seconds: seconds.toString(),
-        date: record.date_achieved.split('T')[0],
-        notes: record.notes || ''
-      })
-    } else {
-      setFormData({
-        distance,
-        minutes: '',
-        seconds: '',
-        date: new Date().toISOString().split('T')[0],
-        notes: ''
-      })
-    }
-    setEditingDistance(distance)
-  }
-
-  const cancelEdit = () => {
-    setEditingDistance(null)
-    setFormData({
-      distance: '',
-      minutes: '',
-      seconds: '',
-      date: new Date().toISOString().split('T')[0],
-      notes: ''
-    })
-  }
-
-  const saveRecord = async () => {
-    if (!formData.distance || !formData.minutes || !formData.seconds) {
-      toast.error('Veuillez remplir tous les champs obligatoires')
-      return
-    }
-
-    const time_seconds = parseInt(formData.minutes) * 60 + parseInt(formData.seconds)
-
-    try {
-      await axios.post('http://localhost:8000/api/records', {
-        distance: formData.distance,
-        time_seconds,
-        date_achieved: new Date(formData.date).toISOString(),
-        notes: formData.notes || null
-      })
-
-      toast.success('Record enregistré !')
-      loadRecords()
-      cancelEdit()
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || 'Erreur lors de l\'enregistrement'
-      toast.error(errorMessage)
-    }
-  }
-
   if (loading) {
-    return <div className="container mx-auto py-8">Chargement...</div>
+    return (
+      <div className="container mx-auto py-8">
+        <div className="mb-6">
+          <Skeleton className="h-10 w-96 mb-2" />
+          <Skeleton className="h-5 w-[500px]" />
+        </div>
+        <div className="grid gap-4">
+          {DISTANCES.map(({ value }) => (
+            <Card key={value}>
+              <CardHeader>
+                <Skeleton className="h-6 w-48" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-12 w-32 mb-2" />
+                <Skeleton className="h-4 w-64" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="container mx-auto py-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Award className="h-8 w-8" />
-          Mes Records Personnels
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          Gérez vos meilleurs chronos sur toutes les distances. L'historique est conservé pour voir votre progression.
-        </p>
+      <div className="mb-6 flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Award className="h-8 w-8 text-yellow-500" />
+            Mes Records Personnels
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Records détectés automatiquement depuis vos séances d'entraînement
+          </p>
+        </div>
+        <Button
+          onClick={autoDetectRecords}
+          disabled={detecting}
+          className="flex items-center gap-2"
+        >
+          {detecting ? (
+            <>
+              <RefreshCw className="h-4 w-4 animate-spin" />
+              Détection...
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-4 w-4" />
+              Mettre à jour les records
+            </>
+          )}
+        </Button>
       </div>
+
+      {records.length === 0 && (
+        <Card className="mb-6">
+          <CardContent className="py-12 text-center">
+            <Award className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-2">Aucun record détecté</h3>
+            <p className="text-muted-foreground mb-4">
+              Cliquez sur "Mettre à jour les records" pour détecter automatiquement vos meilleurs temps depuis vos séances.
+            </p>
+            <Button onClick={autoDetectRecords} disabled={detecting}>
+              <Sparkles className="h-4 w-4 mr-2" />
+              Détecter mes records
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4">
         {DISTANCES.map(({ value, label }) => {
           const record = getRecordForDistance(value)
-          const isEditing = editingDistance === value
+          const isShowingHistory = showHistoryFor === value
 
           return (
-            <Card key={value} className={record ? 'border-green-500' : ''}>
+            <Card key={value} className={record ? 'border-l-4 border-l-green-500' : 'opacity-60'}>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  <span>{label}</span>
+                  <span className="text-lg">{label}</span>
                   {record && (
-                    <div className="flex gap-2">
-                      {!isEditing && (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => loadHistory(value)}
-                          >
-                            <History className="h-4 w-4 mr-1" />
-                            Historique
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => startEdit(value)}
-                          >
-                            <Edit2 className="h-4 w-4 mr-1" />
-                            Modifier
-                          </Button>
-                        </>
-                      )}
-                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => loadHistory(value)}
+                    >
+                      <History className="h-4 w-4 mr-1" />
+                      {isShowingHistory ? 'Masquer' : 'Historique'}
+                    </Button>
                   )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {!isEditing && !record && (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground mb-4">Aucun record enregistré</p>
-                    <Button onClick={() => startEdit(value)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Ajouter mon record
-                    </Button>
+                {!record ? (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-muted-foreground">
+                      Aucun record détecté pour cette distance
+                    </p>
                   </div>
-                )}
-
-                {!isEditing && record && (
+                ) : (
                   <div className="space-y-2">
-                    <div className="text-4xl font-bold text-green-600">
-                      {record.time_display}
+                    <div className="flex items-baseline gap-4">
+                      <div className="text-4xl font-bold text-green-600 dark:text-green-500">
+                        {record.time_display}
+                      </div>
+                      <div className="text-lg text-muted-foreground">
+                        {(() => {
+                          // Calculate pace per km
+                          const distanceKm = {
+                            '400m': 0.4,
+                            '800m': 0.8,
+                            '1km': 1.0,
+                            '1_mile': 1.609,
+                            '2km': 2.0,
+                            '3km': 3.0,
+                            '5km': 5.0,
+                            '10km': 10.0,
+                            'semi': 21.1,
+                            'marathon': 42.2,
+                          }[value] || 1
+                          const paceSecondsPerKm = record.time_seconds / distanceKm
+                          const paceMinutes = Math.floor(paceSecondsPerKm / 60)
+                          const paceSeconds = Math.floor(paceSecondsPerKm % 60)
+                          return `${paceMinutes}:${paceSeconds.toString().padStart(2, '0')}/km`
+                        })()}
+                      </div>
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      Réalisé le {new Date(record.date_achieved).toLocaleDateString('fr-FR', {
+                    <div className="text-sm text-muted-foreground flex items-center gap-2">
+                      <span>Réalisé le {new Date(record.date_achieved).toLocaleDateString('fr-FR', {
                         day: 'numeric',
                         month: 'long',
                         year: 'numeric'
-                      })}
+                      })}</span>
                     </div>
                     {record.notes && (
-                      <div className="text-sm italic text-muted-foreground mt-2">
-                        "{record.notes}"
+                      <div className="text-xs text-muted-foreground italic mt-2 bg-muted/50 p-2 rounded">
+                        {record.notes}
                       </div>
                     )}
                   </div>
                 )}
 
-                {isEditing && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label>Minutes</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={formData.minutes}
-                          onChange={(e) => setFormData({ ...formData, minutes: e.target.value })}
-                          placeholder="15"
-                        />
-                      </div>
-                      <div>
-                        <Label>Secondes</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="59"
-                          value={formData.seconds}
-                          onChange={(e) => setFormData({ ...formData, seconds: e.target.value })}
-                          placeholder="45"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Label>Date</Label>
-                      <Input
-                        type="date"
-                        value={formData.date}
-                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <Label>Notes (optionnel)</Label>
-                      <Textarea
-                        value={formData.notes}
-                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                        placeholder="Course officielle, conditions météo, etc."
-                        rows={2}
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button onClick={saveRecord} className="flex-1">
-                        <Save className="h-4 w-4 mr-2" />
-                        Enregistrer
-                      </Button>
-                      <Button onClick={cancelEdit} variant="outline">
-                        <X className="h-4 w-4 mr-2" />
-                        Annuler
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
                 {/* History Display */}
-                {showHistoryFor === value && history[value] && history[value].length > 1 && (
+                {isShowingHistory && history[value] && history[value].length > 1 && (
                   <div className="mt-6 pt-6 border-t">
-                    <h4 className="font-medium mb-3 flex items-center gap-2">
+                    <h4 className="font-medium mb-3 flex items-center gap-2 text-sm">
                       <History className="h-4 w-4" />
-                      Historique des records
+                      Progression ({history[value].length} enregistrements)
                     </h4>
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {history[value].map((h, index) => (
                         <div
                           key={h.id}
-                          className={`p-3 rounded-lg border ${h.is_current ? 'bg-green-50 border-green-200' : 'bg-gray-50'}`}
+                          className={`p-3 rounded-lg border text-sm ${
+                            h.is_current
+                              ? 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800'
+                              : 'bg-muted/30'
+                          }`}
                         >
                           <div className="flex items-center justify-between">
                             <div>
-                              <span className="font-bold text-lg">{h.time_display}</span>
+                              <span className="font-bold">{h.time_display}</span>
                               {h.is_current && (
-                                <span className="ml-2 text-xs bg-green-600 text-white px-2 py-1 rounded">
-                                  Actuel
+                                <span className="ml-2 text-xs bg-green-600 text-white px-2 py-0.5 rounded">
+                                  Record actuel
                                 </span>
                               )}
                             </div>
-                            <div className="text-sm text-muted-foreground">
+                            <div className="text-xs text-muted-foreground">
                               {new Date(h.date_achieved).toLocaleDateString('fr-FR')}
                             </div>
                           </div>
                           {index > 0 && history[value][index - 1] && (
-                            <div className="text-xs text-green-600 mt-1">
+                            <div className="text-xs text-green-600 dark:text-green-400 mt-1">
                               ↓ Amélioration de {(history[value][index - 1].time_seconds - h.time_seconds)} secondes
                             </div>
                           )}

@@ -10,6 +10,7 @@ from typing import List
 from database import get_db
 from models import PersonalRecord
 from schemas import PersonalRecordCreate, PersonalRecordResponse
+from services.record_detector import detect_records_from_workouts, sync_records_to_database
 import logging
 
 logger = logging.getLogger(__name__)
@@ -216,3 +217,42 @@ async def delete_personal_record(
     logger.info(f"Deleted personal record: {record.distance} - {format_time(record.time_seconds)}")
 
     return {"message": "Record deleted successfully", "id": record_id}
+
+
+@router.post("/records/auto-detect")
+async def auto_detect_records(
+    db: Session = Depends(get_db),
+    user_id: int = 1,
+):
+    """
+    Automatically detect and sync personal records from all workouts.
+
+    Scans all workouts and identifies best times for standard distances:
+    - 400m, 800m, 1km, 1 mile, 2km, 3km, 5km, 10km, semi-marathon, marathon
+
+    Creates or updates records in the database.
+    """
+    try:
+        # Detect records from workouts
+        detected = detect_records_from_workouts(db, user_id)
+
+        if not detected:
+            return {
+                "message": "No records detected",
+                "records_found": 0,
+                "records_updated": 0
+            }
+
+        # Sync to database
+        updated_count = sync_records_to_database(db, detected, user_id)
+
+        return {
+            "message": f"Auto-détection terminée ! {len(detected)} records trouvés, {updated_count} mis à jour.",
+            "records_found": len(detected),
+            "records_updated": updated_count,
+            "details": detected
+        }
+
+    except Exception as e:
+        logger.error(f"Error auto-detecting records: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -44,7 +44,18 @@
       "Bash(npm run build:*)",
       "Bash(npx tsc:*)",
       "Bash(pkill:*)",
-      "Bash(npx shadcn@latest add:*)"
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(git fetch:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(/opt/homebrew/opt/python@3.13/bin/python3.13 -m venv:*)",
+      "Bash(venv/bin/python -m pip:*)",
+      "Bash(venv/bin/python -m pytest:*)",
+      "Bash(venv/bin/pip install:*)",
+      "WebFetch(domain:developers.strava.com)",
+      "WebFetch(domain:communityhub.strava.com)",
+      "Bash(/dev/null echo 'Backend arrêté, correction en cours...')"
     ],
     "deny": [],
     "ask": []

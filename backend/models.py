@@ -23,7 +23,6 @@ class User(Base):
     current_level = Column(JSON, nullable=True)
     objectives = Column(JSON, nullable=True)
     weekly_volume = Column(Float, nullable=True)
-    preferences = Column(JSON, nullable=True)
     equipment = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -33,7 +32,7 @@ class User(Base):
     strength_sessions = relationship("StrengthSession", back_populates="user")
     suggestions = relationship("Suggestion", back_populates="user")
     training_plans = relationship("TrainingPlan", back_populates="user")
-    preferences = relationship("UserPreferences", back_populates="user", uselist=False)
+    user_preferences = relationship("UserPreferences", back_populates="user", uselist=False)
 
 
 class Workout(Base):
@@ -207,4 +206,23 @@ class UserPreferences(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    user = relationship("User", back_populates="preferences")
+    user = relationship("User", back_populates="user_preferences")
+
+
+class StravaToken(Base):
+    """Strava OAuth token storage for API access."""
+
+    __tablename__ = "strava_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+    access_token = Column(String, nullable=False)
+    refresh_token = Column(String, nullable=False)
+    expires_at = Column(Integer, nullable=False)  # Unix timestamp
+    athlete_id = Column(Integer, nullable=True)  # Strava athlete ID
+    last_sync = Column(DateTime, nullable=True)  # Last time we synced activities
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User")

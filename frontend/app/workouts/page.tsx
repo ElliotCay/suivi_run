@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import Link from 'next/link'
 import axios from 'axios'
-import { Sparkles, Loader2 } from 'lucide-react'
+import { Sparkles, Loader2, Activity } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Workout {
@@ -123,7 +124,49 @@ export default function WorkoutsPage() {
       </div>
 
       {loading ? (
-        <div>Chargement...</div>
+        <div className="grid gap-4">
+          {[1, 2, 3, 4, 5].map(i => (
+            <Card key={i}>
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <Skeleton className="h-6 w-48 mb-2" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
+                  <div className="text-right">
+                    <Skeleton className="h-8 w-20 mb-1" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-4">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : filteredWorkouts.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Activity className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-2">
+              {search ? 'Aucune séance trouvée' : 'Aucune séance enregistrée'}
+            </h3>
+            <p className="text-muted-foreground mb-4">
+              {search
+                ? 'Essayez de modifier votre recherche'
+                : 'Importez vos données Apple Health pour voir vos séances ici'}
+            </p>
+            {!search && (
+              <Button asChild>
+                <Link href="/import">Importer mes données</Link>
+              </Button>
+            )}
+          </CardContent>
+        </Card>
       ) : (
         <div className="grid gap-4">
           {filteredWorkouts.map((workout) => (

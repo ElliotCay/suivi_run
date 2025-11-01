@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import axios from 'axios'
-import { Loader2, Sparkles, Check, Clock, Trash2, Calendar, Rss, Copy } from 'lucide-react'
+import { Loader2, Sparkles, Check, Clock, Trash2, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Suggestion {
@@ -49,80 +49,72 @@ const workoutTypeColors: Record<string, string> = {
   'longue': 'bg-muted text-foreground'
 }
 
-function CalendarSubscribeDialog() {
+function CalendarExportDialog() {
   const [open, setOpen] = useState(false)
 
-  // Utiliser l'IP locale pour que Apple Calendar puisse s'abonner
-  // En production, remplacer par l'URL publique
-  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost'
-  const port = '8000'
-  const webcalUrl = `webcal://${host}:${port}/api/calendar/feed.ics`
-  const httpUrl = `http://${host}:${port}/api/calendar/feed.ics`
+  const downloadCalendarFile = async () => {
+    try {
+      const response = await axios.get('http://localhost:8000/api/calendar/feed.ics', {
+        responseType: 'blob'
+      })
 
-  const copyToClipboard = (url: string) => {
-    navigator.clipboard.writeText(url)
-    toast.success('URL copiée dans le presse-papier !')
-  }
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', 'entrainements-course.ics')
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
 
-  const openInCalendar = () => {
-    window.location.href = webcalUrl
-    toast.success('Ouverture dans Apple Calendar...')
+      toast.success('Calendrier téléchargé ! Ouvrez le fichier pour l\'importer.')
+      setOpen(false)
+    } catch (error: any) {
+      console.error('Error downloading calendar:', error)
+      toast.error('Erreur lors du téléchargement')
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="flex items-center gap-2">
-          <Rss className="h-4 w-4" />
-          S'abonner au calendrier
+          <Calendar className="h-4 w-4" />
+          Exporter au calendrier
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-bold">Abonnement au calendrier</DialogTitle>
+          <DialogTitle className="font-bold">Export vers Apple Calendar</DialogTitle>
           <DialogDescription>
-            Synchronisez automatiquement vos séances planifiées avec Apple Calendar
+            Téléchargez toutes vos séances planifiées en un fichier .ics
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div>
             <p className="text-sm text-muted-foreground mb-3">
-              Une fois abonné, toutes vos séances planifiées apparaîtront automatiquement dans votre calendrier.
+              Le fichier contiendra toutes vos séances planifiées. Double-cliquez dessus pour les importer dans Apple Calendar.
             </p>
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-sm font-bold">Méthode 1 : Ouverture directe</Label>
-            <Button onClick={openInCalendar} className="w-full" size="sm">
-              <Calendar className="h-4 w-4 mr-2" />
-              Ouvrir dans Apple Calendar
-            </Button>
+          <Button onClick={downloadCalendarFile} className="w-full" size="sm">
+            <Calendar className="h-4 w-4 mr-2" />
+            Télécharger le calendrier
+          </Button>
+
+          <div className="bg-muted p-3 rounded-md space-y-2">
+            <p className="text-xs font-bold">Après téléchargement :</p>
+            <ol className="text-xs text-muted-foreground list-decimal list-inside space-y-1">
+              <li>Le fichier .ics sera téléchargé</li>
+              <li>Double-cliquez dessus</li>
+              <li>Apple Calendar s'ouvrira et importera les séances</li>
+              <li>Choisissez le calendrier de destination</li>
+            </ol>
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-sm font-bold">Méthode 2 : URL manuelle</Label>
-            <div className="flex gap-2">
-              <Input
-                readOnly
-                value={webcalUrl}
-                className="text-xs font-mono"
-              />
-              <Button
-                onClick={() => copyToClipboard(webcalUrl)}
-                variant="outline"
-                size="sm"
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Copiez cette URL et ajoutez-la dans Calendrier → Fichier → Nouvel abonnement
-            </p>
-          </div>
-
-          <div className="bg-muted p-3 rounded-md">
-            <p className="text-xs text-muted-foreground">
-              💡 Astuce : Les modifications (ajout, suppression, planification) seront automatiquement synchronisées.
+          <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-md">
+            <p className="text-xs text-blue-900 dark:text-blue-100">
+              💡 Astuce : Re-téléchargez le fichier après avoir ajouté/modifié des séances pour mettre à jour votre calendrier.
             </p>
           </div>
         </div>
@@ -337,7 +329,7 @@ export default function SuggestionsPage() {
         </div>
         <div className="flex flex-col gap-2">
           <div className="flex gap-2">
-            <CalendarSubscribeDialog />
+            <CalendarExportDialog />
             {!showOptions ? (
               <Button
                 onClick={() => setShowOptions(true)}

@@ -87,16 +87,22 @@ export default function WorkoutsPage() {
   )
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="mb-6 flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Mes Entraînements</h1>
-          <p className="text-muted-foreground">{workouts.length} séances enregistrées</p>
+    <div className="space-y-6">
+      {/* Minimal Header */}
+      <div className="flex justify-between items-start">
+        <div className="space-y-2">
+          <h1 className="text-6xl font-bold tracking-tight">
+            Séances
+          </h1>
+          <p className="text-base text-muted-foreground">
+            {workouts.length} entraînements
+          </p>
         </div>
         <Button
           onClick={classifyWorkouts}
           disabled={classifying}
           variant="outline"
+          size="sm"
           className="flex items-center gap-2"
         >
           {classifying ? (
@@ -107,64 +113,72 @@ export default function WorkoutsPage() {
           ) : (
             <>
               <Sparkles className="h-4 w-4" />
-              Classifier automatiquement
+              Classifier
             </>
           )}
         </Button>
       </div>
 
-      <div className="mb-6">
-        <Input
-          placeholder="Rechercher..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-      </div>
+      {/* Search */}
+      <Input
+        placeholder="Rechercher..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="max-w-md"
+      />
 
+      {/* Workouts List */}
       {loading ? (
-        <div>Chargement...</div>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-3">
           {filteredWorkouts.map((workout) => (
             <Link key={workout.id} href={`/workouts/${workout.id}`}>
-              <Card className="hover:bg-accent cursor-pointer transition-colors">
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-lg">{formatDate(workout.date)}</CardTitle>
-                      <CardDescription>
-                        {workout.workout_type || 'Non catégorisé'}
-                      </CardDescription>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold">
-                        {workout.distance?.toFixed(2)} km
+              <Card className="hover:shadow-md cursor-pointer transition-all">
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-center">
+                    {/* Left: Date & Type */}
+                    <div className="space-y-1">
+                      <div className="font-bold text-base">
+                        {formatDate(workout.date)}
                       </div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-xs text-muted-foreground">
+                        {workout.workout_type || 'Non catégorisé'}
+                      </div>
+                    </div>
+
+                    {/* Middle: Metrics */}
+                    <div className="flex gap-6 text-sm">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold">
+                          {workout.distance?.toFixed(2)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">km</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-lg font-bold font-mono">
+                          {formatPace(workout.avg_pace)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">allure</div>
+                      </div>
+                      {workout.avg_hr && (
+                        <div className="text-center">
+                          <div className="text-lg font-bold">
+                            {workout.avg_hr}
+                          </div>
+                          <div className="text-xs text-muted-foreground">bpm</div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right: Duration */}
+                    <div className="text-right">
+                      <div className="text-sm font-mono text-muted-foreground">
                         {formatDuration(workout.duration)}
                       </div>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Allure:</span>{' '}
-                      <span className="font-medium">{formatPace(workout.avg_pace)}</span>
-                    </div>
-                    {workout.avg_hr && (
-                      <div>
-                        <span className="text-muted-foreground">FC moy:</span>{' '}
-                        <span className="font-medium">{workout.avg_hr} bpm</span>
-                      </div>
-                    )}
-                    {workout.user_rating && (
-                      <div>
-                        <span className="text-muted-foreground">Note:</span>{' '}
-                        <span className="font-medium">{'⭐'.repeat(workout.user_rating)}</span>
-                      </div>
-                    )}
                   </div>
                 </CardContent>
               </Card>

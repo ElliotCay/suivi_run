@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/sonner';
-import Navigation from '@/components/Navigation';
+import TopNav from '@/components/TopNav';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 
 export const metadata: Metadata = {
@@ -16,16 +16,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" suppressHydrationWarning>
-      <body>
+      <body className="antialiased">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          <Navigation />
-          <main>
-            {children}
+          <TopNav />
+          <main className="min-h-screen">
+            <div className="container mx-auto p-8 max-w-7xl">
+              {children}
+            </div>
           </main>
           <Toaster />
         </ThemeProvider>

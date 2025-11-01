@@ -51,11 +51,11 @@ export default function ActivityHeatmap({ data }: ActivityHeatmapProps) {
 
   return (
     <Card className="w-full">
-      <CardHeader>
+      <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle>Calendrier d'activité</CardTitle>
+          <CardTitle className="text-base font-bold">Activité</CardTitle>
           <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-[120px]">
+            <SelectTrigger className="w-[100px] h-8">
               <SelectValue placeholder="Année" />
             </SelectTrigger>
             <SelectContent>
@@ -68,7 +68,7 @@ export default function ActivityHeatmap({ data }: ActivityHeatmapProps) {
           </Select>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pb-3">
         <div className="w-full overflow-x-auto">
           <style jsx global>{`
             .react-calendar-heatmap {
@@ -116,14 +116,14 @@ export default function ActivityHeatmap({ data }: ActivityHeatmapProps) {
             showWeekdayLabels
           />
         </div>
-        <div className="flex items-center justify-end gap-2 mt-4 text-xs text-muted-foreground">
+        <div className="flex items-center justify-end gap-2 mt-2 text-xs text-muted-foreground">
           <span>Moins</span>
           <div className="flex gap-1">
-            <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--muted) / 0.3)' }}></div>
-            <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--chart-2) / 0.3)' }}></div>
-            <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--chart-2) / 0.5)' }}></div>
-            <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--chart-2) / 0.7)' }}></div>
-            <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: 'hsl(var(--chart-2))' }}></div>
+            <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: 'hsl(var(--muted) / 0.3)' }}></div>
+            <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: 'hsl(var(--chart-2) / 0.3)' }}></div>
+            <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: 'hsl(var(--chart-2) / 0.5)' }}></div>
+            <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: 'hsl(var(--chart-2) / 0.7)' }}></div>
+            <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: 'hsl(var(--chart-2))' }}></div>
           </div>
           <span>Plus</span>
         </div>

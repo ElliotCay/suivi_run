@@ -8,6 +8,7 @@ import { uploadAppleHealthExport } from '@/lib/api'
 import type { ImportResult } from '@/types'
 import axios from 'axios'
 import { Play, Square, RefreshCw } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface AutoImportStatus {
   is_running: boolean
@@ -19,6 +20,14 @@ interface AutoImportStatus {
   last_import_time?: string
 }
 
+interface StravaStatus {
+  connected: boolean
+  athlete: any
+  last_sync: string | null
+  auto_sync_enabled: boolean
+  strava_athlete_id?: number
+}
+
 export default function ImportPage() {
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -28,6 +37,10 @@ export default function ImportPage() {
   // Auto-import state
   const [autoImportStatus, setAutoImportStatus] = useState<AutoImportStatus | null>(null)
   const [loadingStatus, setLoadingStatus] = useState(false)
+
+  // Strava state
+  const [stravaStatus, setStravaStatus] = useState<StravaStatus | null>(null)
+  const [syncing, setSyncing] = useState(false)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -48,8 +61,12 @@ export default function ImportPage() {
 
   useEffect(() => {
     loadAutoImportStatus()
+    loadStravaStatus()
     // Refresh status every 10 seconds
-    const interval = setInterval(loadAutoImportStatus, 10000)
+    const interval = setInterval(() => {
+      loadAutoImportStatus()
+      loadStravaStatus()
+    }, 10000)
     return () => clearInterval(interval)
   }, [])
 
@@ -62,15 +79,61 @@ export default function ImportPage() {
     }
   }
 
+  const loadStravaStatus = async () => {
+    try {
+      const response = await axios.get('http://localhost:8000/api/strava/status')
+      setStravaStatus(response.data)
+    } catch (error) {
+      console.error('Error loading Strava status:', error)
+    }
+  }
+
+  const connectStrava = async () => {
+    try {
+      const response = await axios.get('http://localhost:8000/api/strava/auth-url')
+      window.location.href = response.data.auth_url
+    } catch (error: any) {
+      console.error('Error getting Strava auth URL:', error)
+      toast.error('Erreur lors de la connexion à Strava')
+    }
+  }
+
+  const syncStrava = async () => {
+    setSyncing(true)
+    try {
+      const response = await axios.post('http://localhost:8000/api/strava/sync')
+      toast.success(`Synchronisation réussie : ${response.data.imported} activités importées`)
+      await loadStravaStatus()
+    } catch (error: any) {
+      console.error('Error syncing Strava:', error)
+      toast.error(error?.response?.data?.detail || 'Erreur lors de la synchronisation')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  const disconnectStrava = async () => {
+    if (!confirm('Voulez-vous vraiment déconnecter votre compte Strava ?')) return
+
+    try {
+      await axios.delete('http://localhost:8000/api/strava/disconnect')
+      toast.success('Compte Strava déconnecté')
+      await loadStravaStatus()
+    } catch (error: any) {
+      console.error('Error disconnecting Strava:', error)
+      toast.error('Erreur lors de la déconnexion')
+    }
+  }
+
   const startAutoImport = async () => {
     setLoadingStatus(true)
     try {
       await axios.post('http://localhost:8000/api/auto-import/start')
       await loadAutoImportStatus()
-      alert('Import automatique démarré ! Le système surveille maintenant le dossier iCloud Drive.')
-    } catch (error) {
+      toast.success('Import automatique démarré ! Le système surveille maintenant le dossier iCloud Drive.')
+    } catch (error: any) {
       console.error('Error starting auto-import:', error)
-      alert('Erreur lors du démarrage de l\'import automatique')
+      toast.error(error?.response?.data?.detail || 'Erreur lors du démarrage de l\'import automatique')
     } finally {
       setLoadingStatus(false)
     }
@@ -81,9 +144,10 @@ export default function ImportPage() {
     try {
       await axios.post('http://localhost:8000/api/auto-import/stop')
       await loadAutoImportStatus()
-    } catch (error) {
+      toast.success('Import automatique arrêté')
+    } catch (error: any) {
       console.error('Error stopping auto-import:', error)
-      alert('Erreur lors de l\'arrêt de l\'import automatique')
+      toast.error(error?.response?.data?.detail || 'Erreur lors de l\'arrêt de l\'import automatique')
     } finally {
       setLoadingStatus(false)
     }
@@ -99,8 +163,11 @@ export default function ImportPage() {
       const data = await uploadAppleHealthExport(file)
       setResult(data)
       setFile(null)
+      toast.success(`Import réussi : ${data.workouts_imported} séances importées`)
     } catch (err: any) {
-      setError(err.message || 'Erreur lors de l\'import')
+      const errorMessage = err.message || 'Erreur lors de l\'import'
+      setError(errorMessage)
+      toast.error(errorMessage)
     } finally {
       setUploading(false)
     }
@@ -108,10 +175,73 @@ export default function ImportPage() {
 
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-2">Importer mes données Apple Watch</h1>
+      <h1 className="text-3xl font-bold mb-2">Importer mes données</h1>
       <p className="text-muted-foreground mb-8">
-        Importez vos entraînements depuis l'export Apple Santé
+        Connectez Strava ou importez depuis Apple Santé
       </p>
+
+      {/* Strava Connection Card */}
+      <Card className="max-w-2xl mb-6">
+        <CardHeader>
+          <CardTitle>🚴 Connexion Strava</CardTitle>
+          <CardDescription>
+            Synchronisez automatiquement vos activités running depuis Strava
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {stravaStatus && (
+            <>
+              {stravaStatus.connected ? (
+                <div className="space-y-3">
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-sm text-green-800 font-medium">
+                      ✓ Connecté en tant que {stravaStatus.athlete?.firstname} {stravaStatus.athlete?.lastname}
+                    </p>
+                    {stravaStatus.last_sync && (
+                      <p className="text-xs text-green-600 mt-1">
+                        Dernière synchronisation: {new Date(stravaStatus.last_sync).toLocaleString('fr-FR')}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={syncStrava}
+                      disabled={syncing}
+                      className="flex-1"
+                    >
+                      <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+                      {syncing ? 'Synchronisation...' : 'Synchroniser maintenant'}
+                    </Button>
+                    <Button
+                      onClick={disconnectStrava}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      Déconnecter
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      Connectez votre compte Strava pour importer automatiquement vos courses
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={connectStrava}
+                    className="w-full bg-[#FC4C02] hover:bg-[#E34402]"
+                  >
+                    Se connecter avec Strava
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Auto-Import Card */}
       <Card className="max-w-2xl mb-6">

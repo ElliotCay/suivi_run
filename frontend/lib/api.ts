@@ -99,12 +99,21 @@ export async function uploadAppleHealthExport(
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await apiClient.post('/api/import/apple-health', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    onUploadProgress,
-  });
+  try {
+    const response = await apiClient.post('/api/import/apple-health', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress,
+    });
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      // Extract the detailed error message from the backend
+      const errorMessage = error.response?.data?.detail || error.message || 'Erreur lors de l\'import';
+      throw new Error(errorMessage);
+    }
+    throw error;
+  }
 }
 
 export default apiClient;

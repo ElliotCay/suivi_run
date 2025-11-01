@@ -16,6 +16,7 @@ from services.health_parser import (
     merge_gpx_raw_data,
     parse_workouts_xml,
 )
+from services.personal_records_service import update_personal_records_from_workout
 import logging
 
 logger = logging.getLogger(__name__)
@@ -121,6 +122,7 @@ async def import_apple_health(
                 imported_count = 0
                 duplicates_count = 0
                 dates = []
+                prs_updated = 0  # Track number of new PRs
 
                 for workout_data in parsed_workouts:
                     workout_date = workout_data.get('date')
@@ -169,7 +171,7 @@ async def import_apple_health(
                             'best_efforts': gpx_data.get('best_efforts', {}),
                         }
 
-                    # Create new workout
+                    # Create new workout (temporarily, to check for Strava duplicates)
                     new_workout = Workout(
                         user_id=user_id,
                         date=workout_data['start_time'],  # Use start_time as date
@@ -185,13 +187,42 @@ async def import_apple_health(
                         raw_data=raw_data
                     )
 
+                    # Check if this is a duplicate of a Strava workout
+                    from services.workout_merge_service import check_for_duplicate_on_import, merge_workouts
+                    strava_duplicate = check_for_duplicate_on_import(db, new_workout, user_id)
+
+                    if strava_duplicate:
+                        # Merge Apple Watch data into existing Strava workout
+                        logger.info(f"Duplicate detected with Strava workout {strava_duplicate.id}, merging...")
+                        merged_data = merge_workouts(strava_duplicate, new_workout)
+
+                        # Apply merged data to Strava workout
+                        for key, value in merged_data.items():
+                            setattr(strava_duplicate, key, value)
+
+                        duplicates_count += 1
+                        continue  # Skip adding the Apple Watch workout
+
+                    # No Strava duplicate, add the Apple Watch workout
                     db.add(new_workout)
                     imported_count += 1
                     dates.append(date_key)
 
                     existing_index[date_key].append(new_workout)
 
-                # Commit all workouts
+                    # Update personal records from best efforts if available
+                    if 'gpx_data' in workout_data:
+                        best_efforts = workout_data['gpx_data'].get('best_efforts', {})
+                        if best_efforts:
+                            pr_results = update_personal_records_from_workout(
+                                db=db,
+                                user_id=user_id,
+                                workout_date=workout_data['start_time'],
+                                best_efforts=best_efforts
+                            )
+                            prs_updated += sum(pr_results.values())
+
+                # Commit all workouts and personal records
                 db.commit()
 
                 # Calculate date range
@@ -204,15 +235,17 @@ async def import_apple_health(
                     }
 
                 logger.info(
-                    "Import complete: %s imported, %s duplicates",
+                    "Import complete: %s imported, %s duplicates, %s new PRs",
                     imported_count,
                     duplicates_count,
+                    prs_updated,
                 )
 
                 return {
                     "success": True,
                     "workouts_imported": imported_count,
                     "duplicates_skipped": duplicates_count,
+                    "personal_records_updated": prs_updated,
                     "date_range": date_range,
                     "message": f"Successfully imported {imported_count} workouts"
                 }

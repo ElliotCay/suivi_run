@@ -208,3 +208,25 @@ class UserPreferences(Base):
 
     # Relationships
     user = relationship("User", back_populates="preferences")
+
+
+class StravaConnection(Base):
+    """Strava OAuth connection and token storage."""
+
+    __tablename__ = "strava_connections"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+    strava_athlete_id = Column(Integer, nullable=False, unique=True)
+    access_token = Column(String, nullable=False)
+    refresh_token = Column(String, nullable=False)
+    expires_at = Column(Integer, nullable=False)  # Unix timestamp
+    scope = Column(String, nullable=True)  # Granted OAuth scopes
+    athlete_data = Column(JSON, nullable=True)  # Strava athlete profile
+    last_sync = Column(DateTime, nullable=True)  # Last activity sync
+    auto_sync_enabled = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User")

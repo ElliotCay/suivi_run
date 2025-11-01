@@ -178,97 +178,106 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      <h1 className="text-3xl font-bold">Tableau de bord</h1>
+    <div className="space-y-6">
+      {/* Minimal Header */}
+      <div className="space-y-2">
+        <h1 className="text-6xl font-bold tracking-tight">
+          Dashboard
+        </h1>
+        <p className="text-base text-muted-foreground">
+          Vue d'ensemble de votre entraînement
+        </p>
+      </div>
 
-      {/* Key Metrics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="transition-all duration-300 hover:shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Volume 7j</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary?.week_volume_km || 0} km</div>
+      {/* Key Metrics - Bento Grid (no gaps) */}
+      <div className="grid grid-cols-12 gap-3 auto-rows-[120px]">
+        {/* Volume 7j */}
+        <Card className="col-span-4 row-span-1 hover:shadow-md transition-shadow">
+          <CardContent className="p-4 h-full flex flex-col justify-between">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Volume 7j</p>
+                <div className="text-4xl font-bold mt-1">{summary?.week_volume_km || 0} km</div>
+              </div>
+              <Activity className="h-5 w-5 text-muted-foreground" />
+            </div>
             <p className="text-xs text-muted-foreground">
-              {summary?.workout_count || 0} séances
+              {summary?.workout_count || 0} séances cette semaine
             </p>
           </CardContent>
         </Card>
 
-        <Card className="transition-all duration-300 hover:shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">FC moyenne</CardTitle>
-            <Heart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {summary?.avg_heart_rate ? `${summary.avg_heart_rate} bpm` : 'N/A'}
+        {/* FC moyenne */}
+        <Card className="col-span-4 row-span-1 hover:shadow-md transition-shadow">
+          <CardContent className="p-4 h-full flex flex-col justify-between">
+            <div className="flex items-start justify-between">
+              <p className="text-sm text-muted-foreground">FC moyenne</p>
+              <Heart className="h-4 w-4 text-muted-foreground" />
             </div>
-            <p className="text-xs text-muted-foreground">Cette semaine</p>
+            <div className="text-3xl font-bold">
+              {summary?.avg_heart_rate ? `${summary.avg_heart_rate}` : 'N/A'}
+            </div>
+            <p className="text-xs text-muted-foreground">bpm</p>
           </CardContent>
         </Card>
 
-        <Card className="transition-all duration-300 hover:shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Charge</CardTitle>
-            <Zap className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${
-              trainingLoad?.status === 'optimal' ? 'text-green-600 dark:text-green-500' :
-              trainingLoad?.status === 'high_risk' ? 'text-red-600 dark:text-red-500' :
-              'text-blue-600 dark:text-blue-500'
-            }`}>
+        {/* Charge */}
+        <Card className="col-span-4 row-span-1 hover:shadow-md transition-shadow">
+          <CardContent className="p-4 h-full flex flex-col justify-between">
+            <div className="flex items-start justify-between">
+              <p className="text-sm text-muted-foreground">Charge</p>
+              <Zap className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div className="text-3xl font-bold">
               {trainingLoad?.ratio?.toFixed(2) || 'N/A'}
             </div>
             <p className="text-xs text-muted-foreground">Ratio 7j/28j</p>
           </CardContent>
         </Card>
 
-        <Card className="transition-all duration-300 hover:shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary?.total_all_time_km || 0} km</div>
-            <p className="text-xs text-muted-foreground">
-              {summary?.total_workouts || 0} séances
-            </p>
+        {/* Total - Full Width */}
+        <Card className="col-span-12 row-span-1 hover:shadow-md transition-shadow">
+          <CardContent className="p-4 h-full flex flex-row items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Total carrière</p>
+              <div className="text-4xl font-bold mt-1">{summary?.total_all_time_km || 0} km</div>
+            </div>
+            <div className="text-right">
+              <TrendingUp className="h-5 w-5 text-muted-foreground mb-2 ml-auto" />
+              <p className="text-xs text-muted-foreground">
+                {summary?.total_workouts || 0} séances
+              </p>
+            </div>
           </CardContent>
         </Card>
+
       </div>
 
-      {/* Activity Heatmap - Full Width */}
-      <div className="w-full">
+      {/* Full Width Charts */}
+      <div className="space-y-4">
+        {/* Volume History */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base font-bold">Évolution du volume</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {volumeHistory.length > 0 ? (
+              <VolumeChart data={volumeHistory} />
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-muted-foreground text-sm">
+                Aucune donnée
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Activity Heatmap */}
         <ActivityHeatmap data={activityHeatmap} />
-      </div>
 
-      {/* Records Progression - Full Width */}
-      <div className="w-full">
+        {/* Records Progression */}
         <RecordsProgressionChart records={records} />
-      </div>
 
-      {/* Volume History - Full Width */}
-      <Card className="transition-all duration-300">
-        <CardHeader>
-          <CardTitle>Évolution du volume hebdomadaire</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {volumeHistory.length > 0 ? (
-            <VolumeChart data={volumeHistory} />
-          ) : (
-            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-              Aucune donnée disponible
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Two Column Layout for Charts */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <WorkoutTypeDistribution data={workoutTypes} />
+        {/* Pace vs HR Scatter */}
         <PaceHeartRateScatter data={paceHRData} />
       </div>
     </div>

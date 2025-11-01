@@ -62,7 +62,7 @@ def extract_zip(zip_path: str) -> Iterator[Path]:
 def _safe_extract(
     zip_ref: zipfile.ZipFile,
     target_dir: Path,
-    max_size: int = 500 * 1024 * 1024  # 500MB default limit
+    max_size: int = 1024 * 1024 * 1024  # 1GB default limit (Apple Health exports can be large)
 ) -> None:
     """Extract ZIP members while preventing path traversal attacks and ZIP bombs.
 

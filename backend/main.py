@@ -8,7 +8,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import import_router, workouts, profile, suggestions, dashboard, auto_import, records, calendar, training_plans
+from routers import import_router, workouts, profile, suggestions, dashboard, auto_import, records, calendar, training_plans, strava
 
 # Create FastAPI application instance
 app = FastAPI(
@@ -29,6 +29,7 @@ app.add_middleware(
 # Include routers
 app.include_router(import_router.router, prefix="/api", tags=["import"])
 app.include_router(auto_import.router, prefix="/api", tags=["auto-import"])
+app.include_router(strava.router, prefix="/api", tags=["strava"])
 app.include_router(workouts.router, prefix="/api", tags=["workouts"])
 app.include_router(profile.router, prefix="/api", tags=["profile"])
 app.include_router(suggestions.router, prefix="/api", tags=["suggestions"])

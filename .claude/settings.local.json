@@ -44,7 +44,12 @@
       "Bash(npm run build:*)",
       "Bash(npx tsc:*)",
       "Bash(pkill:*)",
-      "Bash(npx shadcn@latest add:*)"
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(git fetch:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(while read branch)",
+      "Bash(do git ls-tree -r --name-only $branch)",
+      "Bash(chmod:*)"
     ],
     "deny": [],
     "ask": []

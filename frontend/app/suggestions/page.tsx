@@ -50,20 +50,24 @@ const workoutTypeColors: Record<string, string> = {
 }
 
 function ScheduleDialog({ suggestion, onSchedule }: { suggestion: Suggestion; onSchedule: (date: string) => void }) {
-  const [open, setOpen] = useState(false)
-  const [selectedDate, setSelectedDate] = useState('')
-  const [selectedTime, setSelectedTime] = useState('18:00')
-
-  const handleSchedule = () => {
-    const dateTime = `${selectedDate}T${selectedTime}:00`
-    onSchedule(dateTime)
-    setOpen(false)
-  }
-
   // Get tomorrow's date as default
   const tomorrow = new Date()
   tomorrow.setDate(tomorrow.getDate() + 1)
   const defaultDate = tomorrow.toISOString().split('T')[0]
+
+  const [open, setOpen] = useState(false)
+  const [selectedDate, setSelectedDate] = useState(defaultDate)
+  const [selectedTime, setSelectedTime] = useState('18:00')
+
+  const handleSchedule = () => {
+    if (!selectedDate) {
+      toast.error('Veuillez sélectionner une date')
+      return
+    }
+    const dateTime = `${selectedDate}T${selectedTime}:00`
+    onSchedule(dateTime)
+    setOpen(false)
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

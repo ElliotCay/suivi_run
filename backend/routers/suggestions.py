@@ -17,7 +17,7 @@ from services.claude_service import (
     call_claude_api,
     parse_suggestion_response
 )
-from services.calendar_service import create_ics_event
+from services.calendar_service import create_ics_event, create_calendar_feed
 from schemas import SuggestionResponse, SuggestionGenerateRequest
 
 logger = logging.getLogger(__name__)
@@ -260,5 +260,48 @@ async def download_calendar_event(
         media_type="text/calendar",
         headers={
             "Content-Disposition": f"attachment; filename=workout-{suggestion.id}.ics"
+        }
+    )
+
+
+@router.get("/calendar/feed.ics")
+async def get_calendar_feed(
+    db: Session = Depends(get_db),
+    user_id: int = 1,  # TODO: Get from auth
+):
+    """
+    Génère un flux de calendrier iCal avec toutes les suggestions planifiées.
+    URL pour abonnement: webcal://localhost:8000/api/calendar/feed.ics
+    """
+    # Récupérer toutes les suggestions planifiées (non complétées)
+    suggestions = db.query(Suggestion).filter(
+        Suggestion.user_id == user_id,
+        Suggestion.scheduled_date.isnot(None),
+        Suggestion.completed == 0
+    ).all()
+
+    # Convertir les suggestions en dicts
+    suggestions_data = []
+    for s in suggestions:
+        suggestions_data.append({
+            'id': s.id,
+            'scheduled_date': s.scheduled_date,
+            'structure': s.structure,
+            'workout_type': s.workout_type,
+            'distance': s.distance
+        })
+
+    # Générer le flux iCal
+    ics_content = create_calendar_feed(suggestions_data)
+
+    # Retourner le flux avec les bons headers pour l'abonnement
+    return Response(
+        content=ics_content,
+        media_type="text/calendar; charset=utf-8",
+        headers={
+            "Content-Disposition": "inline; filename=suivi-course.ics",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
         }
     )

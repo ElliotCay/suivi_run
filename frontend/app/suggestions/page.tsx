@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import axios from 'axios'
-import { Loader2, Sparkles, Check, Clock, Trash2, Calendar } from 'lucide-react'
+import { Loader2, Sparkles, Check, Clock, Trash2, Calendar, Rss, Copy } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Suggestion {
@@ -47,6 +47,83 @@ const workoutTypeColors: Record<string, string> = {
   'tempo': 'bg-muted text-foreground',
   'fractionne': 'bg-muted text-foreground',
   'longue': 'bg-muted text-foreground'
+}
+
+function CalendarSubscribeDialog() {
+  const [open, setOpen] = useState(false)
+  const webcalUrl = 'webcal://localhost:8000/api/calendar/feed.ics'
+  const httpUrl = 'http://localhost:8000/api/calendar/feed.ics'
+
+  const copyToClipboard = (url: string) => {
+    navigator.clipboard.writeText(url)
+    toast.success('URL copiée dans le presse-papier !')
+  }
+
+  const openInCalendar = () => {
+    window.location.href = webcalUrl
+    toast.success('Ouverture dans Apple Calendar...')
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="flex items-center gap-2">
+          <Rss className="h-4 w-4" />
+          S'abonner au calendrier
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-bold">Abonnement au calendrier</DialogTitle>
+          <DialogDescription>
+            Synchronisez automatiquement vos séances planifiées avec Apple Calendar
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm text-muted-foreground mb-3">
+              Une fois abonné, toutes vos séances planifiées apparaîtront automatiquement dans votre calendrier.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-bold">Méthode 1 : Ouverture directe</Label>
+            <Button onClick={openInCalendar} className="w-full" size="sm">
+              <Calendar className="h-4 w-4 mr-2" />
+              Ouvrir dans Apple Calendar
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-bold">Méthode 2 : URL manuelle</Label>
+            <div className="flex gap-2">
+              <Input
+                readOnly
+                value={webcalUrl}
+                className="text-xs font-mono"
+              />
+              <Button
+                onClick={() => copyToClipboard(webcalUrl)}
+                variant="outline"
+                size="sm"
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Copiez cette URL et ajoutez-la dans Calendrier → Fichier → Nouvel abonnement
+            </p>
+          </div>
+
+          <div className="bg-muted p-3 rounded-md">
+            <p className="text-xs text-muted-foreground">
+              💡 Astuce : Les modifications (ajout, suppression, planification) seront automatiquement synchronisées.
+            </p>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 function ScheduleDialog({ suggestion, onSchedule }: { suggestion: Suggestion; onSchedule: (date: string) => void }) {
@@ -254,18 +331,22 @@ export default function SuggestionsPage() {
           </p>
         </div>
         <div className="flex flex-col gap-2">
-          {!showOptions ? (
-            <Button
-              onClick={() => setShowOptions(true)}
-              disabled={generating}
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2"
-            >
-              <Sparkles className="h-4 w-4" />
-              Générer
-            </Button>
-          ) : (
+          <div className="flex gap-2">
+            <CalendarSubscribeDialog />
+            {!showOptions ? (
+              <Button
+                onClick={() => setShowOptions(true)}
+                disabled={generating}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Sparkles className="h-4 w-4" />
+                Générer
+              </Button>
+            ) : null}
+          </div>
+          {showOptions ? (
             <Card className="w-80 shadow-md">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base font-bold">Type de génération</CardTitle>
@@ -336,7 +417,7 @@ export default function SuggestionsPage() {
                 </Button>
               </CardContent>
             </Card>
-          )}
+          ) : null}
         </div>
       </div>
 

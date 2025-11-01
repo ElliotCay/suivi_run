@@ -51,8 +51,13 @@ const workoutTypeColors: Record<string, string> = {
 
 function CalendarSubscribeDialog() {
   const [open, setOpen] = useState(false)
-  const webcalUrl = 'webcal://localhost:8000/api/calendar/feed.ics'
-  const httpUrl = 'http://localhost:8000/api/calendar/feed.ics'
+
+  // Utiliser l'IP locale pour que Apple Calendar puisse s'abonner
+  // En production, remplacer par l'URL publique
+  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost'
+  const port = '8000'
+  const webcalUrl = `webcal://${host}:${port}/api/calendar/feed.ics`
+  const httpUrl = `http://${host}:${port}/api/calendar/feed.ics`
 
   const copyToClipboard = (url: string) => {
     navigator.clipboard.writeText(url)

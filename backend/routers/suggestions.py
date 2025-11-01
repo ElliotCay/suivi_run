@@ -18,6 +18,7 @@ from services.claude_service import (
     parse_suggestion_response
 )
 from services.calendar_service import create_ics_event, create_calendar_feed
+from services.icloud_calendar_sync import iCloudCalendarSync, CalendarSyncError
 from schemas import SuggestionResponse, SuggestionGenerateRequest
 
 logger = logging.getLogger(__name__)
@@ -305,3 +306,56 @@ async def get_calendar_feed(
             "Expires": "0"
         }
     )
+
+
+@router.post("/calendar/sync")
+async def sync_calendar(
+    db: Session = Depends(get_db),
+    user_id: int = 1,  # TODO: Get from auth
+):
+    """
+    Synchronise les suggestions planifiées avec iCloud Calendar via CalDAV.
+    Crée automatiquement les événements dans le calendrier "Entraînements Course".
+    """
+    try:
+        # Initialiser le service de synchronisation
+        sync_service = iCloudCalendarSync()
+
+        # Se connecter à iCloud
+        if not sync_service.connect():
+            raise HTTPException(
+                status_code=500,
+                detail="Impossible de se connecter à iCloud Calendar. Vérifiez vos identifiants dans .env"
+            )
+
+        # Récupérer les suggestions planifiées (non complétées)
+        suggestions = db.query(Suggestion).filter(
+            Suggestion.user_id == user_id,
+            Suggestion.scheduled_date.isnot(None),
+            Suggestion.completed == 0
+        ).all()
+
+        if not suggestions:
+            return {
+                "message": "Aucune séance à synchroniser",
+                "stats": {"created": 0, "deleted": 0, "errors": 0, "skipped": 0}
+            }
+
+        # Synchroniser
+        stats = sync_service.sync_suggestions(suggestions, db)
+
+        return {
+            "message": f"Synchronisation réussie ! {stats['created']} séance(s) ajoutée(s) au calendrier.",
+            "stats": stats
+        }
+
+    except CalendarSyncError as e:
+        logger.error(f"Erreur de synchronisation calendrier: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        logger.error(f"Erreur inattendue lors de la synchronisation: {e}")
+        logger.exception(e)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erreur lors de la synchronisation: {str(e)}"
+        )

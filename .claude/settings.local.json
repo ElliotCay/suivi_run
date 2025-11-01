@@ -49,7 +49,9 @@
       "Bash(git ls-tree:*)",
       "Bash(while read branch)",
       "Bash(do git ls-tree -r --name-only $branch)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(ipconfig getifaddr:*)",
+      "Bash(pip freeze:*)"
     ],
     "deny": [],
     "ask": []

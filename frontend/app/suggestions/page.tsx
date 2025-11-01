@@ -49,77 +49,43 @@ const workoutTypeColors: Record<string, string> = {
   'longue': 'bg-muted text-foreground'
 }
 
-function CalendarExportDialog() {
-  const [open, setOpen] = useState(false)
+function CalendarSyncButton() {
+  const [syncing, setSyncing] = useState(false)
 
-  const downloadCalendarFile = async () => {
+  const syncToCalendar = async () => {
+    setSyncing(true)
     try {
-      const response = await axios.get('http://localhost:8000/api/calendar/feed.ics', {
-        responseType: 'blob'
-      })
-
-      const url = window.URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', 'entrainements-course.ics')
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      window.URL.revokeObjectURL(url)
-
-      toast.success('Calendrier téléchargé ! Ouvrez le fichier pour l\'importer.')
-      setOpen(false)
+      const response = await axios.post('http://localhost:8000/api/calendar/sync')
+      toast.success(response.data.message)
     } catch (error: any) {
-      console.error('Error downloading calendar:', error)
-      toast.error('Erreur lors du téléchargement')
+      console.error('Error syncing calendar:', error)
+      const errorMsg = error?.response?.data?.detail || 'Erreur lors de la synchronisation'
+      toast.error(errorMsg)
+    } finally {
+      setSyncing(false)
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="flex items-center gap-2">
+    <Button
+      onClick={syncToCalendar}
+      disabled={syncing}
+      variant="outline"
+      size="sm"
+      className="flex items-center gap-2"
+    >
+      {syncing ? (
+        <>
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Synchronisation...
+        </>
+      ) : (
+        <>
           <Calendar className="h-4 w-4" />
-          Exporter au calendrier
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="font-bold">Export vers Apple Calendar</DialogTitle>
-          <DialogDescription>
-            Téléchargez toutes vos séances planifiées en un fichier .ics
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <p className="text-sm text-muted-foreground mb-3">
-              Le fichier contiendra toutes vos séances planifiées. Double-cliquez dessus pour les importer dans Apple Calendar.
-            </p>
-          </div>
-
-          <Button onClick={downloadCalendarFile} className="w-full" size="sm">
-            <Calendar className="h-4 w-4 mr-2" />
-            Télécharger le calendrier
-          </Button>
-
-          <div className="bg-muted p-3 rounded-md space-y-2">
-            <p className="text-xs font-bold">Après téléchargement :</p>
-            <ol className="text-xs text-muted-foreground list-decimal list-inside space-y-1">
-              <li>Le fichier .ics sera téléchargé</li>
-              <li>Double-cliquez dessus</li>
-              <li>Apple Calendar s'ouvrira et importera les séances</li>
-              <li>Choisissez le calendrier de destination</li>
-            </ol>
-          </div>
-
-          <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-md">
-            <p className="text-xs text-blue-900 dark:text-blue-100">
-              💡 Astuce : Re-téléchargez le fichier après avoir ajouté/modifié des séances pour mettre à jour votre calendrier.
-            </p>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+          Synchroniser calendrier
+        </>
+      )}
+    </Button>
   )
 }
 
@@ -329,7 +295,7 @@ export default function SuggestionsPage() {
         </div>
         <div className="flex flex-col gap-2">
           <div className="flex gap-2">
-            <CalendarExportDialog />
+            <CalendarSyncButton />
             {!showOptions ? (
               <Button
                 onClick={() => setShowOptions(true)}

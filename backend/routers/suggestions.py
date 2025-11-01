@@ -3,8 +3,10 @@ Suggestions router for AI-powered workout recommendations.
 """
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
+from pydantic import BaseModel
 import logging
 
 from database import get_db
@@ -15,11 +17,16 @@ from services.claude_service import (
     call_claude_api,
     parse_suggestion_response
 )
+from services.calendar_service import create_ics_event
 from schemas import SuggestionResponse, SuggestionGenerateRequest
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+class ScheduleSuggestionRequest(BaseModel):
+    scheduled_date: str  # ISO format datetime string
 
 
 @router.post("/suggestions/generate")
@@ -44,12 +51,12 @@ async def generate_suggestion(
 
     logger.info(f"Found {len(recent_workouts)} workouts in last 4 weeks")
 
-    # 3. Build user dict
+    # 3. Build user dict with safe defaults
     user_dict = {
-        'current_level': user.current_level,
-        'weekly_volume': user.weekly_volume,
-        'injury_history': user.injury_history,
-        'objectives': user.objectives
+        'current_level': user.current_level or {},
+        'weekly_volume': user.weekly_volume or 20.0,
+        'injury_history': user.injury_history or [],
+        'objectives': user.objectives or []
     }
 
     # 4. Generate week or single workout
@@ -173,3 +180,85 @@ async def delete_suggestion(
     db.commit()
 
     return {"message": "Suggestion deleted successfully", "id": suggestion_id}
+
+
+@router.patch("/suggestions/{suggestion_id}/schedule")
+async def schedule_suggestion(
+    suggestion_id: int,
+    request: ScheduleSuggestionRequest,
+    db: Session = Depends(get_db),
+    user_id: int = 1,  # TODO: Get from auth
+):
+    """Planifier une suggestion à une date/heure donnée."""
+    suggestion = db.query(Suggestion).filter(
+        Suggestion.id == suggestion_id,
+        Suggestion.user_id == user_id
+    ).first()
+
+    if not suggestion:
+        raise HTTPException(status_code=404, detail="Suggestion not found")
+
+    # Parser la date
+    try:
+        scheduled_date = datetime.fromisoformat(request.scheduled_date.replace('Z', '+00:00'))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use ISO format.")
+
+    # Mettre à jour la suggestion
+    suggestion.scheduled_date = scheduled_date
+    db.commit()
+    db.refresh(suggestion)
+
+    logger.info(f"Suggestion {suggestion_id} scheduled for {scheduled_date}")
+
+    return {
+        "id": suggestion.id,
+        "scheduled_date": suggestion.scheduled_date.isoformat(),
+        "message": "Suggestion planifiée avec succès"
+    }
+
+
+@router.get("/suggestions/{suggestion_id}/calendar")
+async def download_calendar_event(
+    suggestion_id: int,
+    db: Session = Depends(get_db),
+    user_id: int = 1,  # TODO: Get from auth
+):
+    """Télécharger le fichier .ics pour ajouter au calendrier."""
+    suggestion = db.query(Suggestion).filter(
+        Suggestion.id == suggestion_id,
+        Suggestion.user_id == user_id
+    ).first()
+
+    if not suggestion:
+        raise HTTPException(status_code=404, detail="Suggestion not found")
+
+    if not suggestion.scheduled_date:
+        raise HTTPException(
+            status_code=400,
+            detail="Cette suggestion n'a pas de date planifiée. Planifiez-la d'abord."
+        )
+
+    # Construire le dict pour create_ics_event
+    suggestion_dict = {
+        'id': suggestion.id,
+        'structure': suggestion.structure,
+        'workout_type': suggestion.workout_type,
+        'distance': suggestion.distance
+    }
+
+    # Créer le fichier .ics
+    ics_content, event_uid = create_ics_event(suggestion_dict, suggestion.scheduled_date)
+
+    # Sauvegarder l'event UID
+    suggestion.calendar_event_id = event_uid
+    db.commit()
+
+    # Retourner le fichier .ics
+    return Response(
+        content=ics_content,
+        media_type="text/calendar",
+        headers={
+            "Content-Disposition": f"attachment; filename=workout-{suggestion.id}.ics"
+        }
+    )

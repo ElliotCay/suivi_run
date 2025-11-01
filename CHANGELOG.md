@@ -102,13 +102,46 @@ Workout fusionné = {
 - [x] Records - Bento grid asymétrique avec dates
 - [x] Dashboard - Bento grid + ActivityHeatmap intégré
 - [x] Workouts - Liste compacte et lisible
-- [ ] Suggestions - À faire
-- [ ] Import - À faire
-- [ ] Profile - À faire
-- [ ] Training Plans - À faire
+- [x] Suggestions - Design sobre avec badges neutres
+- [x] Import - Cards uniformes avec buttons outline
+- [x] Profile - Layout épuré avec cards sober
+- [x] Training Plans - Grid responsive avec boutons compacts
+
+---
+
+### 🎨 Pages Redesignées (Session 2)
+
+#### Page Suggestions
+- **Header** : Titre 6xl bold, sous-titre avec compteur
+- **Bouton "Générer"** : Variant outline, size sm
+- **Badges** : Couleurs neutres (bg-muted au lieu de green/orange/red)
+- **Cards** : Hover shadow-md, padding compact (p-4)
+- **Sections** : Titres "Structure" et "Raison" en text-sm font-bold
+- **Metadata** : Séparateurs bullet (•) au lieu de texte "Modèle:", "Tokens:"
+
+#### Page Import
+- **Header** : Titre 6xl bold "Import"
+- **Cards** : 3 sections (Strava, Auto-Import, Manuel)
+- **Status boxes** : bg-muted au lieu de couleurs green/blue
+- **Boutons** : Tous en variant outline size sm
+- **Textes** : Titres font-bold, descriptions text-muted-foreground
+
+#### Page Profile
+- **Header** : Titre 6xl bold "Profil"
+- **Cards** : Hover shadow-md, headers pb-3
+- **Blessures** : Border-l-2 border-foreground au lieu de border-l-4 border-red-500
+- **Équipement** : Labels font-bold, valeurs text-muted-foreground
+- **Save button** : Variant outline size sm
+
+#### Page Training Plans
+- **Header** : Titre 6xl bold "Plans"
+- **Bouton "Nouveau"** : Variant outline size sm avec icon Plus
+- **Filtres** : Size sm pour tous les boutons
+- **Grid** : Gap-3 au lieu de gap-4
+- **Empty state** : Padding 16, titre font-bold text-base
 
 ---
 
 ## Prochaines Étapes
-- Finaliser le redesign des pages restantes (Suggestions, Import, Profile, Training Plans)
+- Tests UI/UX sur toutes les pages
 - Optimiser les graphiques pour mobile (si besoin futur)

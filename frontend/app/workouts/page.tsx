@@ -138,9 +138,9 @@ export default function WorkoutsPage() {
             <Link key={workout.id} href={`/workouts/${workout.id}`}>
               <Card className="hover:shadow-md cursor-pointer transition-all">
                 <CardContent className="p-4">
-                  <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-12">
                     {/* Left: Date & Type */}
-                    <div className="space-y-1">
+                    <div className="space-y-0.5 min-w-[160px]">
                       <div className="font-bold text-base">
                         {formatDate(workout.date)}
                       </div>
@@ -149,33 +149,25 @@ export default function WorkoutsPage() {
                       </div>
                     </div>
 
-                    {/* Middle: Metrics */}
-                    <div className="flex gap-6 text-sm">
+                    {/* Main Metrics: Distance & Pace */}
+                    <div className="flex gap-10 items-baseline">
                       <div className="text-center">
-                        <div className="text-2xl font-bold">
+                        <div className="text-3xl font-bold tabular-nums">
                           {workout.distance?.toFixed(2)}
                         </div>
-                        <div className="text-xs text-muted-foreground">km</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">km</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-lg font-bold font-mono">
+                        <div className="text-2xl font-bold font-mono tabular-nums">
                           {formatPace(workout.avg_pace)}
                         </div>
-                        <div className="text-xs text-muted-foreground">allure</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">allure</div>
                       </div>
-                      {workout.avg_hr && (
-                        <div className="text-center">
-                          <div className="text-lg font-bold">
-                            {workout.avg_hr}
-                          </div>
-                          <div className="text-xs text-muted-foreground">bpm</div>
-                        </div>
-                      )}
                     </div>
 
                     {/* Right: Duration */}
-                    <div className="text-right">
-                      <div className="text-sm font-mono text-muted-foreground">
+                    <div className="ml-auto text-right">
+                      <div className="text-base font-mono text-muted-foreground tabular-nums">
                         {formatDuration(workout.duration)}
                       </div>
                     </div>

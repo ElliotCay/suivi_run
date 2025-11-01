@@ -37,38 +37,44 @@ export default function TrainingPlansPage() {
   })
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Plans d'Entraînement</h1>
-          <p className="text-muted-foreground mt-2">
-            Gérez vos programmes d'entraînement sur plusieurs semaines
+    <div className="space-y-6">
+      {/* Minimal Header */}
+      <div className="flex items-start justify-between">
+        <div className="space-y-2">
+          <h1 className="text-6xl font-bold tracking-tight">
+            Plans
+          </h1>
+          <p className="text-base text-muted-foreground">
+            Gérez vos programmes d'entraînement
           </p>
         </div>
         <Link href="/training-plans/create">
-          <Button size="lg" className="gap-2">
-            <Plus className="h-5 w-5" />
-            Nouveau Plan
+          <Button variant="outline" size="sm" className="gap-2">
+            <Plus className="h-4 w-4" />
+            Nouveau
           </Button>
         </Link>
       </div>
 
       {/* Filtres */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2">
         <Button
           variant={filter === "all" ? "default" : "outline"}
+          size="sm"
           onClick={() => setFilter("all")}
         >
           Tous
         </Button>
         <Button
           variant={filter === "active" ? "default" : "outline"}
+          size="sm"
           onClick={() => setFilter("active")}
         >
           Actifs
         </Button>
         <Button
           variant={filter === "completed" ? "default" : "outline"}
+          size="sm"
           onClick={() => setFilter("completed")}
         >
           Terminés
@@ -77,28 +83,28 @@ export default function TrainingPlansPage() {
 
       {/* Liste des plans */}
       {loading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
             <TrainingPlanCardSkeleton key={i} />
           ))}
         </div>
       ) : filteredPlans.length === 0 ? (
-        <Card className="p-12 text-center">
+        <Card className="p-16 text-center hover:shadow-md transition-all">
           <div className="max-w-md mx-auto">
-            <h3 className="text-xl font-semibold mb-2">
+            <h3 className="text-base font-bold mb-2">
               {filter === "all"
                 ? "Aucun plan d'entraînement"
                 : `Aucun plan ${filter === "active" ? "actif" : "terminé"}`}
             </h3>
-            <p className="text-muted-foreground mb-6">
+            <p className="text-sm text-muted-foreground mb-6">
               {filter === "all"
                 ? "Créez votre premier plan d'entraînement pour structurer votre préparation sur plusieurs semaines."
                 : `Vous n'avez aucun plan ${filter === "active" ? "actif" : "terminé"} pour le moment.`}
             </p>
             {filter === "all" && (
               <Link href="/training-plans/create">
-                <Button size="lg" className="gap-2">
-                  <Plus className="h-5 w-5" />
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Plus className="h-4 w-4" />
                   Créer un plan
                 </Button>
               </Link>
@@ -106,7 +112,7 @@ export default function TrainingPlansPage() {
           </div>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {filteredPlans.map((plan) => (
             <Link key={plan.id} href={`/training-plans/${plan.id}`}>
               <TrainingPlanCard plan={plan} />

@@ -174,17 +174,22 @@ export default function ImportPage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-2">Importer mes données</h1>
-      <p className="text-muted-foreground mb-8">
-        Connectez Strava ou importez depuis Apple Santé
-      </p>
+    <div className="space-y-6">
+      {/* Minimal Header */}
+      <div className="space-y-2">
+        <h1 className="text-6xl font-bold tracking-tight">
+          Import
+        </h1>
+        <p className="text-base text-muted-foreground">
+          Connectez Strava ou importez depuis Apple Santé
+        </p>
+      </div>
 
       {/* Strava Connection Card */}
-      <Card className="max-w-2xl mb-6">
-        <CardHeader>
-          <CardTitle>🚴 Connexion Strava</CardTitle>
-          <CardDescription>
+      <Card className="max-w-2xl hover:shadow-md transition-all">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg font-bold">Connexion Strava</CardTitle>
+          <CardDescription className="text-sm">
             Synchronisez automatiquement vos activités running depuis Strava
           </CardDescription>
         </CardHeader>
@@ -193,13 +198,13 @@ export default function ImportPage() {
             <>
               {stravaStatus.connected ? (
                 <div className="space-y-3">
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-sm text-green-800 font-medium">
-                      ✓ Connecté en tant que {stravaStatus.athlete?.firstname} {stravaStatus.athlete?.lastname}
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="text-sm font-bold">
+                      Connecté en tant que {stravaStatus.athlete?.firstname} {stravaStatus.athlete?.lastname}
                     </p>
                     {stravaStatus.last_sync && (
-                      <p className="text-xs text-green-600 mt-1">
-                        Dernière synchronisation: {new Date(stravaStatus.last_sync).toLocaleString('fr-FR')}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Dernière sync: {new Date(stravaStatus.last_sync).toLocaleString('fr-FR')}
                       </p>
                     )}
                   </div>
@@ -208,14 +213,17 @@ export default function ImportPage() {
                     <Button
                       onClick={syncStrava}
                       disabled={syncing}
+                      variant="outline"
+                      size="sm"
                       className="flex-1"
                     >
                       <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-                      {syncing ? 'Synchronisation...' : 'Synchroniser maintenant'}
+                      {syncing ? 'Sync...' : 'Synchroniser'}
                     </Button>
                     <Button
                       onClick={disconnectStrava}
                       variant="outline"
+                      size="sm"
                       className="flex-1"
                     >
                       Déconnecter
@@ -224,15 +232,17 @@ export default function ImportPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm text-blue-800">
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">
                       Connectez votre compte Strava pour importer automatiquement vos courses
                     </p>
                   </div>
 
                   <Button
                     onClick={connectStrava}
-                    className="w-full bg-[#FC4C02] hover:bg-[#E34402]"
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
                   >
                     Se connecter avec Strava
                   </Button>
@@ -244,10 +254,10 @@ export default function ImportPage() {
       </Card>
 
       {/* Auto-Import Card */}
-      <Card className="max-w-2xl mb-6">
-        <CardHeader>
-          <CardTitle>Import Automatique via iCloud Drive</CardTitle>
-          <CardDescription>
+      <Card className="max-w-2xl hover:shadow-md transition-all">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg font-bold">Import Automatique via iCloud Drive</CardTitle>
+          <CardDescription className="text-sm">
             Configuration de la synchronisation automatique depuis votre iPhone
           </CardDescription>
         </CardHeader>
@@ -269,12 +279,12 @@ export default function ImportPage() {
               </div>
 
               {autoImportStatus.export_file_exists && (
-                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-sm text-green-800">
-                    ✓ Fichier export.zip détecté
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="text-sm font-bold">
+                    Fichier export.zip détecté
                   </p>
                   {autoImportStatus.export_file_modified && (
-                    <p className="text-xs text-green-600 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       Dernière modification: {new Date(autoImportStatus.export_file_modified).toLocaleString('fr-FR')}
                     </p>
                   )}
@@ -282,11 +292,11 @@ export default function ImportPage() {
               )}
 
               {!autoImportStatus.export_file_exists && autoImportStatus.is_running && (
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-800">
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="text-sm font-bold">
                     En attente du fichier export.zip...
                   </p>
-                  <p className="text-xs text-blue-600 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     Déposez votre export Apple Health dans le dossier iCloud Drive
                   </p>
                 </div>
@@ -306,16 +316,19 @@ export default function ImportPage() {
               <Button
                 onClick={startAutoImport}
                 disabled={loadingStatus}
+                variant="outline"
+                size="sm"
                 className="flex-1"
               >
                 <Play className="h-4 w-4 mr-2" />
-                Démarrer l'import automatique
+                Démarrer
               </Button>
             ) : (
               <Button
                 onClick={stopAutoImport}
                 disabled={loadingStatus}
                 variant="outline"
+                size="sm"
                 className="flex-1"
               >
                 <Square className="h-4 w-4 mr-2" />
@@ -326,17 +339,17 @@ export default function ImportPage() {
               onClick={loadAutoImportStatus}
               disabled={loadingStatus}
               variant="outline"
-              size="icon"
+              size="sm"
             >
               <RefreshCw className={`h-4 w-4 ${loadingStatus ? 'animate-spin' : ''}`} />
             </Button>
           </div>
 
-          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-xs text-yellow-800 font-medium mb-1">
-              📱 Configuration requise sur iPhone
+          <div className="p-3 bg-muted rounded-lg">
+            <p className="text-xs font-bold mb-1">
+              Configuration requise sur iPhone
             </p>
-            <p className="text-xs text-yellow-700">
+            <p className="text-xs text-muted-foreground">
               Vous devez créer un raccourci iOS pour exporter automatiquement vos données vers iCloud Drive.
               Instructions détaillées ci-dessous après avoir démarré l'import automatique.
             </p>
@@ -345,10 +358,10 @@ export default function ImportPage() {
       </Card>
 
       {/* Manual Import Card */}
-      <Card className="max-w-2xl">
-        <CardHeader>
-          <CardTitle>Import Manuel</CardTitle>
-          <CardDescription>
+      <Card className="max-w-2xl hover:shadow-md transition-all">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg font-bold">Import Manuel</CardTitle>
+          <CardDescription className="text-sm">
             Ou importez manuellement un export Apple Santé :<br/>
             1. Ouvrez l'app Santé sur votre iPhone<br/>
             2. Touchez votre photo de profil<br/>
@@ -384,15 +397,15 @@ export default function ImportPage() {
           </div>
 
           {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              {error}
+            <div className="p-3 bg-muted rounded-lg border border-border">
+              <p className="text-sm font-bold text-destructive">{error}</p>
             </div>
           )}
 
           {result && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-              <h3 className="font-semibold text-green-900 mb-2">✅ Import réussi!</h3>
-              <ul className="text-sm text-green-800 space-y-1">
+            <div className="p-4 bg-muted rounded-lg">
+              <h3 className="text-sm font-bold mb-2">Import réussi</h3>
+              <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• {result.workouts_imported} séances importées</li>
                 {result.duplicates_skipped > 0 && (
                   <li>• {result.duplicates_skipped} doublons ignorés</li>
@@ -405,7 +418,9 @@ export default function ImportPage() {
                 )}
               </ul>
               <Button
-                className="mt-4"
+                variant="outline"
+                size="sm"
+                className="mt-3"
                 onClick={() => window.location.href = '/workouts'}
               >
                 Voir mes entraînements
@@ -416,6 +431,8 @@ export default function ImportPage() {
           <Button
             onClick={handleUpload}
             disabled={!file || uploading}
+            variant="outline"
+            size="sm"
             className="w-full"
           >
             {uploading ? 'Import en cours...' : 'Importer'}

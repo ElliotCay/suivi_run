@@ -23,7 +23,6 @@ class User(Base):
     current_level = Column(JSON, nullable=True)
     objectives = Column(JSON, nullable=True)
     weekly_volume = Column(Float, nullable=True)
-    preferences = Column(JSON, nullable=True)
     equipment = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -33,7 +32,7 @@ class User(Base):
     strength_sessions = relationship("StrengthSession", back_populates="user")
     suggestions = relationship("Suggestion", back_populates="user")
     training_plans = relationship("TrainingPlan", back_populates="user")
-    preferences = relationship("UserPreferences", back_populates="user", uselist=False)
+    user_preferences = relationship("UserPreferences", back_populates="user", uselist=False)
 
 
 class Workout(Base):
@@ -100,6 +99,8 @@ class Suggestion(Base):
     completed_workout_id = Column(
         Integer, ForeignKey("workouts.id"), nullable=True
     )  # Link to actual workout
+    scheduled_date = Column(DateTime, nullable=True)  # Planned date and time for the workout
+    calendar_event_id = Column(String, nullable=True)  # ID of the calendar event if synced
 
     # Relationships
     user = relationship("User", back_populates="suggestions")
@@ -207,7 +208,7 @@ class UserPreferences(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    user = relationship("User", back_populates="preferences")
+    user = relationship("User", back_populates="user_preferences")
 
 
 class StravaConnection(Base):

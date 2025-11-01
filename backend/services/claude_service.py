@@ -3,10 +3,11 @@ Claude AI service for generating workout suggestions.
 """
 
 from anthropic import Anthropic
-import os
 import logging
 import json
 from typing import Dict, List, Any
+
+from config import ANTHROPIC_API_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,9 @@ def _get_client():
     """Get or create Anthropic client."""
     global _client
     if _client is None:
-        _client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        if not ANTHROPIC_API_KEY:
+            raise ValueError("ANTHROPIC_API_KEY not configured in .env file")
+        _client = Anthropic(api_key=ANTHROPIC_API_KEY)
     return _client
 
 

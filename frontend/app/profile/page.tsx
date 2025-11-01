@@ -113,16 +113,30 @@ export default function ProfilePage() {
     }
   }
 
-  if (loading) return <div className="container mx-auto py-8">Chargement...</div>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-muted-foreground">Chargement...</div>
+      </div>
+    )
+  }
 
   return (
-    <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-6">Mon Profil</h1>
+    <div className="space-y-6">
+      {/* Minimal Header */}
+      <div className="space-y-2">
+        <h1 className="text-6xl font-bold tracking-tight">
+          Profil
+        </h1>
+        <p className="text-base text-muted-foreground">
+          Gérez vos informations et objectifs
+        </p>
+      </div>
 
-      <div className="grid gap-6 max-w-2xl">
-        <Card>
-          <CardHeader>
-            <CardTitle>Informations générales</CardTitle>
+      <div className="grid gap-3 max-w-2xl">
+        <Card className="hover:shadow-md transition-all">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg font-bold">Informations générales</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -144,30 +158,30 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Historique blessures</CardTitle>
+        <Card className="hover:shadow-md transition-all">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg font-bold">Historique blessures</CardTitle>
           </CardHeader>
           <CardContent>
             {profile?.injury_history && profile.injury_history.length > 0 ? (
               <ul className="space-y-2">
                 {profile.injury_history.map((injury: any, index: number) => (
-                  <li key={index} className="border-l-4 border-red-500 pl-4">
-                    <p className="font-medium">{injury.type}</p>
-                    <p className="text-sm text-muted-foreground">{injury.status}</p>
+                  <li key={index} className="border-l-2 border-foreground pl-3">
+                    <p className="text-sm font-bold">{injury.type}</p>
+                    <p className="text-xs text-muted-foreground">{injury.status}</p>
                     {injury.date && <p className="text-xs text-muted-foreground">Date: {injury.date}</p>}
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-muted-foreground">Aucune blessure enregistrée</p>
+              <p className="text-sm text-muted-foreground">Aucune blessure enregistrée</p>
             )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Objectif Principal</CardTitle>
+        <Card className="hover:shadow-md transition-all">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg font-bold">Objectif Principal</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -219,22 +233,22 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Équipement</CardTitle>
+        <Card className="hover:shadow-md transition-all">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg font-bold">Équipement</CardTitle>
           </CardHeader>
           <CardContent>
             {profile?.equipment && (
-              <div className="space-y-2">
-                <p><span className="font-medium">Chaussures:</span> {profile.equipment.shoes}</p>
-                <p><span className="font-medium">Montre:</span> {profile.equipment.watch}</p>
-                <p><span className="font-medium">Écouteurs:</span> {profile.equipment.earbuds}</p>
+              <div className="space-y-1.5">
+                <p className="text-sm"><span className="font-bold">Chaussures:</span> <span className="text-muted-foreground">{profile.equipment.shoes}</span></p>
+                <p className="text-sm"><span className="font-bold">Montre:</span> <span className="text-muted-foreground">{profile.equipment.watch}</span></p>
+                <p className="text-sm"><span className="font-bold">Écouteurs:</span> <span className="text-muted-foreground">{profile.equipment.earbuds}</span></p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Button onClick={handleSave} disabled={saving} className="w-full">
+        <Button onClick={handleSave} disabled={saving} variant="outline" size="sm" className="w-full">
           {saving ? 'Sauvegarde...' : 'Sauvegarder les modifications'}
         </Button>
       </div>

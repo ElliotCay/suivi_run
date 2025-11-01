@@ -8,13 +8,13 @@ import pytz
 
 try:
     import caldav
-    from icalendar import Event, Calendar as iCalendar, vText, vAlarm
+    from icalendar import Event, Calendar as iCalendar, vText, Alarm
 except ImportError:
     caldav = None
     Event = None
     iCalendar = None
     vText = None
-    vAlarm = None
+    Alarm = None
     logging.error("Modules caldav/icalendar non installés")
 
 from config import ICLOUD_USERNAME, ICLOUD_PASSWORD
@@ -163,7 +163,7 @@ class iCloudCalendarSync:
             event.add('location', vText("À définir"))
 
             # Rappel 30 minutes avant
-            alarm = vAlarm()
+            alarm = Alarm()
             alarm.add('action', 'DISPLAY')
             alarm.add('trigger', timedelta(minutes=-30))
             alarm.add('description', vText(f"Rappel: {title} dans 30 minutes"))

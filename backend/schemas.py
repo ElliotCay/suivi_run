@@ -123,6 +123,8 @@ class SuggestionResponse(SuggestionBase):
     tokens_used: Optional[int] = None
     completed: int
     completed_workout_id: Optional[int] = None
+    scheduled_date: Optional[datetime] = None
+    calendar_event_id: Optional[str] = None
 
     class Config:
         from_attributes = True

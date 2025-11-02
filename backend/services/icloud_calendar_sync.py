@@ -110,11 +110,14 @@ class iCloudCalendarSync:
         Returns:
             UID de l'événement créé ou None en cas d'erreur
         """
+        logger.info(f"🔧 create_workout_event appelée avec données: {suggestion_data.keys()}")
+
         if not self._calendar:
-            logger.error("Calendrier non initialisé")
+            logger.error("❌ Calendrier non initialisé dans create_workout_event")
             return None
 
         try:
+            logger.info("📝 Création de l'objet iCalendar...")
             # Création de l'événement iCalendar
             cal = iCalendar()
             cal.add('prodid', '-//Suivi Course//Workout Planner//FR')
@@ -125,26 +128,38 @@ class iCloudCalendarSync:
             # UID unique basé sur l'ID de la suggestion
             event_uid = f"workout-{suggestion_data['id']}@suivi-course.local"
             event.add('uid', event_uid)
+            logger.info(f"🆔 UID généré: {event_uid}")
 
             # Extraire les infos
             structure = suggestion_data.get('structure', {})
+            logger.info(f"📋 Structure récupérée: {structure}")
+
             workout_type = structure.get('type', suggestion_data.get('workout_type', 'Course'))
             distance_km = structure.get('distance_km', suggestion_data.get('distance', 0))
             allure_cible = structure.get('allure_cible', '')
             workout_structure = structure.get('structure', '')
 
+            logger.info(f"🏃 Type: {workout_type}, Distance: {distance_km}km")
+
             # Titre de l'événement
             title = f"🏃 {workout_type.capitalize()} - {distance_km}km"
             event.add('summary', vText(title))
+            logger.info(f"📌 Titre: {title}")
 
             # Dates et heures
             scheduled_date = suggestion_data['scheduled_date']
+            logger.info(f"📅 scheduled_date type: {type(scheduled_date)}, valeur: {scheduled_date}")
+
             if isinstance(scheduled_date, str):
                 scheduled_date = datetime.fromisoformat(scheduled_date.replace('Z', '+00:00'))
+                logger.info(f"📅 scheduled_date converti en datetime: {scheduled_date}")
 
             # Durée estimée (environ 6-7 min/km)
             estimated_duration_minutes = int(distance_km * 6.5)
             end_time = scheduled_date + timedelta(minutes=estimated_duration_minutes)
+
+            logger.info(f"⏱️ Durée estimée: {estimated_duration_minutes} min")
+            logger.info(f"📅 Début: {scheduled_date}, Fin: {end_time}")
 
             event.add('dtstart', scheduled_date)
             event.add('dtend', end_time)
@@ -180,9 +195,15 @@ class iCloudCalendarSync:
             event.add('transp', vText('OPAQUE'))
 
             cal.add_component(event)
+            logger.info("✅ Événement ajouté au calendrier iCalendar")
 
             # Ajout au calendrier iCloud
-            self._calendar.save_event(cal.to_ical().decode('utf-8'))
+            logger.info("☁️ Envoi de l'événement vers iCloud Calendar...")
+            ical_string = cal.to_ical().decode('utf-8')
+            logger.info(f"📄 Taille de l'iCal: {len(ical_string)} caractères")
+
+            self._calendar.save_event(ical_string)
+            logger.info("☁️ Événement sauvegardé sur iCloud!")
 
             logger.info(f"✅ Événement créé: {title}")
             logger.info(f"   📅 Date: {scheduled_date.strftime('%d/%m/%Y %H:%M')}")
@@ -246,7 +267,7 @@ class iCloudCalendarSync:
         }
 
         if not self._calendar:
-            logger.error("Calendrier non initialisé pour la synchronisation")
+            logger.error("❌ Calendrier non initialisé pour la synchronisation")
             return stats
 
         # Récupérer toutes les suggestions planifiées en base
@@ -256,9 +277,21 @@ class iCloudCalendarSync:
             Suggestion.completed == 0
         ).all()
 
+        logger.info(f"📊 Nombre de suggestions planifiées trouvées: {len(all_suggestions)}")
+
+        if len(all_suggestions) == 0:
+            logger.warning("⚠️ Aucune suggestion planifiée trouvée dans la base de données")
+            logger.info("💡 Vérification: est-ce que des suggestions ont un scheduled_date ?")
+
         # Créer ou mettre à jour les événements
-        for suggestion in all_suggestions:
+        for i, suggestion in enumerate(all_suggestions, 1):
             try:
+                logger.info(f"🔄 Traitement suggestion {i}/{len(all_suggestions)} - ID: {suggestion.id}")
+                logger.info(f"   📅 Date planifiée: {suggestion.scheduled_date}")
+                logger.info(f"   🏃 Type: {suggestion.workout_type}")
+                logger.info(f"   📏 Distance: {suggestion.distance}")
+                logger.info(f"   🆔 calendar_event_id existant: {suggestion.calendar_event_id}")
+
                 suggestion_dict = {
                     'id': suggestion.id,
                     'scheduled_date': suggestion.scheduled_date,
@@ -267,22 +300,28 @@ class iCloudCalendarSync:
                     'distance': suggestion.distance
                 }
 
-                if suggestion.calendar_uid:
+                if suggestion.calendar_event_id:
                     # Événement déjà synchronisé
+                    logger.info(f"   ⏭️ Suggestion {suggestion.id} déjà synchronisée (UID: {suggestion.calendar_event_id})")
                     stats['skipped'] += 1
                 else:
                     # Nouveau événement à créer
+                    logger.info(f"   ➕ Création événement pour suggestion {suggestion.id}...")
                     calendar_uid = self.create_workout_event(suggestion_dict)
                     if calendar_uid:
-                        suggestion.calendar_uid = calendar_uid
+                        logger.info(f"   ✅ Événement créé avec UID: {calendar_uid}")
+                        suggestion.calendar_event_id = calendar_uid
                         db.commit()
+                        logger.info(f"   💾 UID sauvegardé en base de données")
                         stats['created'] += 1
                     else:
+                        logger.error(f"   ❌ Échec création événement pour suggestion {suggestion.id}")
                         stats['errors'] += 1
 
             except Exception as e:
-                logger.error(f"Erreur lors de la synchronisation de la suggestion {suggestion.id}: {e}")
+                logger.error(f"❌ Erreur lors de la synchronisation de la suggestion {suggestion.id}: {e}")
+                logger.exception(e)
                 stats['errors'] += 1
 
-        logger.info(f"Synchronisation terminée: {stats['created']} créés, {stats['deleted']} supprimés, {stats['errors']} erreurs")
+        logger.info(f"🎯 Synchronisation terminée: {stats['created']} créés, {stats['skipped']} déjà présents, {stats['deleted']} supprimés, {stats['errors']} erreurs")
         return stats

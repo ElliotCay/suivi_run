@@ -1,0 +1,126 @@
+# Example GitHub Actions workflow for automated testing
+# Renommer en .github/workflows/tests.yml pour activer
+
+name: Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+
+    - name: Install dependencies
+      run: |
+        cd backend
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Initialize database
+      run: |
+        cd backend
+        python -c "from database import init_db; init_db()"
+
+    - name: Run health check (without iCloud/Anthropic)
+      run: |
+        cd backend
+        # Skip iCloud and Anthropic checks in CI
+        python -c "
+from scripts.quick_health_check import check_environment, check_files, check_dependencies, check_database
+print('Running basic health checks...')
+check_environment()
+check_files()
+check_dependencies()
+check_database()
+print('✅ Basic checks passed')
+        "
+
+  backend-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+
+    - name: Install dependencies
+      run: |
+        cd backend
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov
+
+    - name: Run backend tests
+      run: |
+        cd backend
+        # TODO: pytest tests/ --cov=.
+        echo "⚠️  Tests automatisés à implémenter avec pytest"
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
+
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm install
+
+    - name: Run TypeScript check
+      run: |
+        cd frontend
+        npx tsc --noEmit
+
+    - name: Run frontend build
+      run: |
+        cd frontend
+        npm run build
+
+    - name: Run frontend tests
+      run: |
+        cd frontend
+        # TODO: npm test
+        echo "⚠️  Tests frontend à implémenter"
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+
+    - name: Install linting tools
+      run: |
+        pip install flake8 black
+
+    - name: Lint Python code
+      run: |
+        cd backend
+        # Check formatting (don't fail, just warn)
+        black --check . || echo "⚠️  Code not formatted with black"
+        # Check style (don't fail, just warn)
+        flake8 . --max-line-length=120 --exclude=venv || echo "⚠️  Flake8 warnings"

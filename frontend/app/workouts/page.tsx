@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import axios from 'axios'
-import { Sparkles, Loader2 } from 'lucide-react'
+import { Sparkles, Loader2, Activity, Upload } from 'lucide-react'
 import { toast } from 'sonner'
+import EmptyState from '@/components/EmptyState'
 
 interface Workout {
   id: number
@@ -132,6 +133,22 @@ export default function WorkoutsPage() {
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
+      ) : workouts.length === 0 ? (
+        <EmptyState
+          icon={Activity}
+          title="Aucune séance"
+          description="Vous n'avez pas encore de séances d'entraînement. Importez vos données Apple Health pour commencer à suivre vos performances."
+          action={{
+            label: "Importer mes séances",
+            href: "/import"
+          }}
+        />
+      ) : filteredWorkouts.length === 0 ? (
+        <EmptyState
+          icon={Activity}
+          title="Aucun résultat"
+          description="Aucune séance ne correspond à votre recherche. Essayez avec d'autres mots-clés."
+        />
       ) : (
         <div className="grid gap-3">
           {filteredWorkouts.map((workout) => (

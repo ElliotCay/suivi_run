@@ -318,31 +318,53 @@ async def sync_calendar(
     Crée automatiquement les événements dans le calendrier "Entraînements Course".
     """
     try:
+        logger.info("🔄 === DÉBUT SYNCHRONISATION CALENDRIER ===")
+        logger.info(f"👤 User ID: {user_id}")
+
         # Initialiser le service de synchronisation
+        logger.info("🔧 Initialisation du service iCloudCalendarSync...")
         sync_service = iCloudCalendarSync()
+        logger.info("✅ Service initialisé")
 
         # Se connecter à iCloud
+        logger.info("🔐 Connexion à iCloud CalDAV...")
         if not sync_service.connect():
+            logger.error("❌ Échec de connexion à iCloud")
             raise HTTPException(
                 status_code=500,
                 detail="Impossible de se connecter à iCloud Calendar. Vérifiez vos identifiants dans .env"
             )
+        logger.info("✅ Connexion à iCloud réussie")
 
         # Récupérer les suggestions planifiées (non complétées)
+        logger.info("🔍 Recherche des suggestions planifiées en base...")
+        logger.info(f"   Critères: user_id={user_id}, scheduled_date IS NOT NULL, completed=0")
+
         suggestions = db.query(Suggestion).filter(
             Suggestion.user_id == user_id,
             Suggestion.scheduled_date.isnot(None),
             Suggestion.completed == 0
         ).all()
 
+        logger.info(f"📊 {len(suggestions)} suggestion(s) planifiée(s) trouvée(s)")
+
         if not suggestions:
+            logger.warning("⚠️ Aucune suggestion à synchroniser")
             return {
                 "message": "Aucune séance à synchroniser",
                 "stats": {"created": 0, "deleted": 0, "errors": 0, "skipped": 0}
             }
 
+        # Afficher les détails des suggestions trouvées
+        for i, sugg in enumerate(suggestions, 1):
+            logger.info(f"   [{i}] ID={sugg.id}, Date={sugg.scheduled_date}, Type={sugg.workout_type}, Distance={sugg.distance}")
+
         # Synchroniser
+        logger.info("🚀 Lancement de la synchronisation...")
         stats = sync_service.sync_suggestions(suggestions, db)
+        logger.info(f"🎯 Résultat: {stats}")
+
+        logger.info("🔄 === FIN SYNCHRONISATION CALENDRIER ===")
 
         return {
             "message": f"Synchronisation réussie ! {stats['created']} séance(s) ajoutée(s) au calendrier.",

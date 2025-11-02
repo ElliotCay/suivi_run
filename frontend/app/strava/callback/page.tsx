@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import axios from 'axios'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, CheckCircle, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-export default function StravaCallbackPage() {
+function StravaCallbackContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
@@ -109,5 +109,32 @@ export default function StravaCallbackPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function StravaCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto py-16 flex items-center justify-center min-h-screen">
+        <Card className="max-w-md w-full">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Connexion Strava
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center p-8">
+              <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
+              <p className="text-sm text-muted-foreground mt-4">
+                Chargement...
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <StravaCallbackContent />
+    </Suspense>
   )
 }

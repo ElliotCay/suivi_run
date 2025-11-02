@@ -1,15 +1,18 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button'
 import VolumeChart from '@/components/VolumeChart'
-import RecordsProgressionChart from '@/components/charts/RecordsProgressionChart'
 import ActivityHeatmap from '@/components/charts/ActivityHeatmap'
 import WorkoutTypeDistribution from '@/components/charts/WorkoutTypeDistribution'
 import PaceHeartRateScatter from '@/components/charts/PaceHeartRateScatter'
 import axios from 'axios'
-import { Activity, Calendar, Heart, TrendingUp, Zap } from 'lucide-react'
+import Link from 'next/link'
+import { Activity, Calendar, Heart, TrendingUp, Zap, Award, ArrowRight, Upload, Info } from 'lucide-react'
+import EmptyState from '@/components/EmptyState'
+import { cn } from '@/lib/utils'
 
 interface DashboardSummary {
   week_volume_km: number
@@ -41,12 +44,6 @@ interface TrainingLoad {
   last_28_days_count: number
 }
 
-interface RecordEntry {
-  date: string
-  time_seconds: number
-  distance_km: number
-  pace_per_km: string
-}
 
 interface PaceHRData {
   pace_seconds_per_km: number
@@ -55,12 +52,37 @@ interface PaceHRData {
   workout_type: string
 }
 
+function getLoadMessage(ratio: number | null) {
+  if (!ratio) return {
+    icon: '📊',
+    text: 'Commencez à vous entraîner régulièrement',
+    color: 'text-muted-foreground'
+  }
+
+  if (ratio < 0.8) return {
+    icon: '😴',
+    text: 'Charge faible. Tu peux augmenter !',
+    color: 'text-blue-600 dark:text-blue-400'
+  }
+
+  if (ratio < 1.3) return {
+    icon: '💪',
+    text: 'Charge optimale. Continue comme ça !',
+    color: 'text-green-600 dark:text-green-400'
+  }
+
+  return {
+    icon: '⚠️',
+    text: 'Attention à la fatigue. Prends du repos !',
+    color: 'text-orange-600 dark:text-orange-400'
+  }
+}
+
 export default function DashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [volumeHistory, setVolumeHistory] = useState<VolumeData[]>([])
   const [workoutTypes, setWorkoutTypes] = useState<WorkoutTypeData[]>([])
   const [trainingLoad, setTrainingLoad] = useState<TrainingLoad | null>(null)
-  const [records, setRecords] = useState<Record<string, RecordEntry[]>>({})
   const [activityHeatmap, setActivityHeatmap] = useState<any[]>([])
   const [paceHRData, setPaceHRData] = useState<PaceHRData[]>([])
   const [loading, setLoading] = useState(true)
@@ -76,14 +98,12 @@ export default function DashboardPage() {
         volumeRes,
         typesRes,
         loadRes,
-        recordsRes,
         workoutsRes
       ] = await Promise.all([
         axios.get('http://localhost:8000/api/dashboard/summary'),
         axios.get('http://localhost:8000/api/dashboard/volume-history?weeks=12'),
         axios.get('http://localhost:8000/api/dashboard/workout-types'),
         axios.get('http://localhost:8000/api/dashboard/training-load'),
-        axios.get('http://localhost:8000/api/records?include_history=true'),
         axios.get('http://localhost:8000/api/workouts')
       ])
 
@@ -98,22 +118,6 @@ export default function DashboardPage() {
         percentage: total > 0 ? (t.count / total) * 100 : 0
       }))
       setWorkoutTypes(typesWithPercentage)
-
-      // Process records for progression chart
-      const recordsByDistance: Record<string, RecordEntry[]> = {}
-      recordsRes.data.forEach((record: any) => {
-        const distanceKey = record.distance.toString()
-        if (!recordsByDistance[distanceKey]) {
-          recordsByDistance[distanceKey] = []
-        }
-        recordsByDistance[distanceKey].push({
-          date: record.date_achieved,
-          time_seconds: record.time_seconds,
-          distance_km: parseFloat(record.distance),
-          pace_per_km: record.time_display
-        })
-      })
-      setRecords(recordsByDistance)
 
       // Process workouts for heatmap (group by date)
       const workoutsByDate: Record<string, { distance: number; count: number }> = {}
@@ -177,6 +181,33 @@ export default function DashboardPage() {
     )
   }
 
+  // Empty state when no workouts exist
+  const hasNoWorkouts = summary?.total_workouts === 0 || volumeHistory.length === 0
+
+  if (hasNoWorkouts) {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <h1 className="text-6xl font-bold tracking-tight">
+            Dashboard
+          </h1>
+          <p className="text-base text-muted-foreground">
+            Vue d'ensemble de votre entraînement
+          </p>
+        </div>
+        <EmptyState
+          icon={Activity}
+          title="Bienvenue sur Suivi Course !"
+          description="Importez vos données Apple Health pour commencer à suivre vos entraînements, analyser vos performances et consulter vos records."
+          action={{
+            label: "Importer mes séances",
+            href: "/import"
+          }}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Minimal Header */}
@@ -228,10 +259,20 @@ export default function DashboardPage() {
               <p className="text-sm text-muted-foreground">Charge</p>
               <Zap className="h-4 w-4 text-muted-foreground" />
             </div>
-            <div className="text-3xl font-bold">
-              {trainingLoad?.ratio?.toFixed(2) || 'N/A'}
+            <div>
+              <div className="text-3xl font-bold mb-1">
+                {trainingLoad?.ratio?.toFixed(2) || 'N/A'}
+              </div>
+              {(() => {
+                const message = getLoadMessage(trainingLoad?.ratio || null)
+                return (
+                  <div className={cn("flex items-center gap-1.5 text-xs font-medium", message.color)}>
+                    <span className="text-sm">{message.icon}</span>
+                    <span>{message.text}</span>
+                  </div>
+                )
+              })()}
             </div>
-            <p className="text-xs text-muted-foreground">Ratio 7j/28j</p>
           </CardContent>
         </Card>
 
@@ -274,8 +315,26 @@ export default function DashboardPage() {
         {/* Activity Heatmap */}
         <ActivityHeatmap data={activityHeatmap} />
 
-        {/* Records Progression */}
-        <RecordsProgressionChart records={records} />
+        {/* Records CTA */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Award className="h-5 w-5 text-yellow-600" />
+              <CardTitle>Records Personnels</CardTitle>
+            </div>
+            <CardDescription>
+              Consultez vos meilleurs temps et votre progression
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/records">
+              <Button variant="outline" className="w-full group">
+                Voir mes records
+                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
 
         {/* Pace vs HR Scatter */}
         <PaceHeartRateScatter data={paceHRData} />

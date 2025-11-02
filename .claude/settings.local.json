@@ -51,7 +51,11 @@
       "Bash(do git ls-tree -r --name-only $branch)",
       "Bash(chmod:*)",
       "Bash(ipconfig getifaddr:*)",
-      "Bash(pip freeze:*)"
+      "Bash(pip freeze:*)",
+      "Bash(venv/bin/python:*)",
+      "Bash(venv/bin/pip list:*)",
+      "Bash(time curl:*)",
+      "Bash(awk:*)"
     ],
     "deny": [],
     "ask": []

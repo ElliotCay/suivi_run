@@ -9,8 +9,10 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import axios from 'axios'
-import { Award, Calendar, X, Save } from 'lucide-react'
+import { Award, Calendar, X, Save, Trophy } from 'lucide-react'
 import { toast } from 'sonner'
+import EmptyState from '@/components/EmptyState'
+import RecordCelebration from '@/components/RecordCelebration'
 
 interface PersonalRecord {
   id: number
@@ -66,6 +68,18 @@ export default function RecordsPage() {
     notes: ''
   })
   const [loading, setLoading] = useState(true)
+  const [celebration, setCelebration] = useState<{
+    open: boolean
+    record: {
+      distance: string
+      newTime: string
+      oldTime?: string
+      improvement?: string
+    }
+  }>({
+    open: false,
+    record: { distance: '', newTime: '' }
+  })
 
   useEffect(() => {
     loadRecords()
@@ -129,6 +143,8 @@ export default function RecordsPage() {
     }
 
     const timeSeconds = parseInt(formData.minutes) * 60 + parseInt(formData.seconds)
+    const currentRecord = getRecordForDistance(formData.distance)
+    const distanceInfo = DISTANCES.find(d => d.value === formData.distance)
 
     try {
       await axios.post('http://localhost:8000/api/records', {
@@ -138,7 +154,45 @@ export default function RecordsPage() {
         notes: formData.notes || null
       })
 
-      toast.success('Record enregistré')
+      // Check if it's a new record (better time)
+      const isNewRecord = !currentRecord || timeSeconds < currentRecord.time_seconds
+
+      if (isNewRecord) {
+        // Format times for display
+        const newMinutes = Math.floor(timeSeconds / 60)
+        const newSeconds = timeSeconds % 60
+        const newTimeDisplay = `${newMinutes}:${newSeconds.toString().padStart(2, '0')}`
+
+        let oldTimeDisplay: string | undefined
+        let improvement: string | undefined
+
+        if (currentRecord) {
+          const oldMinutes = Math.floor(currentRecord.time_seconds / 60)
+          const oldSeconds = currentRecord.time_seconds % 60
+          oldTimeDisplay = `${oldMinutes}:${oldSeconds.toString().padStart(2, '0')}`
+
+          const improvementSeconds = currentRecord.time_seconds - timeSeconds
+          const impMinutes = Math.floor(improvementSeconds / 60)
+          const impSeconds = improvementSeconds % 60
+          improvement = impMinutes > 0
+            ? `${impMinutes}:${impSeconds.toString().padStart(2, '0')}`
+            : `${impSeconds}s`
+        }
+
+        // Show celebration
+        setCelebration({
+          open: true,
+          record: {
+            distance: distanceInfo?.label || formData.distance,
+            newTime: newTimeDisplay,
+            oldTime: oldTimeDisplay,
+            improvement
+          }
+        })
+      } else {
+        toast.success('Record enregistré')
+      }
+
       await loadRecords()
       setEditingDistance(null)
     } catch (error: any) {
@@ -250,8 +304,23 @@ export default function RecordsPage() {
         </p>
       </motion.div>
 
-      {/* Bento Grid Layout */}
-      <div className="grid grid-cols-12 gap-3 auto-rows-[140px]">
+      {/* Empty State or Bento Grid */}
+      {loading ? (
+        <div className="flex items-center justify-center h-64">
+          <Award className="h-8 w-8 animate-pulse text-muted-foreground" />
+        </div>
+      ) : records.length === 0 ? (
+        <EmptyState
+          icon={Trophy}
+          title="Aucun record"
+          description="Vous n'avez pas encore de records personnels enregistrés. Ajoutez votre premier record en cliquant sur l'une des distances ci-dessous."
+          action={{
+            label: "Ajouter un record",
+            onClick: () => startEdit('5km')
+          }}
+        />
+      ) : (
+        <div className="grid grid-cols-12 gap-3 auto-rows-[140px]">
         {/* 400m - small */}
         {renderBentoCard('400m', 'col-span-3 row-span-1')}
 
@@ -287,7 +356,8 @@ export default function RecordsPage() {
 
         {/* Marathon - LARGE */}
         {renderBentoCard('marathon', 'col-span-4 row-span-2', true)}
-      </div>
+        </div>
+      )}
 
       {/* Edit Dialog */}
       <Dialog open={!!editingDistance} onOpenChange={(open) => !open && setEditingDistance(null)}>
@@ -358,6 +428,13 @@ export default function RecordsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Record Celebration */}
+      <RecordCelebration
+        open={celebration.open}
+        onClose={() => setCelebration({ ...celebration, open: false })}
+        record={celebration.record}
+      />
     </div>
   )
 }

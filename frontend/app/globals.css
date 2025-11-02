@@ -28,6 +28,23 @@
     --success: 158 45% 33%; /* #2D7A5F */
     --success-foreground: 0 0% 98%;
 
+    /* Workout type colors */
+    --workout-facile: 142 76% 36%; /* green #16A34A */
+    --workout-facile-bg: 142 76% 97%; /* very light green */
+    --workout-facile-border: 142 76% 85%;
+
+    --workout-tempo: 25 95% 53%; /* orange #FB923C */
+    --workout-tempo-bg: 25 95% 97%;
+    --workout-tempo-border: 25 95% 85%;
+
+    --workout-intervalle: 0 84% 60%; /* red #F87171 */
+    --workout-intervalle-bg: 0 84% 97%;
+    --workout-intervalle-border: 0 84% 85%;
+
+    --workout-fractionne: 0 84% 60%; /* red (same as intervalle) */
+    --workout-fractionne-bg: 0 84% 97%;
+    --workout-fractionne-border: 0 84% 85%;
+
     /* Chart colors - sober palette */
     --chart-1: 0 0% 42%; /* gray */
     --chart-2: 158 45% 33%; /* forest green */
@@ -61,6 +78,23 @@
     /* Success in dark mode */
     --success: 158 40% 48%; /* #4A9B7F lighter green */
     --success-foreground: 0 0% 4%;
+
+    /* Workout type colors - dark mode */
+    --workout-facile: 142 69% 58%; /* lighter green #4ADE80 */
+    --workout-facile-bg: 142 69% 15%; /* dark green bg */
+    --workout-facile-border: 142 69% 25%;
+
+    --workout-tempo: 25 95% 64%; /* lighter orange #FDBA74 */
+    --workout-tempo-bg: 25 95% 15%;
+    --workout-tempo-border: 25 95% 25%;
+
+    --workout-intervalle: 0 84% 72%; /* lighter red #FCA5A5 */
+    --workout-intervalle-bg: 0 84% 15%;
+    --workout-intervalle-border: 0 84% 25%;
+
+    --workout-fractionne: 0 84% 72%; /* lighter red */
+    --workout-fractionne-bg: 0 84% 15%;
+    --workout-fractionne-border: 0 84% 25%;
 
     /* Chart colors for dark mode */
     --chart-1: 0 0% 64%; /* light gray */
@@ -107,5 +141,47 @@
   /* Generous spacing for bento cards */
   .bento-card {
     padding: 1.5rem;
+  }
+
+  /* Workout type badges */
+  .workout-facile {
+    background-color: hsl(var(--workout-facile-bg));
+    border-color: hsl(var(--workout-facile-border));
+    color: hsl(var(--workout-facile));
+  }
+
+  .workout-tempo {
+    background-color: hsl(var(--workout-tempo-bg));
+    border-color: hsl(var(--workout-tempo-border));
+    color: hsl(var(--workout-tempo));
+  }
+
+  .workout-intervalle {
+    background-color: hsl(var(--workout-intervalle-bg));
+    border-color: hsl(var(--workout-intervalle-border));
+    color: hsl(var(--workout-intervalle));
+  }
+
+  .workout-fractionne {
+    background-color: hsl(var(--workout-fractionne-bg));
+    border-color: hsl(var(--workout-fractionne-border));
+    color: hsl(var(--workout-fractionne));
+  }
+
+  /* Workout type cards */
+  .workout-card-facile {
+    border-left: 4px solid hsl(var(--workout-facile));
+  }
+
+  .workout-card-tempo {
+    border-left: 4px solid hsl(var(--workout-tempo));
+  }
+
+  .workout-card-intervalle {
+    border-left: 4px solid hsl(var(--workout-intervalle));
+  }
+
+  .workout-card-fractionne {
+    border-left: 4px solid hsl(var(--workout-fractionne));
   }
 }

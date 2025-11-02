@@ -90,8 +90,8 @@ export default function TopNav() {
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="w-48 !bg-white dark:!bg-[#0A0A0A] border-border"
-                style={{ backgroundColor: 'hsl(var(--background))' }}
+                className="w-48 !bg-background !text-foreground border-border shadow-lg !opacity-100"
+                style={{ backgroundColor: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
               >
                 {moreItems.map((item, index) => {
                   const Icon = item.icon

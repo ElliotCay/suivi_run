@@ -8,8 +8,15 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
-env_path = Path(__file__).parent / ".env"
+# Use the actual project root, not the module location
+project_root = Path(__file__).parent.resolve()
+env_path = project_root / ".env"
+
+# Also try to load from current working directory as fallback
 load_dotenv(dotenv_path=env_path)
+if not os.getenv("ICLOUD_USERNAME"):
+    # Fallback to CWD if the first attempt didn't work
+    load_dotenv()
 
 # Environment variables
 ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")

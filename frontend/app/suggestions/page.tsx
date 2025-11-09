@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -159,6 +160,7 @@ function ScheduleDialog({ suggestion, onSchedule }: { suggestion: Suggestion; on
 }
 
 export default function SuggestionsPage() {
+  const router = useRouter()
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
@@ -176,6 +178,38 @@ export default function SuggestionsPage() {
       console.error('Error loading suggestions:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const generate4WeekBlock = async () => {
+    setGenerating(true)
+    setShowOptions(false)
+    try {
+      // Calculate next Monday at 00:00
+      const today = new Date()
+      const daysUntilMonday = (8 - today.getDay()) % 7 || 7  // 0=Sunday, 1=Monday, etc.
+      const nextMonday = new Date(today)
+      nextMonday.setDate(today.getDate() + daysUntilMonday)
+      nextMonday.setHours(0, 0, 0, 0)
+
+      const response = await axios.post('http://localhost:8000/api/training/generate-block', {
+        phase: 'base',  // base, development, peak, taper
+        days_per_week: 3,
+        start_date: nextMonday.toISOString()
+      })
+
+      toast.success(`Bloc de 4 semaines généré ! ${response.data.planned_workouts?.length || 0} séances planifiées.`)
+
+      // Redirect to training block page
+      setTimeout(() => {
+        router.push('/training-block')
+      }, 1000)
+    } catch (error: any) {
+      console.error('Error generating 4-week block:', error)
+      const errorMsg = error?.response?.data?.detail || 'Erreur lors de la génération du bloc'
+      toast.error(errorMsg)
+    } finally {
+      setGenerating(false)
     }
   }
 
@@ -317,7 +351,7 @@ export default function SuggestionsPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <Button
-                  onClick={() => generateSuggestion(null, true)}
+                  onClick={() => generate4WeekBlock()}
                   disabled={generating}
                   className="w-full flex items-center gap-2"
                   variant="default"
@@ -330,7 +364,25 @@ export default function SuggestionsPage() {
                   ) : (
                     <>
                       <Sparkles className="h-4 w-4" />
-                      Semaine type complète (3 séances)
+                      Bloc 4 semaines (périodisation)
+                    </>
+                  )}
+                </Button>
+                <Button
+                  onClick={() => generateSuggestion(null, true)}
+                  disabled={generating}
+                  className="w-full flex items-center gap-2"
+                  variant="outline"
+                >
+                  {generating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Génération...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      Semaine simple (3 séances)
                     </>
                   )}
                 </Button>

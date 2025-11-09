@@ -321,26 +321,14 @@ export default function RecordsPage() {
         />
       ) : (
         <div className="grid grid-cols-12 gap-3 auto-rows-[140px]">
-        {/* 400m - small */}
-        {renderBentoCard('400m', 'col-span-3 row-span-1')}
+        {/* 500m */}
+        {renderBentoCard('500m', 'col-span-4 row-span-1')}
 
-        {/* 500m - small */}
-        {renderBentoCard('500m', 'col-span-3 row-span-1')}
+        {/* 1km */}
+        {renderBentoCard('1km', 'col-span-4 row-span-1')}
 
-        {/* 800m - medium */}
-        {renderBentoCard('800m', 'col-span-3 row-span-1')}
-
-        {/* 1km - medium */}
-        {renderBentoCard('1km', 'col-span-3 row-span-1')}
-
-        {/* 1 mile - medium */}
-        {renderBentoCard('1_mile', 'col-span-4 row-span-1')}
-
-        {/* 2km - medium */}
+        {/* 2km */}
         {renderBentoCard('2km', 'col-span-4 row-span-1')}
-
-        {/* 3km - medium */}
-        {renderBentoCard('3km', 'col-span-4 row-span-1')}
 
         {/* 5km - LARGE (hero) */}
         {renderBentoCard('5km', 'col-span-6 row-span-2', true)}

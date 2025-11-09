@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import axios from 'axios'
-import { Sparkles, Loader2, Activity, Upload } from 'lucide-react'
+import { Sparkles, Loader2, Activity, Upload, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import EmptyState from '@/components/EmptyState'
 
@@ -26,6 +26,7 @@ export default function WorkoutsPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [classifying, setClassifying] = useState(false)
+  const [syncing, setSyncing] = useState(false)
 
   useEffect(() => {
     loadWorkouts()
@@ -53,6 +54,35 @@ export default function WorkoutsPage() {
       toast.error('Erreur lors de la classification')
     } finally {
       setClassifying(false)
+    }
+  }
+
+  const syncStrava = async () => {
+    setSyncing(true)
+    try {
+      const response = await axios.post('http://localhost:8000/api/strava/sync')
+      if (response.data.success) {
+        const imported = response.data.imported || 0
+        const skipped = response.data.skipped || 0
+
+        if (imported > 0) {
+          toast.success(`${imported} nouvelle(s) séance(s) importée(s) depuis Strava !`)
+          loadWorkouts() // Reload to show new workouts
+        } else if (skipped > 0) {
+          toast.info('Aucune nouvelle séance. Tout est déjà à jour !')
+        } else {
+          toast.info('Aucune séance trouvée sur Strava')
+        }
+      }
+    } catch (error: any) {
+      console.error('Error syncing Strava:', error)
+      if (error.response?.status === 400) {
+        toast.error('Connectez votre compte Strava dans les paramètres')
+      } else {
+        toast.error('Erreur lors de la synchronisation Strava')
+      }
+    } finally {
+      setSyncing(false)
     }
   }
 
@@ -99,25 +129,46 @@ export default function WorkoutsPage() {
             {workouts.length} entraînements
           </p>
         </div>
-        <Button
-          onClick={classifyWorkouts}
-          disabled={classifying}
-          variant="outline"
-          size="sm"
-          className="flex items-center gap-2"
-        >
-          {classifying ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Classification...
-            </>
-          ) : (
-            <>
-              <Sparkles className="h-4 w-4" />
-              Classifier
-            </>
-          )}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={syncStrava}
+            disabled={syncing}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            {syncing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Sync...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4" />
+                Sync Strava
+              </>
+            )}
+          </Button>
+          <Button
+            onClick={classifyWorkouts}
+            disabled={classifying}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            {classifying ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Classification...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                Classifier
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Search */}
@@ -168,7 +219,7 @@ export default function WorkoutsPage() {
 
                     {/* Main Metrics: Distance & Pace */}
                     <div className="flex gap-10 items-baseline">
-                      <div className="text-center">
+                      <div className="text-center min-w-[100px]">
                         <div className="text-3xl font-bold tabular-nums">
                           {workout.distance?.toFixed(2)}
                         </div>

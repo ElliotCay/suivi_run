@@ -142,7 +142,13 @@ class iCloudCalendarSync:
             logger.info(f"🏃 Type: {workout_type}, Distance: {distance_km}km")
 
             # Titre de l'événement
-            title = f"🏃 {workout_type.capitalize()} - {distance_km}km"
+            # Format distance with 1 decimal if needed, otherwise integer
+            if distance_km % 1 == 0:
+                distance_str = f"{int(distance_km)}km"
+            else:
+                distance_str = f"{distance_km:.1f}km"
+
+            title = f"🏃 {workout_type.capitalize()} - {distance_str}"
             event.add('summary', vText(title))
             logger.info(f"📌 Titre: {title}")
 
@@ -213,6 +219,107 @@ class iCloudCalendarSync:
 
         except Exception as e:
             logger.error(f"❌ Erreur lors de la création de l'événement: {e}")
+            logger.exception(e)
+            return None
+
+    def create_strengthening_event(self, reminder_data: Dict) -> Optional[str]:
+        """
+        Crée un événement calendrier pour une séance de renforcement
+
+        Args:
+            reminder_data: Données du reminder avec scheduled_date, title, duration_minutes
+
+        Returns:
+            UID de l'événement créé ou None en cas d'erreur
+        """
+        if not self._calendar:
+            logger.error("❌ Calendrier non initialisé dans create_strengthening_event")
+            return None
+
+        try:
+            logger.info(f"💪 Création événement renforcement: {reminder_data.get('title')}")
+
+            # Création de l'événement iCalendar
+            cal = iCalendar()
+            cal.add('prodid', '-//Suivi Course//Strengthening Planner//FR')
+            cal.add('version', '2.0')
+
+            event = Event()
+
+            # UID unique basé sur l'ID du reminder
+            event_uid = f"strengthening-{reminder_data['id']}@suivi-course.local"
+            event.add('uid', event_uid)
+            logger.info(f"🆔 UID généré: {event_uid}")
+
+            # Titre de l'événement
+            title = f"💪 {reminder_data['title']}"
+            event.add('summary', vText(title))
+
+            # Dates et heures
+            scheduled_date = reminder_data['scheduled_date']
+            if isinstance(scheduled_date, str):
+                scheduled_date = datetime.fromisoformat(scheduled_date.replace('Z', '+00:00'))
+
+            # Durée (15 minutes par défaut)
+            duration_minutes = reminder_data.get('duration_minutes', 15)
+            end_time = scheduled_date + timedelta(minutes=duration_minutes)
+
+            event.add('dtstart', scheduled_date)
+            event.add('dtend', end_time)
+
+            # Description
+            session_type = reminder_data.get('session_type', '')
+            description = f"Séance de renforcement musculaire ({duration_minutes} min)\n\n"
+
+            if session_type == 'tfl_hanche':
+                description += "🎯 Focus: TFL et stabilité hanche\n"
+                description += "• Renforcement musculaire ciblé\n"
+                description += "• Prévention blessures\n"
+                description += "• Amélioration stabilité"
+            elif session_type == 'mollet_cheville':
+                description += "🎯 Focus: Mollet et proprioception cheville\n"
+                description += "• Exercices proprioceptifs\n"
+                description += "• Renforcement mollets\n"
+                description += "• Prévention entorses"
+            else:
+                description += "🎯 Renforcement musculaire général"
+
+            event.add('description', vText(description))
+
+            # Localisation
+            event.add('location', vText("À la maison"))
+
+            # Rappel 30 minutes avant
+            alarm = Alarm()
+            alarm.add('action', 'DISPLAY')
+            alarm.add('trigger', timedelta(minutes=-30))
+            alarm.add('description', vText(f"Rappel: {title} dans 30 minutes"))
+            event.add_component(alarm)
+
+            # Timestamps
+            now = datetime.now(pytz.UTC)
+            event.add('dtstamp', now)
+            event.add('created', now)
+            event.add('last-modified', now)
+
+            # Statut
+            event.add('status', vText('CONFIRMED'))
+            event.add('transp', vText('OPAQUE'))
+
+            cal.add_component(event)
+
+            # Ajout au calendrier iCloud
+            ical_string = cal.to_ical().decode('utf-8')
+            self._calendar.save_event(ical_string)
+
+            logger.info(f"✅ Événement renforcement créé: {title}")
+            logger.info(f"   📅 Date: {scheduled_date.strftime('%d/%m/%Y %H:%M')}")
+            logger.info(f"   🆔 UID: {event_uid}")
+
+            return event_uid
+
+        except Exception as e:
+            logger.error(f"❌ Erreur lors de la création de l'événement renforcement: {e}")
             logger.exception(e)
             return None
 

@@ -308,8 +308,8 @@ async def get_calendar_feed(
     )
 
 
-@router.post("/calendar/sync")
-async def sync_calendar(
+@router.post("/suggestions/sync-calendar")
+async def sync_suggestions_calendar(
     db: Session = Depends(get_db),
     user_id: int = 1,  # TODO: Get from auth
 ):

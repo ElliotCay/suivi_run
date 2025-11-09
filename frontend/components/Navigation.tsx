@@ -3,19 +3,16 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Home, Activity, BarChart3, Sparkles, User, Upload, Award, Settings, Calendar } from 'lucide-react'
+import { Home, Activity, BarChart3, Sparkles, User, Upload, Award, Settings, Calendar, CalendarDays } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
 const navItems = [
-  { href: '/', label: 'Accueil', icon: Home },
   { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
   { href: '/workouts', label: 'Séances', icon: Activity },
   { href: '/records', label: 'Records', icon: Award },
-  { href: '/suggestions', label: 'Suggestions', icon: Sparkles },
-  { href: '/training-plans', label: 'Plans', icon: Calendar },
-  { href: '/profile', label: 'Profil', icon: User },
-  { href: '/settings', label: 'Paramètres', icon: Settings },
-  { href: '/import', label: 'Import', icon: Upload },
+  { href: '/training-block', label: 'Bloc 4 sem.', icon: CalendarDays },
+  { href: '/suggestions', label: 'Coach AI', icon: Sparkles },
+  { href: '/settings', label: 'Plus', icon: Settings },
 ]
 
 export default function Navigation() {

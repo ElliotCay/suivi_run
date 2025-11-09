@@ -106,6 +106,17 @@ export default function SettingsPage() {
         <p className="text-muted-foreground">
           Configurez vos préférences d'entraînement et de synchronisation calendrier
         </p>
+        <div className="mt-4 p-3 bg-muted/50 rounded-lg border border-border">
+          <p className="text-sm font-medium flex items-center gap-2">
+            <Info className="h-4 w-4" />
+            Ces paramètres sont utilisés pour :
+          </p>
+          <ul className="text-sm text-muted-foreground mt-2 ml-6 space-y-1">
+            <li>• Générer votre bloc d'entraînement de 4 semaines avec vos jours préférés</li>
+            <li>• Planifier automatiquement les séances à l'heure que vous choisissez</li>
+            <li>• Synchroniser les séances avec votre calendrier iCloud</li>
+          </ul>
+        </div>
       </div>
 
       <div className="space-y-6">
@@ -139,7 +150,7 @@ export default function SettingsPage() {
             <div className="space-y-3">
               <Label>Jours préférés pour l'entraînement</Label>
               <p className="text-sm text-muted-foreground">
-                Sélectionnez les jours où vous préférez vous entraîner
+                Sélectionnez les jours où vous préférez vous entraîner (utilisés pour la génération du bloc 4 semaines)
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {DAYS.map((day) => (
@@ -148,12 +159,19 @@ export default function SettingsPage() {
                     variant={selectedDays.includes(day.value) ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => toggleDay(day.value)}
-                    className="justify-start"
+                    className={`justify-center font-semibold transition-all ${
+                      selectedDays.includes(day.value)
+                        ? 'bg-primary text-primary-foreground shadow-md scale-105 ring-2 ring-primary/50'
+                        : 'hover:bg-muted'
+                    }`}
                   >
                     {day.label}
                   </Button>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground italic">
+                💡 Ces jours seront utilisés lors de la création de votre bloc d'entraînement de 4 semaines
+              </p>
             </div>
 
             {/* Preferred Time */}
@@ -190,7 +208,11 @@ export default function SettingsPage() {
                     variant={selectedReminders.includes(reminder.value) ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => toggleReminder(reminder.value)}
-                    className="justify-start"
+                    className={`justify-center font-semibold transition-all ${
+                      selectedReminders.includes(reminder.value)
+                        ? 'bg-primary text-primary-foreground shadow-md scale-105 ring-2 ring-primary/50'
+                        : 'hover:bg-muted'
+                    }`}
                   >
                     {reminder.label}
                   </Button>

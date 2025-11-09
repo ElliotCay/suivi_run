@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Home, Activity, BarChart3, Sparkles, User, Upload, Award, Settings, Calendar, MoreVertical } from 'lucide-react'
+import { Home, Activity, BarChart3, Sparkles, User, Upload, Award, Settings, Calendar, MoreVertical, CalendarDays } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { motion } from 'framer-motion'
 import {
@@ -19,6 +19,7 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
   { href: '/workouts', label: 'Séances', icon: Activity },
   { href: '/records', label: 'Records', icon: Award },
+  { href: '/training-block', label: 'Bloc 4 sem.', icon: CalendarDays },
   { href: '/suggestions', label: 'Coach AI', icon: Sparkles },
 ]
 
@@ -99,7 +100,7 @@ export default function TopNav() {
 
                   return (
                     <div key={item.href}>
-                      {index === 3 && <DropdownMenuSeparator />}
+                      {index === 4 && <DropdownMenuSeparator />}
                       <DropdownMenuItem asChild>
                         <Link
                           href={item.href}

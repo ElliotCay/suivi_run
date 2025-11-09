@@ -55,7 +55,11 @@
       "Bash(venv/bin/python:*)",
       "Bash(venv/bin/pip list:*)",
       "Bash(time curl:*)",
-      "Bash(awk:*)"
+      "Bash(awk:*)",
+      "Bash(timeout 30 python:*)",
+      "Bash(alembic revision:*)",
+      "Bash(timeout 180 python:*)",
+      "Bash(tee:*)"
     ],
     "deny": [],
     "ask": []

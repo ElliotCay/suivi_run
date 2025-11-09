@@ -139,9 +139,9 @@ export default function DashboardPage() {
 
       // Process workouts for pace vs HR scatter
       const paceHRWorkouts = workoutsRes.data
-        .filter((w: any) => w.avg_hr && w.pace_seconds_per_km)
+        .filter((w: any) => w.avg_hr && w.avg_pace)
         .map((w: any) => ({
-          pace_seconds_per_km: w.pace_seconds_per_km,
+          pace_seconds_per_km: w.avg_pace,
           avg_heart_rate: w.avg_hr,
           date: w.date,
           workout_type: w.workout_type || 'non_defini'
@@ -314,27 +314,6 @@ export default function DashboardPage() {
 
         {/* Activity Heatmap */}
         <ActivityHeatmap data={activityHeatmap} />
-
-        {/* Records CTA */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Award className="h-5 w-5 text-yellow-600" />
-              <CardTitle>Records Personnels</CardTitle>
-            </div>
-            <CardDescription>
-              Consultez vos meilleurs temps et votre progression
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link href="/records">
-              <Button variant="outline" className="w-full group">
-                Voir mes records
-                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
 
         {/* Pace vs HR Scatter */}
         <PaceHeartRateScatter data={paceHRData} />

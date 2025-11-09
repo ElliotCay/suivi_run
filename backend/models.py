@@ -54,7 +54,6 @@ class Workout(Base):
     workout_type = Column(String, nullable=True)  # e.g., easy, tempo, interval
     source = Column(String, nullable=True)  # e.g., garmin, strava, manual
     raw_data = Column(JSON, nullable=True)  # Store raw imported data
-    user_rating = Column(Integer, nullable=True)  # User rating 1-5
     user_comment = Column(Text, nullable=True)
     weather = Column(JSON, nullable=True)  # Weather conditions
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -231,3 +230,179 @@ class StravaConnection(Base):
 
     # Relationships
     user = relationship("User")
+
+
+class TrainingZone(Base):
+    """Training zones calculated from VDOT for personalized pacing."""
+
+    __tablename__ = "training_zones"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    vdot = Column(Float, nullable=False)  # Calculated VDOT value
+    source_distance = Column(String, nullable=True)  # e.g., "5km", "10km" - which PR was used
+    source_time_seconds = Column(Integer, nullable=True)  # Time of the PR used
+
+    # Easy zone (endurance fondamentale)
+    easy_min_pace_sec = Column(Integer, nullable=False)
+    easy_max_pace_sec = Column(Integer, nullable=False)
+
+    # Marathon zone
+    marathon_pace_sec = Column(Integer, nullable=False)
+
+    # Threshold zone (seuil lactique, tempo)
+    threshold_min_pace_sec = Column(Integer, nullable=False)
+    threshold_max_pace_sec = Column(Integer, nullable=False)
+
+    # Interval zone (VO2max, 5K pace)
+    interval_min_pace_sec = Column(Integer, nullable=False)
+    interval_max_pace_sec = Column(Integer, nullable=False)
+
+    # Repetition zone (speed work)
+    repetition_min_pace_sec = Column(Integer, nullable=False)
+    repetition_max_pace_sec = Column(Integer, nullable=False)
+
+    is_current = Column(Boolean, default=True)  # Only one current zone per user
+    created_at = Column(DateTime, default=datetime.utcnow)
+    superseded_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    user = relationship("User")
+
+
+class TrainingBlock(Base):
+    """4-week training block with periodization."""
+
+    __tablename__ = "training_blocks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    name = Column(String, nullable=False)  # e.g., "Block 1: Base Building"
+    phase = Column(String, nullable=False)  # base, development, peak, taper
+    start_date = Column(DateTime, nullable=False)
+    end_date = Column(DateTime, nullable=False)
+
+    # Block configuration
+    days_per_week = Column(Integer, nullable=False)  # 3, 4, 5, or 6
+    target_weekly_volume = Column(Float, nullable=False)  # Target km per week
+
+    # Periodization ratios (percentage of volume at each intensity)
+    easy_percentage = Column(Integer, nullable=False)  # e.g., 70 for base phase
+    threshold_percentage = Column(Integer, nullable=False)  # e.g., 20 for base phase
+    interval_percentage = Column(Integer, nullable=False)  # e.g., 10 for base phase
+
+    status = Column(String, default="active")  # active, completed, abandoned
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User")
+    planned_workouts = relationship("PlannedWorkout", back_populates="block", cascade="all, delete-orphan")
+    strengthening_reminders = relationship("StrengtheningReminder", back_populates="block", cascade="all, delete-orphan")
+
+
+class PlannedWorkout(Base):
+    """Individual planned workout within a training block."""
+
+    __tablename__ = "planned_workouts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    block_id = Column(Integer, ForeignKey("training_blocks.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    # Scheduling
+    scheduled_date = Column(DateTime, nullable=False)
+    week_number = Column(Integer, nullable=False)  # 1-4 within the block
+    day_of_week = Column(String, nullable=False)  # "Lundi", "Mardi", etc.
+
+    # Workout details
+    workout_type = Column(String, nullable=False)  # easy, threshold, interval, long, recovery, strengthening
+    distance_km = Column(Float, nullable=True)  # For running workouts
+    duration_minutes = Column(Integer, nullable=True)  # For time-based workouts
+
+    # Detailed structure with paces
+    title = Column(String, nullable=False)  # e.g., "Sortie longue 90 min"
+    description = Column(Text, nullable=False)  # Full workout description with paces
+    structure = Column(JSON, nullable=True)  # Detailed intervals/structure
+
+    # Target paces (in seconds per km)
+    target_pace_min = Column(Integer, nullable=True)
+    target_pace_max = Column(Integer, nullable=True)
+
+    # Completion tracking
+    status = Column(String, default="scheduled")  # scheduled, completed, skipped, rescheduled
+    completed_workout_id = Column(Integer, ForeignKey("workouts.id"), nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+
+    # Calendar integration
+    calendar_event_id = Column(String, nullable=True)  # iCloud Calendar event UID
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    block = relationship("TrainingBlock", back_populates="planned_workouts")
+    user = relationship("User")
+    completed_workout = relationship("Workout", foreign_keys=[completed_workout_id])
+    feedback = relationship("WorkoutFeedback", back_populates="planned_workout", uselist=False)
+
+
+class WorkoutFeedback(Base):
+    """Feedback captured after completing a workout."""
+
+    __tablename__ = "workout_feedback"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    planned_workout_id = Column(Integer, ForeignKey("planned_workouts.id"), nullable=True)
+    completed_workout_id = Column(Integer, ForeignKey("workouts.id"), nullable=False)
+
+    # Feedback data
+    rpe = Column(Integer, nullable=True)  # Rate of Perceived Exertion (1-10) from Apple Watch
+    difficulty = Column(String, nullable=True)  # "too_easy", "just_right", "too_hard"
+    pain_locations = Column(JSON, nullable=True)  # ["ankle", "it_band", "none"]
+    pain_severity = Column(Integer, nullable=True)  # 1-10 if pain reported
+    comment = Column(Text, nullable=True)  # Free-form comment
+
+    # Performance vs plan
+    planned_pace_min = Column(Integer, nullable=True)  # What was planned (sec/km)
+    actual_pace = Column(Integer, nullable=True)  # What was achieved (sec/km)
+    pace_variance = Column(Float, nullable=True)  # Percentage difference
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User")
+    planned_workout = relationship("PlannedWorkout", back_populates="feedback")
+    completed_workout = relationship("Workout")
+
+
+class StrengtheningReminder(Base):
+    """Scheduled reminders for strengthening and proprioception sessions."""
+
+    __tablename__ = "strengthening_reminders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    block_id = Column(Integer, ForeignKey("training_blocks.id"), nullable=True)
+
+    # Scheduling
+    scheduled_date = Column(DateTime, nullable=False)
+    day_of_week = Column(String, nullable=False)
+
+    # Session type
+    session_type = Column(String, nullable=False)  # "tfl_hanche" or "mollet_cheville"
+    title = Column(String, nullable=False)  # e.g., "Renforcement TFL/Hanche"
+    duration_minutes = Column(Integer, default=15)
+
+    # Completion
+    completed = Column(Boolean, default=False)
+    completed_at = Column(DateTime, nullable=True)
+
+    # Calendar integration
+    calendar_event_id = Column(String, nullable=True)  # iCloud Calendar event UID
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User")
+    block = relationship("TrainingBlock", back_populates="strengthening_reminders")

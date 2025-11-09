@@ -459,3 +459,79 @@ def sync_strava_activities(db: Session, user_id: int, limit: int = 30) -> Dict:
         "last_sync": connection.last_sync.isoformat(),
         "skip_reasons": skip_reasons
     }
+
+
+def get_pending_workouts(db: Session, user_id: int, days_back: int = 30) -> List[Dict]:
+    """
+    Get Strava activities not yet imported or categorized.
+
+    Returns activities from Strava that either:
+    1. Haven't been imported yet
+    2. Have been imported but missing feedback/categorization
+
+    Args:
+        db: Database session
+        user_id: User ID
+        days_back: How many days back to check (default 30)
+
+    Returns:
+        List of pending workouts with preview data
+    """
+    # Get valid connection
+    connection = ensure_valid_token(db, user_id)
+    if not connection:
+        return []
+
+    # Fetch recent activities
+    from datetime import timedelta
+    after_timestamp = int((datetime.utcnow() - timedelta(days=days_back)).timestamp())
+
+    activities = fetch_strava_activities(
+        connection.access_token,
+        after=after_timestamp,
+        per_page=100
+    )
+
+    # Filter to only running activities
+    running_activities = [a for a in activities if a.get("type") == "Run"]
+
+    # Get existing workouts
+    existing_workouts = db.query(Workout).filter(
+        Workout.user_id == user_id,
+        Workout.source == "strava"
+    ).all()
+
+    # Create map of existing Strava IDs
+    existing_strava_ids = set()
+    for w in existing_workouts:
+        if w.raw_data and "strava_activity_id" in w.raw_data:
+            existing_strava_ids.add(w.raw_data["strava_activity_id"])
+
+    # Find unimported activities
+    pending = []
+    for activity in running_activities:
+        strava_id = activity["id"]
+
+        if strava_id not in existing_strava_ids:
+            # Activity not imported yet
+            start_date = datetime.fromisoformat(activity["start_date"].replace("Z", "+00:00"))
+            distance_km = activity["distance"] / 1000
+            duration_sec = activity["moving_time"]
+            avg_pace_sec = int(duration_sec / distance_km) if distance_km > 0 else None
+
+            pending.append({
+                "strava_id": strava_id,
+                "name": activity.get("name", "Run"),
+                "date": start_date.isoformat(),
+                "distance_km": round(distance_km, 2),
+                "duration_seconds": duration_sec,
+                "avg_pace_sec_per_km": avg_pace_sec,
+                "elevation_gain": activity.get("total_elevation_gain", 0),
+                "avg_hr": activity.get("average_heartrate"),
+                "status": "not_imported"
+            })
+
+    # Sort by date (most recent first)
+    pending.sort(key=lambda x: x["date"], reverse=True)
+
+    return pending

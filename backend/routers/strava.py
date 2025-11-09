@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from datetime import datetime
 import logging
+import requests
 
 from database import get_db
 from models import StravaConnection
@@ -207,3 +208,131 @@ async def toggle_auto_sync(
         "success": True,
         "auto_sync_enabled": enabled
     }
+
+
+@router.get("/strava/pending")
+async def get_pending_workouts(
+    db: Session = Depends(get_db),
+    user_id: int = 1,
+    days_back: int = Query(30, ge=1, le=90)
+):
+    """
+    Get Strava activities that haven't been imported yet.
+
+    This endpoint is called on app launch to show a modal with
+    pending workouts that need to be categorized/imported.
+
+    Args:
+        days_back: How many days back to check (default 30, max 90)
+
+    Returns:
+        List of pending workouts with preview data
+    """
+    try:
+        pending = strava_service.get_pending_workouts(db, user_id, days_back=days_back)
+
+        return {
+            "count": len(pending),
+            "workouts": pending
+        }
+
+    except ValueError as e:
+        # No Strava connection found
+        return {
+            "count": 0,
+            "workouts": [],
+            "error": str(e)
+        }
+    except Exception as e:
+        logger.error(f"Error fetching pending workouts: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch pending workouts: {str(e)}")
+
+
+@router.post("/strava/import/{strava_id}")
+async def import_single_workout(
+    strava_id: int,
+    db: Session = Depends(get_db),
+    user_id: int = 1
+):
+    """
+    Import a single Strava activity by ID.
+
+    This is called when user clicks "Import" on a pending workout
+    from the modal.
+
+    Args:
+        strava_id: Strava activity ID to import
+
+    Returns:
+        Imported workout data
+    """
+    try:
+        # Get valid token
+        connection = strava_service.ensure_valid_token(db, user_id)
+        if not connection:
+            raise HTTPException(status_code=400, detail="No Strava connection found")
+
+        # Fetch activity details
+        activity = requests.get(
+            f"{strava_service.STRAVA_API_BASE}/activities/{strava_id}",
+            headers={"Authorization": f"Bearer {connection.access_token}"}
+        ).json()
+
+        # Import the activity using sync logic
+        # (reuse the conversion logic from sync_strava_activities)
+        streams = None
+        try:
+            streams = strava_service.fetch_activity_streams(connection.access_token, strava_id)
+        except:
+            pass
+
+        workout_data = strava_service.convert_strava_activity_to_workout(activity, streams)
+
+        if not workout_data:
+            raise HTTPException(status_code=400, detail="Failed to convert activity to workout")
+
+        # Create workout
+        from models import Workout
+        new_workout = Workout(
+            user_id=user_id,
+            date=workout_data["start_time"],
+            **{k: v for k, v in workout_data.items() if k != "raw_data"}
+        )
+        new_workout.raw_data = workout_data["raw_data"]
+
+        db.add(new_workout)
+
+        # Update personal records if we have best efforts
+        best_efforts = workout_data["raw_data"].get("best_efforts", {})
+        if best_efforts:
+            from services.personal_records_service import update_personal_records_from_workout
+            update_personal_records_from_workout(
+                db=db,
+                user_id=user_id,
+                workout_date=workout_data["start_time"],
+                best_efforts=best_efforts
+            )
+
+        db.commit()
+        db.refresh(new_workout)
+
+        logger.info(f"Imported Strava activity {strava_id} for user {user_id}")
+
+        return {
+            "success": True,
+            "workout_id": new_workout.id,
+            "workout": {
+                "id": new_workout.id,
+                "date": new_workout.date.isoformat(),
+                "distance": new_workout.distance,
+                "duration": new_workout.duration,
+                "avg_pace": new_workout.avg_pace
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error importing Strava activity {strava_id}: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Import failed: {str(e)}")

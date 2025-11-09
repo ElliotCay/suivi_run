@@ -86,13 +86,13 @@ export default function Home() {
   const primaryObjective = profile?.objectives?.find((obj) => obj.priority === 'primary');
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <main className="w-full max-w-4xl">
         <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-zinc-900">
+          <h1 className="text-4xl font-bold tracking-tight text-foreground">
             Accueil
           </h1>
-          <p className="mt-2 text-lg text-zinc-600">
+          <p className="mt-2 text-lg text-muted-foreground">
             Application de suivi d'entraînement de course à pied
           </p>
         </div>
@@ -179,26 +179,26 @@ export default function Home() {
             <CardContent>
               {isLoading ? (
                 <div className="flex items-center gap-2">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900" />
-                  <span className="text-sm text-zinc-600">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted border-t-foreground" />
+                  <span className="text-sm text-muted-foreground">
                     Vérification...
                   </span>
                 </div>
               ) : error ? (
-                <div className="rounded-md bg-red-50 p-4">
-                  <p className="text-sm font-medium text-red-800">
+                <div className="rounded-md bg-destructive/10 border border-destructive/20 p-4">
+                  <p className="text-sm font-medium text-destructive">
                     Erreur de connexion
                   </p>
-                  <p className="mt-1 text-sm text-red-700">
+                  <p className="mt-1 text-sm text-destructive/80">
                     {error}
                   </p>
                 </div>
               ) : healthStatus ? (
-                <div className="rounded-md bg-green-50 p-4">
-                  <p className="text-sm font-medium text-green-800">
+                <div className="rounded-md bg-green-500/10 border border-green-500/20 p-4">
+                  <p className="text-sm font-medium text-green-700 dark:text-green-400">
                     Backend connecté
                   </p>
-                  <p className="mt-1 text-sm text-green-700">
+                  <p className="mt-1 text-sm text-green-600 dark:text-green-500">
                     Status: {healthStatus.status}
                   </p>
                 </div>

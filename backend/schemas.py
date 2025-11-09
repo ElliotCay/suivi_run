@@ -259,13 +259,13 @@ class PersonalRecordCreate(BaseModel):
 class PersonalRecordResponse(BaseModel):
     id: int
     distance: str
-    time_seconds: int
+    time_seconds: float  # Accept float for precise Strava times
     time_display: str  # Formatted as MM:SS
     date_achieved: datetime
     is_current: bool
     notes: Optional[str]
-    created_at: datetime
-    superseded_at: Optional[datetime]
+    created_at: Optional[datetime] = None
+    superseded_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -292,6 +292,141 @@ class UserPreferencesResponse(UserPreferencesBase):
     user_id: int
     created_at: datetime
     updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# Training Zone schemas
+class TrainingZoneResponse(BaseModel):
+    id: int
+    user_id: int
+    vdot: float
+    source_distance: Optional[str]
+    source_time_seconds: Optional[int]
+    easy_min_pace_sec: int
+    easy_max_pace_sec: int
+    marathon_pace_sec: int
+    threshold_min_pace_sec: int
+    threshold_max_pace_sec: int
+    interval_min_pace_sec: int
+    interval_max_pace_sec: int
+    repetition_min_pace_sec: int
+    repetition_max_pace_sec: int
+    is_current: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# Training Block schemas
+class GenerateBlockRequest(BaseModel):
+    phase: str = "base"  # base, development, peak
+    days_per_week: int = 3
+    start_date: Optional[datetime] = None
+    use_ai_descriptions: bool = True  # Use AI to generate personalized workout descriptions
+    use_sonnet: bool = True  # Use Sonnet for superior personalized coaching (~€0.10 per block)
+    add_recovery_sunday: bool = False  # Add a recovery run every Sunday
+
+
+class PlannedWorkoutResponse(BaseModel):
+    id: int
+    block_id: int
+    scheduled_date: datetime
+    week_number: int
+    day_of_week: str
+    workout_type: str
+    distance_km: Optional[float]
+    title: str
+    description: str
+    target_pace_min: Optional[int]
+    target_pace_max: Optional[int]
+    status: str
+    completed_workout_id: Optional[int]
+    completed_at: Optional[datetime]
+    calendar_event_id: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class StrengtheningReminderResponse(BaseModel):
+    id: int
+    scheduled_date: datetime
+    day_of_week: str
+    session_type: str
+    title: str
+    duration_minutes: int
+    completed: bool
+    completed_at: Optional[datetime]
+    calendar_event_id: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class TrainingBlockResponse(BaseModel):
+    id: int
+    user_id: int
+    name: str
+    phase: str
+    start_date: datetime
+    end_date: datetime
+    days_per_week: int
+    target_weekly_volume: float
+    easy_percentage: int
+    threshold_percentage: int
+    interval_percentage: int
+    status: str
+    created_at: datetime
+    planned_workouts: List[PlannedWorkoutResponse] = []
+    strengthening_reminders: List[StrengtheningReminderResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+class TrainingBlockListResponse(BaseModel):
+    id: int
+    user_id: int
+    name: str
+    phase: str
+    start_date: datetime
+    end_date: datetime
+    days_per_week: int
+    status: str
+    progress_percentage: float = 0.0
+
+    class Config:
+        from_attributes = True
+
+
+# Workout Feedback schemas
+class WorkoutFeedbackCreate(BaseModel):
+    completed_workout_id: int
+    planned_workout_id: Optional[int] = None
+    rpe: Optional[int] = Field(None, ge=1, le=10)
+    difficulty: Optional[str] = None  # too_easy, just_right, too_hard
+    pain_locations: Optional[List[str]] = None  # ["ankle", "it_band", "none"]
+    pain_severity: Optional[int] = Field(None, ge=1, le=10)
+    comment: Optional[str] = None
+
+
+class WorkoutFeedbackResponse(BaseModel):
+    id: int
+    user_id: int
+    completed_workout_id: int
+    planned_workout_id: Optional[int]
+    rpe: Optional[int]
+    difficulty: Optional[str]
+    pain_locations: Optional[List[str]]
+    pain_severity: Optional[int]
+    comment: Optional[str]
+    planned_pace_min: Optional[int]
+    actual_pace: Optional[int]
+    pace_variance: Optional[float]
+    created_at: datetime
 
     class Config:
         from_attributes = True

@@ -66,6 +66,71 @@ async def get_workouts(
     return workouts
 
 
+@router.get("/workouts/missing-feedback")
+async def get_workouts_missing_feedback(
+    db: Session = Depends(get_db),
+    user_id: int = 1,  # TODO: Get from auth
+    days_back: int = Query(30, ge=1, le=90)
+):
+    """
+    Get workouts that don't have feedback (RPE, difficulty, comments).
+
+    Returns workouts from the last N days that are missing feedback data.
+    This helps users complete their training logs.
+
+    Args:
+        days_back: How many days back to check (default 30, max 90)
+
+    Returns:
+        List of workouts without feedback
+    """
+    from datetime import timedelta
+    from models import WorkoutFeedback
+
+    cutoff_date = datetime.now() - timedelta(days=days_back)
+
+    # Get all workouts in date range
+    workouts = db.query(Workout).filter(
+        and_(
+            Workout.user_id == user_id,
+            Workout.date >= cutoff_date
+        )
+    ).order_by(desc(Workout.date)).all()
+
+    # Filter out workouts that already have feedback
+    # A workout has feedback if it has:
+    # 1. A WorkoutFeedback entry, OR
+    # 2. A user_comment, OR
+    # 3. A user_rating
+    workouts_with_feedback_ids = set(
+        f.completed_workout_id for f in db.query(WorkoutFeedback).filter(
+            WorkoutFeedback.user_id == user_id,
+            WorkoutFeedback.completed_workout_id.isnot(None)
+        ).all()
+    )
+
+    workouts_without_feedback = [
+        {
+            "id": w.id,
+            "date": w.date.isoformat(),
+            "distance": w.distance,
+            "duration": w.duration,
+            "avg_pace": w.avg_pace,
+            "workout_type": w.workout_type
+        }
+        for w in workouts
+        if (
+            w.id not in workouts_with_feedback_ids
+            and not w.user_comment  # No comment
+        )
+    ]
+
+    return {
+        "count": len(workouts_without_feedback),
+        "workouts": workouts_without_feedback
+    }
+
+
 @router.get("/workouts/{workout_id}", response_model=WorkoutResponse)
 async def get_workout(
     workout_id: int,
@@ -76,10 +141,10 @@ async def get_workout(
     workout = db.query(Workout).filter(
         and_(Workout.id == workout_id, Workout.user_id == user_id)
     ).first()
-    
+
     if not workout:
         raise HTTPException(status_code=404, detail="Workout not found")
-    
+
     return workout
 
 
@@ -96,20 +161,20 @@ async def update_workout(
     workout = db.query(Workout).filter(
         and_(Workout.id == workout_id, Workout.user_id == user_id)
     ).first()
-    
+
     if not workout:
         raise HTTPException(status_code=404, detail="Workout not found")
-    
+
     # Update fields if provided
     update_data = workout_update.dict(exclude_unset=True)
     for field, value in update_data.items():
         setattr(workout, field, value)
-    
+
     db.commit()
     db.refresh(workout)
-    
+
     logger.info(f"Updated workout {workout_id}")
-    
+
     return workout
 
 

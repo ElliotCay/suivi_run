@@ -17,11 +17,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def format_time(seconds: int) -> str:
-    """Format seconds to MM:SS"""
-    minutes = seconds // 60
-    secs = seconds % 60
-    return f"{minutes}:{secs:02d}"
+def format_time(seconds: float) -> str:
+    """Format seconds to MM:SS with decimals"""
+    total_seconds = int(seconds)
+    minutes = total_seconds // 60
+    secs = total_seconds % 60
+    decimals = int((seconds - total_seconds) * 10)
+    if decimals > 0:
+        return f"{minutes}:{secs:02d}.{decimals}"
+    else:
+        return f"{minutes}:{secs:02d}"
 
 
 @router.get("/records", response_model=List[PersonalRecordResponse])

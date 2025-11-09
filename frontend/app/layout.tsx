@@ -3,6 +3,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/sonner';
 import TopNav from '@/components/TopNav';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
+import { MissingFeedbackModal } from '@/components/missing-feedback-modal';
 
 export const metadata: Metadata = {
   title: 'Suivi Course',
@@ -30,6 +31,7 @@ export default function RootLayout({
             </div>
           </main>
           <Toaster />
+          <MissingFeedbackModal />
         </ThemeProvider>
       </body>
     </html>

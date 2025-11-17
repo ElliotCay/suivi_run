@@ -1,0 +1,54 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradient 40° avec palette courte: Orange → Violet (2 teintes) -->
+    <linearGradient id="allureGradient" x1="0%" y1="0%" x2="100%" y2="65%">
+      <stop offset="0%" style="stop-color:#FF6B35;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#9B4DCA;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Runner figure with refined strokes -->
+  <g id="runner" fill="url(#allureGradient)">
+    <!-- Head -->
+    <circle cx="115" cy="52" r="22"/>
+
+    <!-- Body and limbs with stroke-width: 18 -->
+    <!-- Torso -->
+    <path d="M 100 85 Q 95 95 100 110 L 115 145" stroke="url(#allureGradient)" stroke-width="18" stroke-linecap="round" fill="none"/>
+
+    <!-- Left arm (raised) -->
+    <path d="M 105 95 Q 130 80 155 100" stroke="url(#allureGradient)" stroke-width="18" stroke-linecap="round" fill="none"/>
+
+    <!-- Right arm -->
+    <path d="M 100 100 Q 75 105 65 120" stroke="url(#allureGradient)" stroke-width="18" stroke-linecap="round" fill="none"/>
+
+    <!-- Left leg (back) -->
+    <path d="M 115 145 Q 130 165 145 195" stroke="url(#allureGradient)" stroke-width="18" stroke-linecap="round" fill="none"/>
+
+    <!-- Right leg (front) -->
+    <path d="M 110 145 Q 95 175 75 210" stroke="url(#allureGradient)" stroke-width="18" stroke-linecap="round" fill="none"/>
+  </g>
+
+  <!-- Speed lines -->
+  <g id="speed-lines" opacity="0.8">
+    <line x1="25" y1="175" x2="60" y2="175" stroke="url(#allureGradient)" stroke-width="7" stroke-linecap="round"/>
+    <line x1="45" y1="155" x2="70" y2="155" stroke="url(#allureGradient)" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="30" cy="135" r="3" fill="url(#allureGradient)"/>
+    <circle cx="40" cy="140" r="2.5" fill="url(#allureGradient)"/>
+  </g>
+
+  <!-- Star sparkles (reduced 12% and moved) -->
+  <g id="sparkles" fill="url(#allureGradient)">
+    <!-- Main star -->
+    <path d="M 168 42 L 171 51 L 180 54 L 171 57 L 168 66 L 165 57 L 156 54 L 165 51 Z"/>
+
+    <!-- Small star 1 -->
+    <path d="M 152 32 L 154 38 L 160 40 L 154 42 L 152 48 L 150 42 L 144 40 L 150 38 Z"/>
+
+    <!-- Small star 2 -->
+    <path d="M 188 58 L 190 64 L 196 66 L 190 68 L 188 74 L 186 68 L 180 66 L 186 64 Z"/>
+
+    <!-- Tiny sparkle -->
+    <circle cx="175" cy="72" r="2.5"/>
+  </g>
+</svg>

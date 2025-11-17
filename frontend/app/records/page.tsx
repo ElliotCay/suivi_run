@@ -214,13 +214,28 @@ export default function RecordsPage() {
 
   const bestDistanceInfo = bestPR ? DISTANCES.find(d => d.value === bestPR.distance) : null
 
-  // Render a bento card with different sizes
-  const renderBentoCard = (distanceValue: string, className: string, isLarge: boolean = false) => {
+  // Find the most recent record date
+  const mostRecentDate = records.length > 0
+    ? records.reduce((latest, record) => {
+        const recordDate = new Date(record.date_achieved)
+        return recordDate > latest ? recordDate : latest
+      }, new Date(records[0].date_achieved))
+    : null
+
+  // Render a bento card (uniform height - Point 4)
+  const renderBentoCard = (distanceValue: string, className: string) => {
     const distanceInfo = DISTANCES.find(d => d.value === distanceValue)
     if (!distanceInfo) return null
 
     const record = getRecordForDistance(distanceValue)
     const hasRecord = record !== null
+
+    // Check if this record was achieved on the most recent date
+    const isNew = record && mostRecentDate && (() => {
+      const recordDate = new Date(record.date_achieved)
+      // Compare dates (same day)
+      return recordDate.toDateString() === mostRecentDate.toDateString()
+    })()
 
     return (
       <motion.div
@@ -231,7 +246,7 @@ export default function RecordsPage() {
         className={className}
       >
         <Card
-          className={`h-full group cursor-pointer transition-all duration-200 hover:shadow-lg ${
+          className={`h-full group cursor-pointer transition-all duration-300 hover:shadow-lg ${
             hasRecord ? 'border-foreground/10' : 'border-dashed'
           }`}
           onClick={() => startEdit(distanceValue)}
@@ -240,21 +255,27 @@ export default function RecordsPage() {
             {/* Header */}
             <div className="flex items-start justify-between">
               <div>
-                <h3 className={`font-bold ${isLarge ? 'text-lg' : 'text-sm'}`}>
+                <h3 className="font-bold text-base">
                   {distanceInfo.label}
                 </h3>
-                {!isLarge && (
-                  <p className="text-xs text-muted-foreground">{distanceInfo.km} km</p>
-                )}
+                <p className="text-xs text-muted-foreground">{distanceInfo.km} km</p>
               </div>
-              <Award className={`${isLarge ? 'h-5 w-5' : 'h-4 w-4'} text-muted-foreground`} />
+              {isNew && (
+                <div className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider"
+                     style={{
+                       background: 'var(--allure-gradient)',
+                       color: 'white'
+                     }}>
+                  NEW
+                </div>
+              )}
             </div>
 
             {/* Content */}
             {hasRecord ? (
               <div className="space-y-1">
                 {/* Time */}
-                <div className={`font-bold ${isLarge ? 'text-4xl' : 'text-2xl'}`}>
+                <div className="font-bold text-2xl">
                   {record.time_display}
                 </div>
 
@@ -320,31 +341,24 @@ export default function RecordsPage() {
           }}
         />
       ) : (
-        <div className="grid grid-cols-12 gap-3 auto-rows-[140px]">
-        {/* 500m */}
-        {renderBentoCard('500m', 'col-span-4 row-span-1')}
+        <>
+          {/* Grille 3 colonnes + Semi/Marathon en largeur - Option E (minimaliste) */}
+          <div className="grid grid-cols-12 gap-4 auto-rows-[140px]">
+            {/* Ligne 1: Courtes distances */}
+            {renderBentoCard('500m', 'col-span-4')}
+            {renderBentoCard('1km', 'col-span-4')}
+            {renderBentoCard('2km', 'col-span-4')}
 
-        {/* 1km */}
-        {renderBentoCard('1km', 'col-span-4 row-span-1')}
+            {/* Ligne 2: Distances moyennes */}
+            {renderBentoCard('5km', 'col-span-4')}
+            {renderBentoCard('10km', 'col-span-4')}
+            {renderBentoCard('15km', 'col-span-4')}
 
-        {/* 2km */}
-        {renderBentoCard('2km', 'col-span-4 row-span-1')}
-
-        {/* 5km - LARGE (hero) */}
-        {renderBentoCard('5km', 'col-span-6 row-span-2', true)}
-
-        {/* 10km - LARGE (hero) */}
-        {renderBentoCard('10km', 'col-span-6 row-span-2', true)}
-
-        {/* 15km - LARGE */}
-        {renderBentoCard('15km', 'col-span-4 row-span-2', true)}
-
-        {/* Semi - LARGE */}
-        {renderBentoCard('semi', 'col-span-4 row-span-2', true)}
-
-        {/* Marathon - LARGE */}
-        {renderBentoCard('marathon', 'col-span-4 row-span-2', true)}
-        </div>
+            {/* Ligne 3: Distances longues - en largeur pour les mettre en valeur */}
+            {renderBentoCard('semi', 'col-span-6')}
+            {renderBentoCard('marathon', 'col-span-6')}
+          </div>
+        </>
       )}
 
       {/* Edit Dialog */}

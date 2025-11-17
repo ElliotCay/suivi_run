@@ -333,6 +333,6 @@ async def import_single_workout(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error importing Strava activity {strava_id}: {e}")
+        logger.error(f"Error importing Strava activity {strava_id}: {e}", exc_info=True)
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Import failed: {str(e)}")

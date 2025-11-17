@@ -132,8 +132,8 @@ def format_time(seconds: int) -> str:
     Returns:
         Formatted string in MM:SS format
     """
-    minutes = seconds // 60
-    secs = seconds % 60
+    minutes = int(seconds // 60)
+    secs = int(seconds % 60)
     return f"{minutes}:{secs:02d}"
 
 

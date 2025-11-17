@@ -218,9 +218,9 @@ def convert_strava_activity_to_workout(activity: Dict, streams: Optional[Dict] =
     workout_data = {
         "start_time": datetime.fromisoformat(activity["start_date"].replace("Z", "+00:00")),
         "end_time": datetime.fromisoformat(activity["start_date"].replace("Z", "+00:00")),
-        "distance": activity["distance"] / 1000,  # Convert meters to km
-        "duration": activity["moving_time"],  # seconds
-        "elevation_gain": activity.get("total_elevation_gain"),
+        "distance": float(activity["distance"]) / 1000,  # Convert meters to km
+        "duration": int(activity["moving_time"]),  # seconds
+        "elevation_gain": float(activity.get("total_elevation_gain", 0)) if activity.get("total_elevation_gain") else None,
         "source": "strava",
     }
 
@@ -515,8 +515,8 @@ def get_pending_workouts(db: Session, user_id: int, days_back: int = 30) -> List
         if strava_id not in existing_strava_ids:
             # Activity not imported yet
             start_date = datetime.fromisoformat(activity["start_date"].replace("Z", "+00:00"))
-            distance_km = activity["distance"] / 1000
-            duration_sec = activity["moving_time"]
+            distance_km = float(activity["distance"]) / 1000
+            duration_sec = int(activity["moving_time"])
             avg_pace_sec = int(duration_sec / distance_km) if distance_km > 0 else None
 
             pending.append({

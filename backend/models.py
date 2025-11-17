@@ -19,6 +19,18 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
+
+    # Profile fields
+    age = Column(Integer, nullable=True)
+    weight = Column(Float, nullable=True)
+    height = Column(Float, nullable=True)
+    level = Column(String, default='intermediate', nullable=True)
+    fcmax = Column(Integer, nullable=True)
+    vma = Column(Float, nullable=True)
+    ai_mode = Column(String, default='integrated', nullable=True)
+    profile_picture = Column(Text, nullable=True)  # Base64 encoded image
+
+    # Legacy fields
     injury_history = Column(JSON, nullable=True)
     current_level = Column(JSON, nullable=True)
     objectives = Column(JSON, nullable=True)
@@ -33,6 +45,7 @@ class User(Base):
     suggestions = relationship("Suggestion", back_populates="user")
     training_plans = relationship("TrainingPlan", back_populates="user")
     user_preferences = relationship("UserPreferences", back_populates="user", uselist=False)
+    shoes = relationship("Shoe", back_populates="user")
 
 
 class Workout(Base):
@@ -77,6 +90,30 @@ class StrengthSession(Base):
 
     # Relationships
     user = relationship("User", back_populates="strength_sessions")
+
+
+class Shoe(Base):
+    """Shoe tracking model for rotation and wear tracking."""
+
+    __tablename__ = "shoes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    brand = Column(String, nullable=False)
+    model = Column(String, nullable=False)
+    type = Column(String, nullable=True)  # training, competition, trail, recovery
+    purchase_date = Column(DateTime, nullable=True)
+    initial_km = Column(Float, default=0.0)  # If bought used
+    current_km = Column(Float, default=0.0)
+    max_km = Column(Float, default=800.0)  # Default lifespan
+    is_active = Column(Boolean, default=True)
+    is_default = Column(Boolean, default=False)  # Default shoe for workouts
+    description = Column(Text, nullable=True)  # AI-readable description for suggestions
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User", back_populates="shoes")
 
 
 class Suggestion(Base):
@@ -406,3 +443,87 @@ class StrengtheningReminder(Base):
     # Relationships
     user = relationship("User")
     block = relationship("TrainingBlock", back_populates="strengthening_reminders")
+
+
+class AIContext(Base):
+    """AI context storage for maintaining conversation continuity and coherence."""
+    __tablename__ = "ai_context"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+
+    # Last recommendations and current training phase
+    last_recommendation = Column(Text, nullable=True)
+    current_phase = Column(String, nullable=True)  # "base", "build", "peak", "taper", "recovery"
+    current_goal = Column(String, nullable=True)
+
+    # Metrics snapshot
+    readiness_score = Column(Integer, nullable=True)
+    fatigue_level = Column(String, nullable=True)
+    training_load_ratio = Column(Float, nullable=True)
+    weekly_volume_km = Column(Float, nullable=True)
+
+    # Recent context
+    last_hard_session_date = Column(DateTime, nullable=True)
+    last_long_run_date = Column(DateTime, nullable=True)
+    recent_injury_concern = Column(String, nullable=True)
+
+    # AI interaction metadata
+    last_ai_call = Column(DateTime, nullable=True)
+    total_ai_calls = Column(Integer, default=0)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User")
+
+
+class UserBadge(Base):
+    """User badges model for gamification and achievements."""
+
+    __tablename__ = "user_badges"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    badge_type = Column(String, nullable=False)  # "volume", "record", "regularity", "progression"
+    badge_key = Column(String, nullable=False)  # "first_50km", "record_5k", "10_sessions_month", etc.
+    badge_name = Column(String, nullable=False)  # "Premier 50km", "Nouveau record 5km", etc.
+    badge_icon = Column(String, nullable=True)  # Emoji or SVG path
+    badge_description = Column(Text, nullable=True)  # Additional details about achievement
+    metric_value = Column(Float, nullable=True)  # The value that earned the badge (e.g., 152.5 for 150km badge)
+    unlocked_at = Column(DateTime, default=datetime.utcnow)
+    is_viewed = Column(Boolean, default=False)  # Whether user has seen the toast notification
+
+    # Relationships
+    user = relationship("User")
+
+
+class WeeklyRecap(Base):
+    """Weekly recap model for storing AI-generated weekly summaries."""
+
+    __tablename__ = "weekly_recaps"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    # Week identification
+    week_start_date = Column(DateTime, nullable=False)  # Monday of the week
+    week_end_date = Column(DateTime, nullable=False)    # Sunday of the week
+
+    # Generated content
+    recap_text = Column(Text, nullable=False)  # AI-generated narrative
+
+    # Metrics snapshot for the week
+    sessions_completed = Column(Integer, nullable=True)
+    sessions_planned = Column(Integer, nullable=True)
+    total_volume_km = Column(Float, nullable=True)
+    avg_pace_seconds = Column(Integer, nullable=True)  # Average pace in seconds per km
+    avg_heart_rate = Column(Integer, nullable=True)
+    readiness_avg = Column(Integer, nullable=True)
+
+    # Metadata
+    generated_at = Column(DateTime, default=datetime.utcnow)
+    is_viewed = Column(Boolean, default=False)
+
+    # Relationships
+    user = relationship("User")

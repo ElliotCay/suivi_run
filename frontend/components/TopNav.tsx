@@ -3,52 +3,83 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Home, Activity, BarChart3, Sparkles, User, Upload, Award, Settings, Calendar, MoreVertical, CalendarDays } from 'lucide-react'
+import { Activity, BarChart3, Sparkles, Award, Settings, CalendarDays } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
-import { motion } from 'framer-motion'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Button } from '@/components/ui/button'
+import Image from 'next/image'
+import { useTheme } from 'next-themes'
+import { useEffect, useState } from 'react'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
   { href: '/workouts', label: 'Séances', icon: Activity },
   { href: '/records', label: 'Records', icon: Award },
-  { href: '/training-block', label: 'Bloc 4 sem.', icon: CalendarDays },
-  { href: '/suggestions', label: 'Coach AI', icon: Sparkles },
-]
-
-const moreItems = [
-  { href: '/profile', label: 'Profil', icon: User },
-  { href: '/import', label: 'Import', icon: Upload },
-  { href: '/training-plans', label: 'Plans', icon: Calendar },
-  { href: '/settings', label: 'Paramètres', icon: Settings },
+  { href: '/training-block', label: 'Blocs', icon: CalendarDays },
+  { href: '/coach', label: 'Coach', icon: Sparkles },
+  { href: '/settings', label: 'Réglages', icon: Settings },
 ]
 
 export default function TopNav() {
   const pathname = usePathname()
+  const { theme, resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const isDark = mounted && (resolvedTheme === 'dark' || theme === 'dark')
+  const isHomePage = pathname === '/'
+
+  // Sur la homepage: fond adaptatif comme avant
+  // Sur les autres pages: fond avec glassmorphism visible
+  const bgClass = isHomePage
+    ? (isDark ? 'bg-black/60' : 'bg-white/35')
+    : (isDark ? 'bg-black/70' : 'bg-white/70')
+
+  const textClass = isHomePage ? 'text-white' : (isDark ? 'text-white' : 'text-black')
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-sm">
-      <div className="container mx-auto px-6">
-        <div className="flex h-14 items-center justify-between">
-          {/* Logo - Minimal */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground group-hover:bg-foreground/90 transition-colors">
-              <Activity className="h-4 w-4 text-background" />
+    <nav className="sticky top-4 z-50 w-full px-4">
+      <div className="container mx-auto max-w-7xl">
+        <div className="flex items-center justify-between">
+          {/* Logo pill - Left */}
+          <Link href="/" className={cn(
+            "flex items-center justify-center gap-0 group h-12 px-4 rounded-full border shadow-xl transition-all duration-300 hover:scale-105 hover:shadow-2xl relative overflow-hidden",
+            bgClass,
+            isHomePage
+              ? "border-white/40 hover:bg-white/30"
+              : (isDark ? "border-white/20 hover:bg-black/90" : "border-black/10 hover:bg-white/95")
+          )} style={{
+            backdropFilter: 'blur(40px) saturate(150%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(150%)',
+            boxShadow: 'inset 0 1px 0 0 rgba(255, 255, 255, 0.1), 0 10px 30px -10px rgba(0, 0, 0, 0.3)',
+          }}>
+            <div className="flex items-center gap-0" style={{ marginLeft: '-3.08px' }}>
+              <Image
+                src="/chatgpt-runner-mono.png"
+                alt="allure runner"
+                width={24}
+                height={24}
+                className={isHomePage || isDark ? "brightness-0 invert" : ""}
+              />
+              <span className={cn("text-base font-[family-name:var(--font-branch)] -ml-1", textClass)}>
+                allure
+              </span>
             </div>
-            <span className="text-lg font-bold">
-              Suivi Course
-            </span>
           </Link>
 
-          {/* Navigation Items */}
-          <div className="flex items-center gap-1">
+          {/* Navigation Items - Center */}
+          <div className={cn(
+            "flex items-center gap-1 h-12 px-4 rounded-full border shadow-xl transition-all duration-300 relative overflow-hidden",
+            bgClass,
+            isHomePage
+              ? "border-white/40"
+              : (isDark ? "border-white/20" : "border-black/10")
+          )} style={{
+            backdropFilter: 'blur(40px) saturate(150%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(150%)',
+            boxShadow: 'inset 0 1px 0 0 rgba(255, 255, 255, 0.1), 0 10px 30px -10px rgba(0, 0, 0, 0.3)',
+          }}>
             {navItems.map((item) => {
               const Icon = item.icon
               const isActive = pathname === item.href
@@ -60,10 +91,16 @@ export default function TopNav() {
                   className="relative"
                 >
                   <div className={cn(
-                    'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-                    isActive
-                      ? 'text-foreground bg-accent'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                    'flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-all duration-200',
+                    isHomePage ? (
+                      isActive
+                        ? 'text-white bg-white/20'
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                    ) : (
+                      isActive
+                        ? (isDark ? 'text-white bg-white/20' : 'text-black bg-black/10')
+                        : (isDark ? 'text-white/80 hover:text-white hover:bg-white/10' : 'text-black/70 hover:text-black hover:bg-black/5')
+                    )
                   )}>
                     <Icon className="h-4 w-4" />
                     <span>{item.label}</span>
@@ -71,58 +108,21 @@ export default function TopNav() {
                 </Link>
               )
             })}
+          </div>
 
-            {/* More Menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium',
-                    moreItems.some(item => pathname === item.href)
-                      ? 'text-foreground bg-accent'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
-                  )}
-                >
-                  <MoreVertical className="h-4 w-4" />
-                  <span>Plus</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="w-48 !bg-background !text-foreground border-border shadow-lg !opacity-100"
-                style={{ backgroundColor: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
-              >
-                {moreItems.map((item, index) => {
-                  const Icon = item.icon
-                  const isActive = pathname === item.href
-
-                  return (
-                    <div key={item.href}>
-                      {index === 4 && <DropdownMenuSeparator />}
-                      <DropdownMenuItem asChild>
-                        <Link
-                          href={item.href}
-                          className={cn(
-                            "flex items-center gap-2 cursor-pointer",
-                            isActive && "bg-accent"
-                          )}
-                        >
-                          <Icon className="h-4 w-4" />
-                          <span>{item.label}</span>
-                        </Link>
-                      </DropdownMenuItem>
-                    </div>
-                  )
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Theme Toggle */}
-            <div className="ml-2 pl-2 border-l border-border">
-              <ThemeToggle />
-            </div>
+          {/* Theme Toggle pill - Right */}
+          <div className={cn(
+            "flex items-center h-12 w-12 rounded-full border shadow-xl transition-all duration-300 hover:scale-105 hover:shadow-2xl relative overflow-hidden",
+            bgClass,
+            isHomePage
+              ? "border-white/40 hover:bg-white/30"
+              : (isDark ? "border-white/20 hover:bg-black/90" : "border-black/10 hover:bg-white/95")
+          )} style={{
+            backdropFilter: 'blur(40px) saturate(150%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(150%)',
+            boxShadow: 'inset 0 1px 0 0 rgba(255, 255, 255, 0.1), 0 10px 30px -10px rgba(0, 0, 0, 0.3)',
+          }}>
+            <ThemeToggle />
           </div>
         </div>
       </div>

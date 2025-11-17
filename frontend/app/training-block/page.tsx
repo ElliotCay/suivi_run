@@ -183,7 +183,7 @@ export default function TrainingBlockPage() {
 
   const completeStrengthening = async (reminderId: number) => {
     try {
-      await axios.post(`http://localhost:8000/api/training/strengthening/${reminderId}/complete`)
+      await axios.patch(`http://localhost:8000/api/training/strengthening-reminders/${reminderId}/complete`)
       toast.success("Renforcement validé !")
       loadCurrentBlock()
     } catch (error) {

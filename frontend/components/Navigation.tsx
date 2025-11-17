@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { Home, Activity, BarChart3, Sparkles, User, Upload, Award, Settings, Calendar, CalendarDays } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import Image from 'next/image'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
@@ -23,8 +24,14 @@ export default function Navigation() {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-2">
-            <Activity className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">Suivi Course</span>
+            <Image
+              src="/favicon.ico"
+              alt="Logo"
+              width={24}
+              height={24}
+              className="h-6 w-6"
+            />
+            <span className="text-xl font-bold">StrideAI</span>
           </div>
 
           <div className="flex items-center gap-1">

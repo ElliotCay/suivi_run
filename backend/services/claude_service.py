@@ -28,7 +28,8 @@ def build_suggestion_prompt(
     user_profile: Dict,
     recent_workouts: List,
     program_week: int = 2,
-    workout_type: str = None
+    workout_type: str = None,
+    ai_context: str = None
 ) -> str:
     """
     Build prompt for workout suggestion.
@@ -38,6 +39,7 @@ def build_suggestion_prompt(
         recent_workouts: List of recent workouts (last 4 weeks)
         program_week: Current week in 8-week program
         workout_type: Specific workout type to generate (facile, tempo, fractionne, longue) or None for auto
+        ai_context: Optional AI context string for conversation continuity
 
     Returns:
         Formatted prompt for Claude
@@ -62,8 +64,17 @@ def build_suggestion_prompt(
     # Weekly volume
     volume = user_profile.get('weekly_volume', 23)
 
-    prompt = f"""Tu es un coach running spécialisé dans la prévention des blessures.
+    # AI context section (if provided)
+    context_section = ""
+    if ai_context:
+        context_section = f"""
+CONTEXTE IA (continuité des recommandations):
+{ai_context}
 
+"""
+
+    prompt = f"""Tu es un coach running spécialisé dans la prévention des blessures.
+{context_section}
 PROFIL UTILISATEUR:
 - Niveau actuel: Sortie longue 10km confortables
 - Allure facile: {easy_pace}
@@ -156,7 +167,7 @@ def call_claude_api(prompt: str, use_sonnet: bool = True) -> Dict[str, Any]:
         raise
 
 
-def build_week_prompt(user_profile: Dict, recent_workouts: List, program_week: int = 2) -> str:
+def build_week_prompt(user_profile: Dict, recent_workouts: List, program_week: int = 2, ai_context: str = None) -> str:
     """
     Build prompt for generating a complete training week (3 workouts).
 
@@ -164,6 +175,7 @@ def build_week_prompt(user_profile: Dict, recent_workouts: List, program_week: i
         user_profile: User profile dictionary
         recent_workouts: List of recent workouts (last 4 weeks)
         program_week: Current week in 8-week program
+        ai_context: Optional AI context string for conversation continuity
 
     Returns:
         Formatted prompt for Claude
@@ -185,7 +197,17 @@ def build_week_prompt(user_profile: Dict, recent_workouts: List, program_week: i
     tempo_pace = current_level.get('tempo_pace', '5:30/km')
     volume = user_profile.get('weekly_volume', 23)
 
+    # AI context section (if provided)
+    context_section = ""
+    if ai_context:
+        context_section = f"""
+CONTEXTE IA (continuité des recommandations):
+{ai_context}
+
+"""
+
     prompt = f"""Tu es un coach running spécialisé dans la prévention des blessures.
+{context_section}
 
 PROFIL UTILISATEUR:
 - Niveau actuel: Sortie longue 10km confortables

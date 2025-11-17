@@ -111,6 +111,30 @@ export default function WorkoutsPage() {
     return mins + ':' + secsStr
   }
 
+  const getWorkoutBarColor = (type: string | null) => {
+    if (!type) return 'var(--allure-gradient)'
+    const normalized = type.toLowerCase().replace(/[éè]/g, 'e')
+
+    // Vert pour facile/endurance/longue/récupération
+    if (normalized.includes('facile') || normalized.includes('endurance') ||
+        normalized.includes('longue') || normalized.includes('recuperation')) {
+      return 'hsl(var(--workout-facile))'
+    }
+
+    // Orange pour tempo/seuil
+    if (normalized.includes('tempo') || normalized.includes('seuil')) {
+      return 'hsl(var(--workout-tempo))'
+    }
+
+    // Rouge pour intervalle/fractionné
+    if (normalized.includes('intervalle') || normalized.includes('fractionne')) {
+      return 'hsl(var(--workout-intervalle))'
+    }
+
+    // Gradient Allure par défaut
+    return 'var(--allure-gradient)'
+  }
+
   const filteredWorkouts = workouts.filter(w => 
     !search || 
     formatDate(w.date).toLowerCase().includes(search.toLowerCase()) ||
@@ -204,15 +228,22 @@ export default function WorkoutsPage() {
         <div className="grid gap-3">
           {filteredWorkouts.map((workout) => (
             <Link key={workout.id} href={`/workouts/${workout.id}`}>
-              <Card className="hover:shadow-md cursor-pointer transition-all">
-                <CardContent className="p-4">
+              <Card className="hover:shadow-lg cursor-pointer transition-all duration-300 relative overflow-hidden">
+                {/* Barre verticale colorée selon le type de séance */}
+                <div
+                  className="absolute left-0 top-0 bottom-0 w-[3px]"
+                  style={{
+                    background: getWorkoutBarColor(workout.workout_type)
+                  }}
+                />
+                <CardContent className="p-4 pr-6">
                   <div className="flex items-center gap-12">
                     {/* Left: Date & Type */}
-                    <div className="space-y-0.5 min-w-[160px]">
-                      <div className="font-bold text-base">
+                    <div className="space-y-1 min-w-[160px]">
+                      <div className="text-sm text-muted-foreground/80">
                         {formatDate(workout.date)}
                       </div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs text-muted-foreground/70 font-medium">
                         {workout.workout_type || 'Non catégorisé'}
                       </div>
                     </div>

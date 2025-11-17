@@ -59,7 +59,19 @@
       "Bash(timeout 30 python:*)",
       "Bash(alembic revision:*)",
       "Bash(timeout 180 python:*)",
-      "Bash(tee:*)"
+      "Bash(tee:*)",
+      "Bash(ls:*)",
+      "WebFetch(domain:www.awwwards.com)",
+      "Bash(md5:*)",
+      "Bash(for:*)",
+      "Bash(do unzip -l \"$zip\")",
+      "Bash(do echo '=== $file ===')",
+      "Bash(do echo '=== $f ===')",
+      "Bash(grep:*)",
+      "Bash(do file \"$f\")",
+      "Bash(defaults read:*)",
+      "Bash(while read f)",
+      "Bash(do cp \"$f\" moodboard.png)"
     ],
     "deny": [],
     "ask": []

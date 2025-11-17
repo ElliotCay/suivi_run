@@ -19,6 +19,7 @@ from services.claude_service import (
 )
 from services.calendar_service import create_ics_event, create_calendar_feed
 from services.icloud_calendar_sync import iCloudCalendarSync, CalendarSyncError
+from services import ai_context_service
 from schemas import SuggestionResponse, SuggestionGenerateRequest
 
 logger = logging.getLogger(__name__)
@@ -60,10 +61,14 @@ async def generate_suggestion(
         'objectives': user.objectives or []
     }
 
+    # 3.5. Get AI context for continuity
+    ai_context = ai_context_service.get_context_for_prompt(db, user_id)
+    logger.info(f"AI Context: {ai_context[:100]}...")  # Log first 100 chars
+
     # 4. Generate week or single workout
     if request.generate_week:
         # Generate a complete week (3 workouts)
-        prompt = build_week_prompt(user_dict, recent_workouts, program_week=2)
+        prompt = build_week_prompt(user_dict, recent_workouts, program_week=2, ai_context=ai_context)
         response = call_claude_api(prompt, use_sonnet=request.use_sonnet)
         week_data = parse_suggestion_response(response["content"])
 
@@ -88,6 +93,14 @@ async def generate_suggestion(
         for s in suggestions:
             db.refresh(s)
 
+        # Update AI context after generation
+        week_summary = week_data.get("week_description", "Semaine d'entraînement générée")
+        ai_context_service.update_after_suggestion(
+            db, user_id,
+            suggestion=week_summary,
+            weekly_volume_km=sum(w.get("distance_km", 0) for w in week_data.get("workouts", []))
+        )
+
         logger.info(f"Created {len(suggestions)} suggestions for week")
         return {"week_description": week_data.get("week_description"), "suggestions": suggestions}
 
@@ -97,7 +110,8 @@ async def generate_suggestion(
             user_dict,
             recent_workouts,
             program_week=2,
-            workout_type=request.workout_type
+            workout_type=request.workout_type,
+            ai_context=ai_context
         )
 
         response = call_claude_api(prompt, use_sonnet=request.use_sonnet)
@@ -118,6 +132,13 @@ async def generate_suggestion(
         db.add(new_suggestion)
         db.commit()
         db.refresh(new_suggestion)
+
+        # Update AI context after generation
+        workout_summary = f"{suggestion_data.get('type')} - {suggestion_data.get('distance_km')}km"
+        ai_context_service.update_after_suggestion(
+            db, user_id,
+            suggestion=suggestion_data.get('raison', workout_summary)
+        )
 
         logger.info(f"Created suggestion {new_suggestion.id}")
         return new_suggestion

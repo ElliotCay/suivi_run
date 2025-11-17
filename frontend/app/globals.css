@@ -51,6 +51,9 @@
     --chart-3: 25 70% 50%; /* terracotta */
     --chart-4: 0 65% 51%; /* red */
     --chart-5: 0 0% 20%; /* dark gray */
+
+    /* Allure gradient identity - subtle accent */
+    --allure-gradient: linear-gradient(90deg, #ee95b3 0%, #ce8fc8 14%, #a683d5 28%, #9f87dd 42%, #8f8cdd 57%, #7e98e3 71%, #6a92d8 85%, #667abf 100%);
   }
 
   .dark {
@@ -81,20 +84,20 @@
 
     /* Workout type colors - dark mode */
     --workout-facile: 142 69% 58%; /* lighter green #4ADE80 */
-    --workout-facile-bg: 142 69% 15%; /* dark green bg */
-    --workout-facile-border: 142 69% 25%;
+    --workout-facile-bg: 142 69% 20%; /* dark green bg - more visible */
+    --workout-facile-border: 142 69% 35%;
 
     --workout-tempo: 25 95% 64%; /* lighter orange #FDBA74 */
-    --workout-tempo-bg: 25 95% 15%;
-    --workout-tempo-border: 25 95% 25%;
+    --workout-tempo-bg: 25 95% 20%;
+    --workout-tempo-border: 25 95% 35%;
 
     --workout-intervalle: 0 84% 72%; /* lighter red #FCA5A5 */
-    --workout-intervalle-bg: 0 84% 15%;
-    --workout-intervalle-border: 0 84% 25%;
+    --workout-intervalle-bg: 0 84% 20%;
+    --workout-intervalle-border: 0 84% 35%;
 
     --workout-fractionne: 0 84% 72%; /* lighter red */
-    --workout-fractionne-bg: 0 84% 15%;
-    --workout-fractionne-border: 0 84% 25%;
+    --workout-fractionne-bg: 0 84% 20%;
+    --workout-fractionne-border: 0 84% 35%;
 
     /* Chart colors for dark mode */
     --chart-1: 0 0% 64%; /* light gray */
@@ -102,6 +105,9 @@
     --chart-3: 25 70% 60%; /* terracotta */
     --chart-4: 0 65% 51%; /* red */
     --chart-5: 0 0% 80%; /* light gray */
+
+    /* Allure gradient identity - same in dark mode */
+    --allure-gradient: linear-gradient(90deg, #ee95b3 0%, #ce8fc8 14%, #a683d5 28%, #9f87dd 42%, #8f8cdd 57%, #7e98e3 71%, #6a92d8 85%, #667abf 100%);
   }
 }
 
@@ -112,7 +118,9 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-feature-settings: "kern" 1;
+    /* Enable all OpenType features including ligatures */
+    font-feature-settings: "kern" 1, "liga" 1, "clig" 1, "dlig" 1, "hlig" 1, "calt" 1;
+    font-variant-ligatures: common-ligatures discretionary-ligatures historical-ligatures contextual;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -184,4 +192,42 @@
   .workout-card-fractionne {
     border-left: 4px solid hsl(var(--workout-fractionne));
   }
+}
+
+/* Gemini-style gradient animation for logo */
+@keyframes gradient-slow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient-slow {
+  background-size: 200% 200%;
+  animation: gradient-slow 8s ease infinite;
+}
+
+/* Custom scrollbar styling - minimalist glassmorphism */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  backdrop-filter: blur(8px);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }

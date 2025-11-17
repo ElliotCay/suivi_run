@@ -8,7 +8,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import import_router, workouts, profile, suggestions, dashboard, auto_import, records, calendar, training_plans, strava, training_blocks
+from routers import import_router, workouts, profile, suggestions, dashboard, auto_import, records, calendar, training_plans, strava, training_blocks, shoes, badges, weekly_recaps
 
 # Create FastAPI application instance
 app = FastAPI(
@@ -38,6 +38,9 @@ app.include_router(records.router, prefix="/api", tags=["records"])
 app.include_router(calendar.router, prefix="/api", tags=["calendar"])
 app.include_router(training_plans.router, prefix="/api", tags=["training-plans"])
 app.include_router(training_blocks.router, prefix="/api", tags=["training-blocks"])
+app.include_router(shoes.router, prefix="/api", tags=["shoes"])
+app.include_router(badges.router, prefix="/api", tags=["badges"])
+app.include_router(weekly_recaps.router, prefix="/api", tags=["weekly-recaps"])
 
 
 @app.get("/api/health")

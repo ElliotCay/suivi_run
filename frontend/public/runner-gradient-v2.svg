@@ -1,0 +1,40 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradient optimisé: Rose (#FF6B9D) → Orange (#FF8C42) → Violet (#C04CFD) -->
+    <linearGradient id="runnerGradient" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF6B9D;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#FF8C42;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#C04CFD;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Head -->
+  <circle cx="152" cy="65" r="20" fill="url(#runnerGradient)"/>
+
+  <!-- Body -->
+  <path d="M 152 85 L 145 120 L 135 155" stroke="url(#runnerGradient)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Left arm (forward) -->
+  <path d="M 148 95 L 125 105 L 105 115" stroke="url(#runnerGradient)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Right arm (back) -->
+  <path d="M 152 95 Q 165 85 175 80" stroke="url(#runnerGradient)" stroke-width="16" stroke-linecap="round" fill="none"/>
+
+  <!-- Left leg (back) -->
+  <path d="M 140 155 Q 135 175 125 195" stroke="url(#runnerGradient)" stroke-width="16" stroke-linecap="round" fill="none"/>
+
+  <!-- Right leg (front) -->
+  <path d="M 140 155 Q 150 175 165 200" stroke="url(#runnerGradient)" stroke-width="16" stroke-linecap="round" fill="none"/>
+
+  <!-- Speed lines (left side) -->
+  <line x1="55" y1="125" x2="85" y2="125" stroke="url(#runnerGradient)" stroke-width="8" stroke-linecap="round"/>
+  <line x1="45" y1="140" x2="75" y2="140" stroke="url(#runnerGradient)" stroke-width="8" stroke-linecap="round"/>
+  <line x1="60" y1="155" x2="85" y2="155" stroke="url(#runnerGradient)" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- Sparkles (top right) -->
+  <g id="sparkles" fill="url(#runnerGradient)">
+    <path d="M 190 75 L 192 81 L 198 83 L 192 85 L 190 91 L 188 85 L 182 83 L 188 81 Z"/>
+    <path d="M 180 60 L 181.5 64 L 185.5 65.5 L 181.5 67 L 180 71 L 178.5 67 L 174.5 65.5 L 178.5 64 Z"/>
+    <path d="M 198 90 L 199.5 94 L 203.5 95.5 L 199.5 97 L 198 101 L 196.5 97 L 192.5 95.5 L 196.5 94 Z"/>
+  </g>
+</svg>

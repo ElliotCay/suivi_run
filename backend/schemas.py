@@ -16,6 +16,18 @@ class HealthCheckResponse(BaseModel):
 class UserBase(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
+
+    # Profile fields
+    age: Optional[int] = None
+    weight: Optional[float] = None
+    height: Optional[float] = None
+    level: Optional[str] = None
+    fcmax: Optional[int] = None
+    vma: Optional[float] = None
+    ai_mode: Optional[str] = None
+    profile_picture: Optional[str] = None
+
+    # Legacy fields
     injury_history: Optional[List[Dict[str, Any]]] = None
     current_level: Optional[Dict[str, Any]] = None
     objectives: Optional[List[Dict[str, Any]]] = None

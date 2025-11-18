@@ -166,3 +166,56 @@ async def get_current_week_info(user_id: int = 1):
         "week_end": sunday.isoformat(),
         "week_number": monday.isocalendar()[1]
     }
+
+
+@router.post("/weekly-recaps/generate-last-week", response_model=Optional[WeeklyRecapResponse])
+async def generate_last_week_recap(
+    user_id: int = 1,  # TODO: Get from auth
+    db: Session = Depends(get_db)
+):
+    """
+    Generate recap for last week automatically (if it doesn't exist).
+
+    This endpoint is called automatically on dashboard load to ensure
+    the user always has a recap for the completed week.
+
+    Args:
+        user_id: User ID (from auth)
+        db: Database session
+
+    Returns:
+        Generated weekly recap or existing recap if already exists
+    """
+    from datetime import timedelta
+
+    # Calculate last week's Monday
+    current_monday, _ = get_week_boundaries()
+    last_week_monday = current_monday - timedelta(days=7)
+
+    # Try to get existing recap for last week
+    from services.weekly_recap_service import get_week_workouts
+    from models import WeeklyRecap
+    from sqlalchemy import and_
+
+    existing_recap = db.query(WeeklyRecap).filter(
+        and_(
+            WeeklyRecap.user_id == user_id,
+            WeeklyRecap.week_start_date == last_week_monday
+        )
+    ).first()
+
+    if existing_recap:
+        return existing_recap
+
+    # Check if there were any workouts last week
+    last_week_sunday = last_week_monday + timedelta(days=6, hours=23, minutes=59, seconds=59)
+    workouts = get_week_workouts(db, user_id, last_week_monday, last_week_sunday)
+
+    # Only generate if there were workouts (or if user wants empty week recap)
+    if not workouts:
+        # Don't generate recap for empty weeks in the past
+        return None
+
+    # Generate the recap
+    recap = await generate_weekly_recap(db, user_id, last_week_monday)
+    return recap

@@ -231,3 +231,74 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
 }
+
+/* Theme selector animations */
+@keyframes drift {
+  0%, 100% {
+    transform: translateX(0) translateY(0);
+  }
+  50% {
+    transform: translateX(8px) translateY(-2px);
+  }
+}
+
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+}
+
+/* In-card orbital animations - Sun/Moon rotating around horizon */
+
+/* Sun descending from top-right to bottom (behind horizon) */
+@keyframes orbitSunDown {
+  0% {
+    transform: translate(-50%, -50%) rotate(-45deg) translateY(-60px) rotate(45deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(135deg) translateY(-60px) rotate(-135deg);
+    opacity: 0;
+  }
+}
+
+/* Moon ascending from bottom-left to top */
+@keyframes orbitMoonUp {
+  0% {
+    transform: translate(-50%, -50%) rotate(-225deg) translateY(-60px) rotate(225deg);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(-45deg) translateY(-60px) rotate(45deg);
+    opacity: 1;
+  }
+}
+
+/* For reverse (night to day): Sun rising */
+@keyframes orbitSunUp {
+  0% {
+    transform: translate(-50%, -50%) rotate(135deg) translateY(-60px) rotate(-135deg);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(-45deg) translateY(-60px) rotate(45deg);
+    opacity: 1;
+  }
+}
+
+/* Moon descending */
+@keyframes orbitMoonDown {
+  0% {
+    transform: translate(-50%, -50%) rotate(-45deg) translateY(-60px) rotate(45deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(-225deg) translateY(-60px) rotate(225deg);
+    opacity: 0;
+  }
+}

@@ -100,35 +100,40 @@ export function useWeeklyRecaps(limit: number = 10): UseWeeklyRecapsReturn {
   // Check if we need to generate a recap for last week
   const checkAndGenerateLastWeekRecap = useCallback(async () => {
     try {
-      // Get current week info
-      const weekInfoResponse = await fetch(`${API_URL}/api/weekly-recaps/current-week`);
-      if (!weekInfoResponse.ok) return;
-
-      const weekInfo = await weekInfoResponse.json();
-
-      // Calculate last week's Monday
-      const currentWeekStart = new Date(weekInfo.week_start);
-      const lastWeekStart = new Date(currentWeekStart);
-      lastWeekStart.setDate(lastWeekStart.getDate() - 7);
-
-      // Fetch recaps to check if last week exists
-      const recapsData = await fetchRecaps();
-
-      // Check if there's a recap for last week
-      const hasLastWeekRecap = recapsData.some((recap: WeeklyRecap) => {
-        const recapDate = new Date(recap.week_start_date);
-        return recapDate.toDateString() === lastWeekStart.toDateString();
+      // Call the dedicated endpoint that auto-generates last week's recap if needed
+      const response = await fetch(`${API_URL}/api/weekly-recaps/generate-last-week`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
       });
 
-      // If no recap for last week, generate it
-      if (!hasLastWeekRecap) {
-        console.log('No recap found for last week, generating...');
-        await generateRecap(lastWeekStart.toISOString().split('T')[0]);
+      if (!response.ok) {
+        // 404 or error is ok - might be no workouts last week
+        console.log('No recap generated for last week (might be no workouts)');
+        return;
+      }
+
+      const recap = await response.json();
+
+      if (recap) {
+        console.log('✅ Generated recap for last week:', recap.week_start_date);
+
+        // Update state with the new/existing recap
+        setLatestRecap(recap);
+        setRecaps(prev => {
+          // Check if recap already exists in state
+          const exists = prev.some(r => r.id === recap.id);
+          if (exists) {
+            return prev;
+          }
+          return [recap, ...prev];
+        });
       }
     } catch (err) {
       console.error('Error checking for last week recap:', err);
     }
-  }, [API_URL, fetchRecaps, generateRecap]);
+  }, [API_URL]);
 
   // Load data on mount
   useEffect(() => {

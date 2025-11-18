@@ -56,8 +56,10 @@ def build_suggestion_prompt(
 
     history_text = "\n".join(workout_lines) if workout_lines else "Aucune séance récente"
 
-    # Current level info
-    current_level = user_profile.get('current_level', {})
+    # Current level info (handle None or non-dict values)
+    current_level = user_profile.get('current_level')
+    if not isinstance(current_level, dict):
+        current_level = {}
     easy_pace = current_level.get('easy_pace', '6:00/km')
     tempo_pace = current_level.get('tempo_pace', '5:30/km')
 
@@ -192,7 +194,10 @@ def build_week_prompt(user_profile: Dict, recent_workouts: List, program_week: i
 
     history_text = "\n".join(workout_lines) if workout_lines else "Aucune séance récente"
 
-    current_level = user_profile.get('current_level', {})
+    # Current level info (handle None or non-dict values)
+    current_level = user_profile.get('current_level')
+    if not isinstance(current_level, dict):
+        current_level = {}
     easy_pace = current_level.get('easy_pace', '6:00/km')
     tempo_pace = current_level.get('tempo_pace', '5:30/km')
     volume = user_profile.get('weekly_volume', 23)
@@ -349,7 +354,10 @@ def build_training_plan_prompt(
 
     history_text = "\n".join(workout_lines) if workout_lines else "Aucune séance récente"
 
-    current_level_info = user_profile.get('current_level', {})
+    # Current level info (handle None or non-dict values)
+    current_level_info = user_profile.get('current_level')
+    if not isinstance(current_level_info, dict):
+        current_level_info = {}
     easy_pace = current_level_info.get('easy_pace', '6:00/km')
     tempo_pace = current_level_info.get('tempo_pace', '5:30/km')
     volume = user_profile.get('weekly_volume', 23)

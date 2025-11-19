@@ -4,9 +4,6 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import axios from 'axios'
 import { Award, Calendar, X, Save, Trophy, Plus } from 'lucide-react'
 import { toast } from 'sonner'
@@ -245,7 +242,7 @@ export default function RecordsPage() {
     return (
       <div className={cn("perspective-1000", className)} key={distanceValue}>
         <motion.div
-          className="relative w-full h-full transition-all duration-300 preserve-3d"
+          className="relative w-full h-full transition-all duration-300 preserve-3d overflow-hidden"
           animate={{ rotateY: isFlipped ? 180 : 0 }}
           transition={{ duration: 0.3, ease: "easeInOut" }}
         >
@@ -256,11 +253,13 @@ export default function RecordsPage() {
               hasRecord
                 ? "bg-background/40 hover:bg-background/60 border-foreground/10 hover:border-foreground/20 shadow-sm"
                 : "bg-transparent border-dashed border-muted hover:border-muted-foreground/50 hover:bg-muted/5",
-              isJustSaved && "border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_30px_-5px_rgba(16,185,129,0.3)]"
+              isJustSaved && "border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_30px_-5px_rgba(16,185,129,0.3)]",
+              isFlipped ? "opacity-0 pointer-events-none" : "opacity-100"
             )}
             style={{
               backdropFilter: 'blur(12px)',
               WebkitBackdropFilter: 'blur(12px)',
+              transform: 'rotateY(0deg)',
             }}
             onClick={() => startEdit(distanceValue)}
           >
@@ -328,7 +327,10 @@ export default function RecordsPage() {
 
           {/* BACK FACE (EDIT FORM) */}
           <div
-            className="absolute inset-0 backface-hidden w-full h-full overflow-hidden border border-foreground/10 bg-background rounded-xl rotate-y-180 shadow-xl"
+            className={cn(
+              "absolute inset-0 backface-hidden w-full h-full overflow-hidden border border-foreground/10 bg-background rounded-xl rotate-y-180 shadow-xl transition-opacity",
+              isFlipped ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+            )}
             style={{
               transform: 'rotateY(180deg)'
             }}

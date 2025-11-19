@@ -72,7 +72,7 @@ export default function RecordsPage() {
 
   const loadRecords = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/records')
+      const response = await axios.get('http://127.0.0.1:8000/api/records')
       setRecords(response.data)
     } catch (error) {
       console.error('Error loading records:', error)
@@ -83,7 +83,7 @@ export default function RecordsPage() {
 
   const loadHistory = async (distance: string) => {
     try {
-      const response = await axios.get(`http://localhost:8000/api/records/${distance}`)
+      const response = await axios.get(`http://127.0.0.1:8000/api/records/${distance}`)
       setHistory(prev => ({ ...prev, [distance]: response.data }))
       setShowHistoryFor(distance)
     } catch (error) {
@@ -139,7 +139,7 @@ export default function RecordsPage() {
     const time_seconds = parseInt(formData.minutes) * 60 + parseInt(formData.seconds)
 
     try {
-      await axios.post('http://localhost:8000/api/records', {
+      await axios.post('http://127.0.0.1:8000/api/records', {
         distance: formData.distance,
         time_seconds,
         date_achieved: new Date(formData.date).toISOString(),

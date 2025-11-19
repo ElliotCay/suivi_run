@@ -1,4 +1,5 @@
 'use client';
+import { useRef, useEffect } from 'react';
 
 import { motion } from 'framer-motion';
 import { useTypingEffect } from '@/hooks/useTypingEffect';
@@ -21,13 +22,16 @@ export function ChatBubble({ text, sender, enabled, delay = 0, onComplete, speed
   });
 
   // Callback quand le typing est terminé
-  if (isComplete && onComplete && !ChatBubble.completedCallbacks?.has(text)) {
-    if (!ChatBubble.completedCallbacks) {
-      ChatBubble.completedCallbacks = new Set();
+  const hasCalledComplete = useRef(false);
+
+  useEffect(() => {
+    if (isComplete && onComplete && !hasCalledComplete.current) {
+      hasCalledComplete.current = true;
+      // Petit délai pour laisser le temps à l'animation de se finir visuellement
+      const timer = setTimeout(onComplete, 100);
+      return () => clearTimeout(timer);
     }
-    ChatBubble.completedCallbacks.add(text);
-    setTimeout(onComplete, 100);
-  }
+  }, [isComplete, onComplete]);
 
   const isAllure = sender === 'allure';
 
@@ -42,8 +46,8 @@ export function ChatBubble({ text, sender, enabled, delay = 0, onComplete, speed
         className={`
           max-w-[85%] md:max-w-[70%] px-5 py-3 rounded-2xl
           ${isAllure
-            ? 'bg-white/20 backdrop-blur-md border border-white/30 text-white'
-            : 'bg-white/15 backdrop-blur-md border border-white/25 text-white/90'
+            ? 'bg-white/25 backdrop-blur-xl border border-white/40 text-white shadow-[0_4px_20px_rgba(0,0,0,0.1)]'
+            : 'bg-white/15 backdrop-blur-lg border border-white/20 text-white/90'
           }
           transition-all duration-200 ease-out
         `}
@@ -58,6 +62,3 @@ export function ChatBubble({ text, sender, enabled, delay = 0, onComplete, speed
     </motion.div>
   );
 }
-
-// Static property pour tracker les callbacks complétés
-ChatBubble.completedCallbacks = new Set<string>();

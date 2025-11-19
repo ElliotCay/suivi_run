@@ -1,6 +1,6 @@
 import axios, { AxiosError } from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -114,6 +114,60 @@ export async function uploadAppleHealthExport(
     }
     throw error;
   }
+}
+
+/**
+ * Dashboard API endpoints
+ */
+
+/**
+ * Get dashboard summary
+ */
+export async function getDashboardSummary() {
+  return handleApiRequest(async () => {
+    const response = await apiClient.get('/api/dashboard/summary');
+    return response.data;
+  });
+}
+
+/**
+ * Get volume history
+ */
+export async function getVolumeHistory(weeks: number = 12) {
+  return handleApiRequest(async () => {
+    const response = await apiClient.get(`/api/dashboard/volume-history?weeks=${weeks}`);
+    return response.data;
+  });
+}
+
+/**
+ * Get workout types distribution
+ */
+export async function getWorkoutTypes() {
+  return handleApiRequest(async () => {
+    const response = await apiClient.get('/api/dashboard/workout-types');
+    return response.data;
+  });
+}
+
+/**
+ * Get training load
+ */
+export async function getTrainingLoad() {
+  return handleApiRequest(async () => {
+    const response = await apiClient.get('/api/dashboard/training-load');
+    return response.data;
+  });
+}
+
+/**
+ * Get readiness score
+ */
+export async function getReadinessScore() {
+  return handleApiRequest(async () => {
+    const response = await apiClient.get('/api/profile/readiness');
+    return response.data;
+  });
 }
 
 export default apiClient;

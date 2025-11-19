@@ -24,6 +24,11 @@ from models import (
 )
 from services.vdot_calculator import get_best_vdot_from_prs, calculate_training_paces
 from services.ai_workout_generator import generate_personalized_workout_descriptions
+from services.block_adjustment_service import (
+    analyze_previous_block,
+    generate_block_adjustments_with_ai,
+    apply_adjustments_to_paces
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -316,6 +321,45 @@ def generate_4_week_block(
     # Calculate or update training zones
     zones = calculate_or_update_training_zones(db, user_id)
 
+    # 🆕 ANALYZE PREVIOUS BLOCK FOR AUTOMATIC ADJUSTMENTS
+    previous_block_analysis = analyze_previous_block(db, user_id)
+    block_adjustments = None
+    adjusted_paces = None
+
+    if previous_block_analysis:
+        logger.info(f"📊 Found previous block to analyze (ID: {previous_block_analysis['block_id']})")
+        logger.info(f"   Completion rate: {previous_block_analysis['completion_rate']:.1%}")
+        logger.info(f"   Pain episodes: {previous_block_analysis['issue_counts']['pain_episodes']}")
+        logger.info(f"   Fatigue episodes: {previous_block_analysis['issue_counts']['fatigue_episodes']}")
+        logger.info(f"   Too hard episodes: {previous_block_analysis['issue_counts']['too_hard_episodes']}")
+
+        # Generate AI-powered adjustments
+        block_adjustments = generate_block_adjustments_with_ai(
+            db=db,
+            user_id=user_id,
+            previous_block_analysis=previous_block_analysis,
+            next_phase=phase
+        )
+
+        logger.info(f"✅ Block adjustments generated:")
+        logger.info(f"   Assessment: {block_adjustments['overall_assessment']}")
+        logger.info(f"   Key findings: {block_adjustments['key_findings']}")
+
+        # Calculate base paces from VDOT
+        base_paces = calculate_training_paces(zones.vdot)
+
+        # Apply adjustments to paces
+        adjusted_paces = apply_adjustments_to_paces(base_paces, block_adjustments)
+
+        logger.info(f"🎯 Pace adjustments applied:")
+        if "pace_adjustments" in block_adjustments.get("adjustments", {}):
+            for workout_type, adj in block_adjustments["adjustments"]["pace_adjustments"].items():
+                change = adj.get("change_seconds_per_km", 0)
+                if change != 0:
+                    logger.info(f"   {workout_type}: {change:+d} sec/km - {adj.get('reason', '')}")
+    else:
+        logger.info("ℹ️  No previous block found - using standard progression")
+
     # Determine base volume
     if target_volume is not None:
         # Use provided target volume (e.g., from adaptation logic)
@@ -328,6 +372,14 @@ def generate_4_week_block(
             base_volume = 15.0 if days_per_week == 3 else 20.0
         else:
             base_volume = recent_volume
+
+        # Apply volume adjustment if recommended
+        if block_adjustments:
+            volume_adj = block_adjustments.get("adjustments", {}).get("volume_adjustments", {})
+            volume_change_pct = volume_adj.get("weekly_volume_change_percent", 0)
+            if volume_change_pct != 0:
+                base_volume = base_volume * (1 + volume_change_pct / 100)
+                logger.info(f"📉 Volume adjusted by {volume_change_pct:+.0f}% → {base_volume:.1f}km/week")
 
     # Set start date to next Monday if not provided
     if not start_date:
@@ -357,6 +409,24 @@ def generate_4_week_block(
 
     db.add(block)
     db.flush()  # Get block.id
+
+    # Apply adjusted paces to zones object if available
+    if adjusted_paces:
+        logger.info("🔧 Applying adjusted paces to training zones")
+        if "easy" in adjusted_paces:
+            zones.easy_min_pace_sec = adjusted_paces["easy"]["min_pace_sec"]
+            zones.easy_max_pace_sec = adjusted_paces["easy"]["max_pace_sec"]
+        if "threshold" in adjusted_paces:
+            zones.threshold_min_pace_sec = adjusted_paces["threshold"]["min_pace_sec"]
+            zones.threshold_max_pace_sec = adjusted_paces["threshold"]["max_pace_sec"]
+        if "interval" in adjusted_paces:
+            zones.interval_min_pace_sec = adjusted_paces["interval"]["min_pace_sec"]
+            zones.interval_max_pace_sec = adjusted_paces["interval"]["max_pace_sec"]
+        if "repetition" in adjusted_paces:
+            zones.repetition_min_pace_sec = adjusted_paces["repetition"]["min_pace_sec"]
+            zones.repetition_max_pace_sec = adjusted_paces["repetition"]["max_pace_sec"]
+        if "marathon" in adjusted_paces:
+            zones.marathon_pace_sec = adjusted_paces["marathon"]["pace_sec"]
 
     # Get user schedule to determine workout days
     schedule = _get_user_schedule_from_preferences(db, user_id, days_per_week)

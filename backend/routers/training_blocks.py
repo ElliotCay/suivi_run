@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc
+from pydantic import BaseModel
 
 from database import get_db
 from models import (
@@ -33,6 +34,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+class SwapWorkoutDatesRequest(BaseModel):
+    """Request to swap dates of two planned workouts."""
+    workout_1_id: int
+    workout_2_id: int
+
+
+class ReorderWorkoutsRequest(BaseModel):
+    """Request to reorder workouts within a week."""
+    block_id: int
+    week_number: int  # 1-4
+    workout_order: List[int]  # List of workout IDs in new order
 
 
 @router.post("/training/generate-block", response_model=TrainingBlockResponse)
@@ -642,3 +656,197 @@ async def complete_block_and_generate_next(
     except Exception as e:
         logger.error(f"Error completing block and generating next: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/training/swap-workout-dates")
+async def swap_workout_dates(
+    request: SwapWorkoutDatesRequest,
+    db: Session = Depends(get_db),
+    user_id: int = 1,  # TODO: Get from auth
+):
+    """
+    Swap the planned dates of two workouts in a training block.
+
+    Useful when feeling fatigued and wanting to move an easy run to a hard workout day.
+
+    Args:
+        request: IDs of the two workouts to swap
+        user_id: User ID (from auth)
+
+    Returns:
+        Success message with updated workout details
+
+    Raises:
+        HTTPException: If workouts not found, belong to different blocks,
+                      or one is already completed
+    """
+    # Get both workouts
+    workout_1 = db.query(PlannedWorkout).filter(
+        and_(
+            PlannedWorkout.id == request.workout_1_id,
+            PlannedWorkout.user_id == user_id
+        )
+    ).first()
+
+    workout_2 = db.query(PlannedWorkout).filter(
+        and_(
+            PlannedWorkout.id == request.workout_2_id,
+            PlannedWorkout.user_id == user_id
+        )
+    ).first()
+
+    if not workout_1:
+        raise HTTPException(status_code=404, detail=f"Workout {request.workout_1_id} not found")
+    if not workout_2:
+        raise HTTPException(status_code=404, detail=f"Workout {request.workout_2_id} not found")
+
+    # Check they belong to the same block
+    if workout_1.block_id != workout_2.block_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot swap workouts from different training blocks"
+        )
+
+    # Check neither is completed
+    if workout_1.status == "completed":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Workout {request.workout_1_id} is already completed and cannot be swapped"
+        )
+    if workout_2.status == "completed":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Workout {request.workout_2_id} is already completed and cannot be swapped"
+        )
+
+    # Swap the scheduled dates
+    temp_date = workout_1.scheduled_date
+    workout_1.scheduled_date = workout_2.scheduled_date
+    workout_2.scheduled_date = temp_date
+
+    # Swap the day_of_week
+    temp_day = workout_1.day_of_week
+    workout_1.day_of_week = workout_2.day_of_week
+    workout_2.day_of_week = temp_day
+
+    db.commit()
+    db.refresh(workout_1)
+    db.refresh(workout_2)
+
+    logger.info(f"Swapped workout dates: {request.workout_1_id} ↔ {request.workout_2_id}")
+
+    return {
+        "message": "Workout dates swapped successfully",
+        "workouts": [
+            {
+                "id": workout_1.id,
+                "type": workout_1.workout_type,
+                "new_date": workout_1.scheduled_date.isoformat(),
+                "description": workout_1.description
+            },
+            {
+                "id": workout_2.id,
+                "type": workout_2.workout_type,
+                "new_date": workout_2.scheduled_date.isoformat(),
+                "description": workout_2.description
+            }
+        ]
+    }
+
+
+@router.post("/training/reorder-workouts")
+async def reorder_workouts(
+    request: ReorderWorkoutsRequest,
+    db: Session = Depends(get_db),
+    user_id: int = 1,  # TODO: Get from auth
+):
+    """
+    Reorder workouts within a week by reassigning dates chronologically.
+
+    The visual order determines which workout gets which date.
+    Dates remain in chronological order, but workout content is rearranged.
+
+    Example:
+        Before: Mon=Facile, Wed=Tempo, Fri=Long
+        Reorder: [tempo_id, facile_id, long_id]
+        After:  Mon=Tempo, Wed=Facile, Fri=Long
+
+    Args:
+        request: Block ID, week number (1-4), and new workout order (list of IDs)
+        user_id: User ID (from auth)
+
+    Returns:
+        Updated workouts with new dates
+
+    Raises:
+        HTTPException: If block not found, workouts don't match week, or invalid order
+    """
+    from datetime import timedelta
+
+    # Verify block belongs to user
+    block = db.query(TrainingBlock).filter(
+        and_(
+            TrainingBlock.id == request.block_id,
+            TrainingBlock.user_id == user_id
+        )
+    ).first()
+
+    if not block:
+        raise HTTPException(status_code=404, detail="Training block not found")
+
+    # Get all workouts for this week
+    week_start = block.start_date + timedelta(weeks=request.week_number - 1)
+    week_end = week_start + timedelta(days=6, hours=23, minutes=59, seconds=59)
+
+    week_workouts = db.query(PlannedWorkout).filter(
+        and_(
+            PlannedWorkout.block_id == request.block_id,
+            PlannedWorkout.planned_date >= week_start,
+            PlannedWorkout.planned_date <= week_end,
+            PlannedWorkout.user_id == user_id
+        )
+    ).order_by(PlannedWorkout.planned_date).all()
+
+    if not week_workouts:
+        raise HTTPException(status_code=404, detail=f"No workouts found for week {request.week_number}")
+
+    # Verify all requested workout IDs are in this week
+    week_workout_ids = {w.id for w in week_workouts}
+    requested_ids = set(request.workout_order)
+
+    if requested_ids != week_workout_ids:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Workout IDs mismatch. Expected {week_workout_ids}, got {requested_ids}"
+        )
+
+    # Extract original dates in chronological order
+    original_dates = sorted([w.planned_date for w in week_workouts])
+
+    # Create mapping: workout_id -> new_date
+    workout_id_to_new_date = {}
+    for idx, workout_id in enumerate(request.workout_order):
+        workout_id_to_new_date[workout_id] = original_dates[idx]
+
+    # Update workouts with new dates
+    updated_workouts = []
+    for workout in week_workouts:
+        new_date = workout_id_to_new_date[workout.id]
+        workout.planned_date = new_date
+        updated_workouts.append({
+            "id": workout.id,
+            "type": workout.workout_type,
+            "description": workout.description,
+            "new_date": new_date.isoformat(),
+            "target_distance": workout.target_distance
+        })
+
+    db.commit()
+
+    logger.info(f"Reordered {len(week_workouts)} workouts in week {request.week_number} of block {request.block_id}")
+
+    return {
+        "message": f"Successfully reordered {len(week_workouts)} workouts",
+        "week_number": request.week_number,
+        "workouts": updated_workouts
+    }

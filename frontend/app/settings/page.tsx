@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
-import { Upload, Moon, Sun, Monitor, Edit2, Plus, X } from 'lucide-react'
+import { Upload, Edit2, Plus, X } from 'lucide-react'
+import { ThemeSwitcherCard } from '@/components/ThemeSwitcherCard'
 import { useProfile, useTrainingPreferences } from '@/hooks/useProfile'
 import { useShoes, type Shoe, type ShoeCreate } from '@/hooks/useShoes'
 import { useTheme } from 'next-themes'
@@ -73,11 +74,7 @@ export default function SettingsPage() {
 
   // Prevent hydration mismatch for theme-dependent elements
   const [mounted, setMounted] = useState(false)
-  const [isTransitioning, setIsTransitioning] = useState(false)
 
-  // Demo transition state
-  const [demoTransitioning, setDemoTransitioning] = useState(false)
-  const [demoIsNight, setDemoIsNight] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -181,21 +178,7 @@ export default function SettingsPage() {
     })
   }
 
-  const handleThemeChange = (newTheme: string) => {
-    if (theme === newTheme) return
 
-    // Trigger cosmic transition in the card itself
-    setIsTransitioning(true)
-
-    // Change theme immediately to start the transition
-    setTheme(newTheme)
-
-    // Reset transition state after animation completes
-    setTimeout(() => {
-      setIsTransitioning(false)
-      toast.success('Thème mis à jour')
-    }, 2000) // 2 seconds for the full cosmic rotation
-  }
 
   // Shoes handlers
   const handleOpenShoeDialog = (shoe?: Shoe) => {
@@ -297,7 +280,7 @@ export default function SettingsPage() {
   const age = calculateAge(birthDate)
 
   return (
-    <div className="max-w-4xl mx-auto space-y-12 pb-20">
+    <div className="space-y-12 pb-20">
       {/* Header */}
       <div className="space-y-3">
         <h1 className="text-6xl font-bold tracking-tight">
@@ -544,13 +527,12 @@ export default function SettingsPage() {
                     </p>
                     <div className="flex-1 max-w-xs h-1.5 bg-muted rounded-full overflow-hidden">
                       <div
-                        className={`h-full transition-all ${
-                          shoe.wear_percentage >= 90
-                            ? 'bg-red-500'
-                            : shoe.wear_percentage >= 70
+                        className={`h-full transition-all ${shoe.wear_percentage >= 90
+                          ? 'bg-red-500'
+                          : shoe.wear_percentage >= 70
                             ? 'bg-orange-500'
                             : 'bg-green-500'
-                        }`}
+                          }`}
                         style={{ width: `${Math.min(shoe.wear_percentage, 100)}%` }}
                       />
                     </div>
@@ -595,460 +577,7 @@ export default function SettingsPage() {
       <div className="space-y-6">
         <h3 className="text-2xl font-bold">Apparence</h3>
 
-        <div className="flex gap-3">
-          {/* Light Mode - Day Scene */}
-          <button
-            onClick={() => handleThemeChange('light')}
-            disabled={isTransitioning}
-            className={`
-              relative flex-1 h-24 rounded-lg border-2 transition-all duration-300 ease-out overflow-hidden
-              ${!mounted
-                ? 'border-muted'
-                : theme === 'light'
-                ? 'border-yellow-400 scale-105 shadow-xl shadow-yellow-400/20'
-                : 'border-muted hover:border-muted-foreground/50 hover:scale-[1.02]'
-              }
-              ${isTransitioning ? 'opacity-50 cursor-not-allowed' : ''}
-            `}
-          >
-            {/* Sky */}
-            <div className={`absolute inset-0 transition-all duration-700 ${
-              !mounted
-                ? 'bg-muted/5'
-                : theme === 'light'
-                ? 'bg-gradient-to-b from-sky-400/40 via-sky-300/30 to-sky-200/20'
-                : 'bg-muted/5'
-            }`} />
-
-            {/* Sun */}
-            <div className={`absolute top-2 right-4 transition-all duration-500 ${
-              !mounted ? 'opacity-30' : theme === 'light' ? 'opacity-100' : 'opacity-30'
-            }`}>
-              <div className={`w-5 h-5 rounded-full transition-all duration-500 ${
-                !mounted
-                  ? 'bg-muted-foreground/50'
-                  : theme === 'light'
-                  ? 'bg-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.6)]'
-                  : 'bg-muted-foreground/50'
-              }`} />
-            </div>
-
-            {/* Clouds */}
-            {mounted && theme === 'light' && (
-              <>
-                <div className="absolute top-3 left-2 w-6 h-2 bg-white/60 rounded-full animate-[drift_15s_ease-in-out_infinite]" />
-                <div className="absolute top-3 left-3 w-4 h-2 bg-white/60 rounded-full animate-[drift_15s_ease-in-out_infinite]" />
-                <div className="absolute top-5 right-8 w-5 h-2 bg-white/50 rounded-full animate-[drift_20s_ease-in-out_infinite] [animation-delay:2s]" />
-                <div className="absolute top-5 right-9 w-3 h-2 bg-white/50 rounded-full animate-[drift_20s_ease-in-out_infinite] [animation-delay:2s]" />
-              </>
-            )}
-
-            {/* Horizon */}
-            <div className={`absolute bottom-12 left-0 right-0 h-[1px] transition-all duration-500 ${
-              !mounted ? 'bg-muted/20' : theme === 'light' ? 'bg-yellow-300/40' : 'bg-muted/20'
-            }`} />
-
-            {/* Ground/Earth */}
-            <div className={`absolute bottom-0 left-0 right-0 h-12 transition-all duration-700 ${
-              !mounted
-                ? 'bg-muted/10'
-                : theme === 'light'
-                ? 'bg-gradient-to-b from-green-600/30 to-green-700/40'
-                : 'bg-muted/10'
-            }`} />
-
-            {/* Trees - asymmetric placement */}
-            {mounted && theme === 'light' && (
-              <>
-                {/* Tree 1 - left, smaller */}
-                <div className="absolute bottom-12 left-3">
-                  <div className="w-1 h-2.5 bg-amber-800/60" />
-                  <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[5px] border-b-green-700/70" />
-                  <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[6px] border-b-green-600/70" />
-                </div>
-                {/* Tree 2 - middle-left, taller */}
-                <div className="absolute bottom-12 left-[35%]">
-                  <div className="w-1 h-4 bg-amber-800/60" />
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[7px] border-b-green-700/70" />
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[8px] border-b-green-600/70" />
-                </div>
-                {/* Tree 3 - right, medium */}
-                <div className="absolute bottom-12 right-4">
-                  <div className="w-1 h-3 bg-amber-800/60" />
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[6px] border-b-green-700/70" />
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[7px] border-b-green-600/70" />
-                </div>
-              </>
-            )}
-
-            <span className={`absolute bottom-2 left-0 right-0 text-center text-sm font-medium transition-all duration-300 ${
-              !mounted ? 'text-muted-foreground' : theme === 'light' ? 'text-foreground' : 'text-muted-foreground'
-            }`}>Clair</span>
-          </button>
-
-          {/* Dark Mode - Night Scene */}
-          <button
-            onClick={() => handleThemeChange('dark')}
-            disabled={isTransitioning}
-            className={`
-              relative flex-1 h-24 rounded-lg border-2 transition-all duration-300 ease-out overflow-hidden
-              ${!mounted
-                ? 'border-muted'
-                : theme === 'dark'
-                ? 'border-blue-400 scale-105 shadow-xl shadow-blue-400/20'
-                : 'border-muted hover:border-muted-foreground/50 hover:scale-[1.02]'
-              }
-              ${isTransitioning ? 'opacity-50 cursor-not-allowed' : ''}
-            `}
-          >
-            {/* Night Sky */}
-            <div className={`absolute inset-0 transition-all duration-700 ${
-              !mounted
-                ? 'bg-muted/5'
-                : theme === 'dark'
-                ? 'bg-gradient-to-b from-blue-950/50 via-indigo-950/40 to-blue-900/30'
-                : 'bg-muted/5'
-            }`} />
-
-            {/* Moon */}
-            <div className={`absolute top-2 left-4 transition-all duration-500 ${
-              !mounted ? 'opacity-30' : theme === 'dark' ? 'opacity-100' : 'opacity-30'
-            }`}>
-              <div className={`w-4 h-4 rounded-full transition-all duration-500 ${
-                !mounted
-                  ? 'bg-muted-foreground/50'
-                  : theme === 'dark'
-                  ? 'bg-blue-100 shadow-[0_0_20px_rgba(191,219,254,0.5)]'
-                  : 'bg-muted-foreground/50'
-              }`} />
-            </div>
-
-            {/* Stars */}
-            {mounted && theme === 'dark' && (
-              <>
-                <div className="absolute top-2 right-3 w-1 h-1 bg-white rounded-full animate-[twinkle_2s_ease-in-out_infinite]" />
-                <div className="absolute top-4 right-8 w-0.5 h-0.5 bg-white/80 rounded-full animate-[twinkle_2.5s_ease-in-out_infinite] [animation-delay:0.3s]" />
-                <div className="absolute top-6 right-12 w-0.5 h-0.5 bg-white/60 rounded-full animate-[twinkle_3s_ease-in-out_infinite] [animation-delay:0.7s]" />
-                <div className="absolute top-3 left-8 w-1 h-1 bg-white/70 rounded-full animate-[twinkle_2.2s_ease-in-out_infinite] [animation-delay:0.5s]" />
-                <div className="absolute top-5 left-12 w-0.5 h-0.5 bg-white/50 rounded-full animate-[twinkle_2.8s_ease-in-out_infinite] [animation-delay:1s]" />
-                <div className="absolute top-7 right-6 w-0.5 h-0.5 bg-white/70 rounded-full animate-[twinkle_3.2s_ease-in-out_infinite] [animation-delay:1.3s]" />
-              </>
-            )}
-
-            {/* Horizon */}
-            <div className={`absolute bottom-12 left-0 right-0 h-[1px] transition-all duration-500 ${
-              !mounted ? 'bg-muted/20' : theme === 'dark' ? 'bg-blue-400/30' : 'bg-muted/20'
-            }`} />
-
-            {/* Ground/Earth */}
-            <div className={`absolute bottom-0 left-0 right-0 h-12 transition-all duration-700 ${
-              !mounted
-                ? 'bg-muted/10'
-                : theme === 'dark'
-                ? 'bg-gradient-to-b from-slate-800/40 to-slate-900/50'
-                : 'bg-muted/10'
-            }`} />
-
-            {/* Trees - dark silhouettes, asymmetric */}
-            {mounted && theme === 'dark' && !isTransitioning && (
-              <>
-                {/* Tree 1 - left, smaller */}
-                <div className="absolute bottom-12 left-3">
-                  <div className="w-1 h-2.5 bg-slate-900/80" />
-                  <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[5px] border-b-slate-900/80" />
-                  <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[6px] border-b-slate-800/80" />
-                </div>
-                {/* Tree 2 - middle-left, taller */}
-                <div className="absolute bottom-12 left-[35%]">
-                  <div className="w-1 h-4 bg-slate-900/80" />
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[7px] border-b-slate-900/80" />
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[8px] border-b-slate-800/80" />
-                </div>
-                {/* Tree 3 - right, medium */}
-                <div className="absolute bottom-12 right-4">
-                  <div className="w-1 h-3 bg-slate-900/80" />
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[6px] border-b-slate-900/80" />
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[7px] border-b-slate-800/80" />
-                </div>
-              </>
-            )}
-
-            {/* Orbital animation container - centered on horizon */}
-            {mounted && isTransitioning && theme === 'dark' && (
-              <div
-                className="absolute left-1/2 -translate-x-1/2 pointer-events-none"
-                style={{
-                  bottom: '48px', // horizon position (h-12 = 48px)
-                  width: '120px',
-                  height: '120px'
-                }}
-              >
-                {/* Sun descending (day to night) */}
-                <div
-                  className="absolute w-5 h-5 rounded-full bg-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.6)]"
-                  style={{
-                    left: '50%',
-                    top: '50%',
-                    transformOrigin: '0 0',
-                    animation: 'orbitSunDown 2s ease-in-out forwards'
-                  }}
-                />
-
-                {/* Moon ascending */}
-                <div
-                  className="absolute w-4 h-4 rounded-full bg-blue-100 shadow-[0_0_20px_rgba(191,219,254,0.5)]"
-                  style={{
-                    left: '50%',
-                    top: '50%',
-                    transformOrigin: '0 0',
-                    animation: 'orbitMoonUp 2s ease-in-out forwards'
-                  }}
-                />
-              </div>
-            )}
-
-            <span className={`absolute bottom-2 left-0 right-0 text-center text-sm font-medium transition-all duration-300 ${
-              !mounted ? 'text-muted-foreground' : theme === 'dark' ? 'text-foreground' : 'text-muted-foreground'
-            }`}>Sombre</span>
-          </button>
-
-          {/* System Mode - Day/Night Split */}
-          <button
-            onClick={() => handleThemeChange('system')}
-            disabled={isTransitioning}
-            className={`
-              relative flex-1 h-24 rounded-lg border-2 transition-all duration-300 ease-out overflow-hidden
-              ${!mounted
-                ? 'border-muted'
-                : theme === 'system'
-                ? 'border-purple-500 scale-105 shadow-xl shadow-purple-500/20'
-                : 'border-muted hover:border-muted-foreground/50 hover:scale-[1.02]'
-              }
-              ${isTransitioning ? 'opacity-50 cursor-not-allowed' : ''}
-            `}
-          >
-            {/* Left Half - Day */}
-            <div className={`absolute inset-y-0 left-0 right-1/2 transition-all duration-700 ${
-              !mounted
-                ? 'bg-muted/5'
-                : theme === 'system'
-                ? 'bg-gradient-to-b from-sky-400/30 via-sky-300/20 to-sky-200/15'
-                : 'bg-muted/5'
-            }`} />
-
-            {/* Right Half - Night */}
-            <div className={`absolute inset-y-0 left-1/2 right-0 transition-all duration-700 ${
-              !mounted
-                ? 'bg-muted/5'
-                : theme === 'system'
-                ? 'bg-gradient-to-b from-blue-950/40 via-indigo-950/30 to-blue-900/20'
-                : 'bg-muted/5'
-            }`} />
-
-            {/* Vertical separator */}
-            <div className={`absolute inset-y-0 left-1/2 w-[1px] -translate-x-1/2 transition-all duration-500 ${
-              !mounted ? 'bg-muted/20' : theme === 'system' ? 'bg-purple-400/40' : 'bg-muted/20'
-            }`} />
-
-            {/* Sun (left side) */}
-            {mounted && theme === 'system' && (
-              <div className="absolute top-2 left-2">
-                <div className="w-3 h-3 rounded-full bg-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.5)]" />
-              </div>
-            )}
-
-            {/* Cloud (left side) */}
-            {mounted && theme === 'system' && (
-              <div className="absolute top-4 left-3 w-4 h-1.5 bg-white/50 rounded-full animate-[drift_12s_ease-in-out_infinite]" />
-            )}
-
-            {/* Moon (right side) */}
-            {mounted && theme === 'system' && (
-              <div className="absolute top-2 right-2">
-                <div className="w-3 h-3 rounded-full bg-blue-100 shadow-[0_0_12px_rgba(191,219,254,0.4)]" />
-              </div>
-            )}
-
-            {/* Stars (right side) */}
-            {mounted && theme === 'system' && (
-              <>
-                <div className="absolute top-3 right-5 w-0.5 h-0.5 bg-white rounded-full animate-[twinkle_2s_ease-in-out_infinite]" />
-                <div className="absolute top-5 right-3 w-0.5 h-0.5 bg-white/70 rounded-full animate-[twinkle_2.5s_ease-in-out_infinite] [animation-delay:0.4s]" />
-                <div className="absolute top-6 right-7 w-0.5 h-0.5 bg-white/60 rounded-full animate-[twinkle_2.8s_ease-in-out_infinite] [animation-delay:0.8s]" />
-              </>
-            )}
-
-            {/* Horizon */}
-            <div className={`absolute bottom-12 left-0 right-0 h-[1px] transition-all duration-500 ${
-              !mounted ? 'bg-muted/20' : theme === 'system' ? 'bg-purple-300/30' : 'bg-muted/20'
-            }`} />
-
-            {/* Ground - split like sky */}
-            <div className="absolute bottom-0 left-0 right-0 h-12">
-              <div className={`absolute inset-y-0 left-0 right-1/2 transition-all duration-700 ${
-                !mounted
-                  ? 'bg-muted/10'
-                  : theme === 'system'
-                  ? 'bg-gradient-to-b from-green-600/25 to-green-700/35'
-                  : 'bg-muted/10'
-              }`} />
-              <div className={`absolute inset-y-0 left-1/2 right-0 transition-all duration-700 ${
-                !mounted
-                  ? 'bg-muted/10'
-                  : theme === 'system'
-                  ? 'bg-gradient-to-b from-slate-800/35 to-slate-900/45'
-                  : 'bg-muted/10'
-              }`} />
-            </div>
-
-            {/* Trees - asymmetric on both sides */}
-            {mounted && theme === 'system' && (
-              <>
-                {/* Day tree - left side, offset */}
-                <div className="absolute bottom-12 left-[18%]">
-                  <div className="w-1 h-3 bg-amber-800/60" />
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[6px] border-b-green-700/70" />
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[7px] border-b-green-600/70" />
-                </div>
-                {/* Night tree - right side, offset */}
-                <div className="absolute bottom-12 right-[15%]">
-                  <div className="w-1 h-3 bg-slate-900/80" />
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[6px] border-b-slate-900/80" />
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[7px] border-b-slate-800/80" />
-                </div>
-              </>
-            )}
-
-            <span className={`absolute bottom-2 left-0 right-0 text-center text-sm font-medium transition-all duration-300 ${
-              !mounted ? 'text-muted-foreground' : theme === 'system' ? 'text-foreground' : 'text-muted-foreground'
-            }`}>Auto</span>
-          </button>
-        </div>
-
-        {/* Demo Transition Component */}
-        <div className="mt-8 space-y-4">
-          <h4 className="text-lg font-semibold text-muted-foreground">Demo - Transition cosmique</h4>
-          <button
-            onClick={() => {
-              setDemoTransitioning(true)
-              setTimeout(() => {
-                setDemoTransitioning(false)
-                setDemoIsNight(!demoIsNight)
-              }, 3000)
-            }}
-            className="relative w-full h-48 rounded-2xl border-2 border-muted overflow-hidden hover:border-muted-foreground/50 transition-all"
-          >
-            {/* Sky - progressive gradient transition */}
-            <div
-              className="absolute inset-0 transition-all duration-[3000ms] ease-in-out"
-              style={{
-                background: demoIsNight
-                  ? 'linear-gradient(180deg, #1a1a2e 0%, #16213e 30%, #0f3460 60%, #533483 100%)'
-                  : 'linear-gradient(180deg, #87CEEB 0%, #87CEEB 50%, #E0F6FF 100%)',
-              }}
-            />
-
-            {/* Horizon line */}
-            <div className="absolute bottom-16 left-0 right-0 h-[1px] bg-orange-400/40" />
-
-            {/* Ground */}
-            <div
-              className="absolute bottom-0 left-0 right-0 h-16 transition-all duration-[3000ms]"
-              style={{
-                background: demoIsNight
-                  ? 'linear-gradient(to bottom, #1a1a1a 0%, #0a0a0a 100%)'
-                  : 'linear-gradient(to bottom, #22c55e 0%, #15803d 100%)',
-              }}
-            />
-
-            {/* Orbital container centered on horizon */}
-            {mounted && (
-              <div
-                className="absolute left-1/2 -translate-x-1/2 pointer-events-none"
-                style={{
-                  bottom: '64px', // horizon position (h-16 = 64px)
-                  width: '1px',
-                  height: '1px',
-                }}
-              >
-                {/* Sun - continuous circular orbit */}
-                <div
-                  className="absolute w-8 h-8 rounded-full bg-yellow-400 shadow-[0_0_40px_rgba(250,204,21,0.8)] transition-all duration-[3000ms] ease-in-out"
-                  style={{
-                    left: '0',
-                    top: '0',
-                    transformOrigin: '0 0',
-                    // Jour (0°→180°): visible en haut, descend à droite et disparaît
-                    // Nuit (180°→360°): invisible sous terre, continue de tourner et revient à 0° (360°)
-                    transform: demoIsNight
-                      ? 'rotate(360deg) translateY(-100px) rotate(-360deg)'
-                      : 'rotate(0deg) translateY(-100px) rotate(0deg)',
-                    // Visible seulement entre 0° et 180° (au-dessus de l'horizon)
-                    opacity: demoIsNight ? 0 : 1,
-                  }}
-                />
-
-                {/* Moon - same circle but offset by 180° */}
-                <div
-                  className="absolute w-6 h-6 rounded-full bg-slate-200 shadow-[0_0_30px_rgba(226,232,240,0.6)] transition-all duration-[3000ms] ease-in-out"
-                  style={{
-                    left: '0',
-                    top: '0',
-                    transformOrigin: '0 0',
-                    // Lune commence à 180° de décalage
-                    // Jour: lune à 180°→360° (sous terre, invisible)
-                    // Nuit: lune à 360°→540° = 0°→180° (visible, monte de gauche, descend à droite)
-                    transform: demoIsNight
-                      ? 'rotate(540deg) translateY(-100px) rotate(-540deg)'
-                      : 'rotate(180deg) translateY(-100px) rotate(-180deg)',
-                    // Visible seulement quand elle est au-dessus (entre son 0° et 180°, soit notre 180° à 360°)
-                    opacity: demoIsNight ? 1 : 0,
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Clouds (day) */}
-            {mounted && (
-              <>
-                <div
-                  className="absolute top-8 left-[15%] w-16 h-4 bg-white/70 rounded-full transition-all duration-[3000ms]"
-                  style={{ opacity: demoIsNight ? 0 : 1 }}
-                />
-                <div
-                  className="absolute top-12 right-[20%] w-12 h-3 bg-white/60 rounded-full transition-all duration-[3000ms]"
-                  style={{ opacity: demoIsNight ? 0 : 1 }}
-                />
-              </>
-            )}
-
-            {/* Stars (night) */}
-            {mounted && (
-              <>
-                <div
-                  className="absolute top-6 left-[20%] w-1.5 h-1.5 bg-white rounded-full transition-all duration-[3000ms] delay-500"
-                  style={{ opacity: demoIsNight ? 1 : 0 }}
-                />
-                <div
-                  className="absolute top-10 right-[15%] w-1 h-1 bg-white/80 rounded-full transition-all duration-[3000ms] delay-500"
-                  style={{ opacity: demoIsNight ? 1 : 0 }}
-                />
-                <div
-                  className="absolute top-14 left-[40%] w-1.5 h-1.5 bg-white/90 rounded-full transition-all duration-[3000ms] delay-500"
-                  style={{ opacity: demoIsNight ? 1 : 0 }}
-                />
-                <div
-                  className="absolute top-8 right-[35%] w-1 h-1 bg-white/70 rounded-full transition-all duration-[3000ms] delay-500"
-                  style={{ opacity: demoIsNight ? 1 : 0 }}
-                />
-              </>
-            )}
-
-            <span className="absolute bottom-4 left-0 right-0 text-center text-sm font-medium text-foreground/80">
-              Cliquer pour voir la transition
-            </span>
-          </button>
-        </div>
+        <ThemeSwitcherCard />
       </div>
 
       {/* Image Crop Dialog */}

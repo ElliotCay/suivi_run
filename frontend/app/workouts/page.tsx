@@ -34,7 +34,7 @@ export default function WorkoutsPage() {
 
   const loadWorkouts = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/workouts')
+      const response = await axios.get('http://127.0.0.1:8000/api/workouts')
       setWorkouts(response.data)
     } catch (error) {
       console.error('Error loading workouts:', error)
@@ -46,7 +46,7 @@ export default function WorkoutsPage() {
   const classifyWorkouts = async () => {
     setClassifying(true)
     try {
-      const response = await axios.post('http://localhost:8000/api/workouts/classify')
+      const response = await axios.post('http://127.0.0.1:8000/api/workouts/classify')
       toast.success(`Classification terminée ! ${response.data.classified} séances classifiées.`)
       loadWorkouts() // Reload to show updated types
     } catch (error) {
@@ -60,7 +60,7 @@ export default function WorkoutsPage() {
   const syncStrava = async () => {
     setSyncing(true)
     try {
-      const response = await axios.post('http://localhost:8000/api/strava/sync')
+      const response = await axios.post('http://127.0.0.1:8000/api/strava/sync')
       if (response.data.success) {
         const imported = response.data.imported || 0
         const skipped = response.data.skipped || 0
@@ -117,7 +117,7 @@ export default function WorkoutsPage() {
 
     // Vert pour facile/endurance/longue/récupération
     if (normalized.includes('facile') || normalized.includes('endurance') ||
-        normalized.includes('longue') || normalized.includes('recuperation')) {
+      normalized.includes('longue') || normalized.includes('recuperation')) {
       return 'hsl(var(--workout-facile))'
     }
 
@@ -135,8 +135,8 @@ export default function WorkoutsPage() {
     return 'var(--allure-gradient)'
   }
 
-  const filteredWorkouts = workouts.filter(w => 
-    !search || 
+  const filteredWorkouts = workouts.filter(w =>
+    !search ||
     formatDate(w.date).toLowerCase().includes(search.toLowerCase()) ||
     w.workout_type?.toLowerCase().includes(search.toLowerCase())
   )
@@ -146,7 +146,7 @@ export default function WorkoutsPage() {
       {/* Minimal Header */}
       <div className="flex justify-between items-start">
         <div className="space-y-2">
-          <h1 className="text-6xl font-bold tracking-tight">
+          <h1 className="text-6xl font-serif font-bold tracking-tight">
             Séances
           </h1>
           <p className="text-base text-muted-foreground">
@@ -251,13 +251,13 @@ export default function WorkoutsPage() {
                     {/* Main Metrics: Distance & Pace */}
                     <div className="flex gap-10 items-baseline">
                       <div className="text-center min-w-[100px]">
-                        <div className="text-3xl font-bold tabular-nums">
+                        <div className="text-3xl font-mono font-bold tabular-nums">
                           {workout.distance?.toFixed(2)}
                         </div>
                         <div className="text-xs text-muted-foreground mt-0.5">km</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold font-mono tabular-nums">
+                        <div className="text-2xl font-mono italic font-bold tabular-nums">
                           {formatPace(workout.avg_pace)}
                         </div>
                         <div className="text-xs text-muted-foreground mt-0.5">allure</div>

@@ -91,7 +91,7 @@ export default function ProfilePage() {
 
   const loadProfile = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/profile')
+      const response = await axios.get('http://127.0.0.1:8000/api/profile')
       setProfile(response.data)
       setName(response.data.name)
       setWeeklyVolume(response.data.weekly_volume)
@@ -122,7 +122,7 @@ export default function ProfilePage() {
 
   const loadInsights = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/profile/insights')
+      const response = await axios.get('http://127.0.0.1:8000/api/profile/insights')
       setInsights(response.data)
     } catch (error) {
       console.error('Error loading insights:', error)
@@ -162,7 +162,7 @@ export default function ProfilePage() {
 
   const handleSaveName = async () => {
     try {
-      await axios.patch('http://localhost:8000/api/profile', { name })
+      await axios.patch('http://127.0.0.1:8000/api/profile', { name })
       toast.success('Nom mis à jour')
       setEditingName(false)
       loadProfile()
@@ -187,7 +187,7 @@ export default function ProfilePage() {
         priority: 'primary'
       }]
 
-      await axios.patch('http://localhost:8000/api/profile', {
+      await axios.patch('http://127.0.0.1:8000/api/profile', {
         weekly_volume: weeklyVolume,
         objectives
       })
@@ -217,7 +217,7 @@ export default function ProfilePage() {
 
       const updatedHistory = [...(profile?.injury_history || []), newInjury]
 
-      await axios.patch('http://localhost:8000/api/profile', {
+      await axios.patch('http://127.0.0.1:8000/api/profile', {
         injury_history: updatedHistory
       })
 

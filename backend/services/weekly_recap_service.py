@@ -65,7 +65,7 @@ def calculate_week_metrics(workouts: List[Workout]) -> Dict:
         avg_pace = int((total_duration / 60) / total_volume * 60)  # seconds per km
 
     # Calculate average heart rate
-    hr_values = [w.avg_heart_rate for w in workouts if w.avg_heart_rate]
+    hr_values = [w.avg_hr for w in workouts if w.avg_hr]
     avg_hr = int(sum(hr_values) / len(hr_values)) if hr_values else None
 
     return {
@@ -111,7 +111,7 @@ def generate_weekly_recap_prompt(
         date_str = w.date.strftime("%A")  # Day name (Monday, Tuesday, etc.)
         distance = f"{w.distance:.1f}km" if w.distance else "N/A"
         pace = format_pace(int(w.duration / 60 / w.distance * 60)) if w.distance and w.duration else "N/A"
-        hr = f"{w.avg_heart_rate} bpm" if w.avg_heart_rate else "N/A"
+        hr = f"{w.avg_hr} bpm" if w.avg_hr else "N/A"
         workout_type = w.workout_type or "Run"
 
         workout_details.append(f"- {date_str}: {workout_type} {distance} à {pace}, FC {hr}")
@@ -130,7 +130,7 @@ def generate_weekly_recap_prompt(
     # Training context
     training_context = ""
     if training_plan:
-        training_context = f"\nContexte : {training_plan.goal} (phase en cours)"
+        training_context = f"\nContexte : {training_plan.goal_type} (phase en cours)"
 
     prompt = f"""Tu es un coach running expérimenté. Rédige un résumé de la semaine écoulée pour cet athlète.
 

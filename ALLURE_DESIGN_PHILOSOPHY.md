@@ -15,19 +15,54 @@
 - **Sober minimal palette**: Warm off-white (#FAFAF9) background, near-black (#1A1A1A) text
 - **Allure gradient identity**: `linear-gradient(90deg, #ee95b3 → #667abf)` used sparingly for brand moments
 - **Workout type colors**: Semantic colors for training zones (green=easy, orange=tempo, red=intervals)
-- **High contrast dark mode**: Deep black (#0A0A0A) with careful luminosity adjustments
+Allure is not just a dashboard; it's a living organism. It breathes, flows, and reacts.
+The aesthetic is **"Liquid Glass"**: deep, transparent layers that feel like water or premium glass, combined with organic motion.
+
+### The "Wow" Factors
+1.  **Liquid Glass**: Deep transparency (`bg-white/5`), heavy blur (`backdrop-blur-xl`), and subtle noise textures.
+2.  **Sheen Effects**: Specular reflections that glide across cards on interaction, mimicking light hitting glass.
+3.  **Organic Motion**: Everything flows. Cards lift when dragged, details expand fluidly. No hard cuts.
+
+## Typography System
+Our typography is a "Tech-Couture" blend: High-performance sport meets high-end editorial.
+
+### 1. The Body (UI & Text) - **Outfit**
+*   **Role**: Primary font for all UI elements, body text, and labels.
+*   **Why**: Geometric, modern, and athletic. Its rounded forms echo the track and the stopwatch.
+*   **Usage**: `font-sans`
+
+### 2. The Soul (Headings & Emotion) - **Magilio**
+*   **Role**: Display font for major headings, inspirational quotes, and emphasis.
+*   **Why**: Elegant, editorial, and premium. It breaks the "cold tech" feel and adds a human, luxury touch.
+*   **Usage**: `font-serif`
+
+### 3. The Engine (Data & Metrics) - **JetBrains Mono**
+*   **Role**: All numerical data, paces, distances, and technical details.
+*   **Why**: Precision engineering. Monospace ensures perfect alignment of figures.
+*   **Special Trick**: Use **Italic** for speed metrics (Pace, Speed) to create a sense of forward motion.
+*   **Usage**: `font-mono`
+
+### 4. The Brand (Logo) - **Branch**
+*   **Role**: Exclusively for the "allure" logo.
+*   **Why**: Organic, unique ligatures that feel like nature.
+*   **Usage**: `font-branch` (with forced ligatures)
+
+## Color Palette & Materials
+*   **Glass**: `bg-white/5` to `bg-white/10` with `backdrop-blur-xl`
+*   **Borders**: Ultra-thin `border-white/10` for subtle definition.
+*   **Gradients**: The "Allure Gradient" (Pink/Purple/Blue) is used sparingly for accents and "living" elements.
+*   **Noise**: A subtle grain texture (`bg-noise`) adds tactility to the glass.
+
+## Interaction Principles
+*   **Hover**: Elements should "lift" or "shine" (Sheen effect).
+*   **Drag**: Elements become weightless (`opacity-0` on original, lifted shadow on drag).
+*   **Feedback**: Instant, fluid response to every touch.
 
 ### Layout Principles
 - **Generous white space**: Breathing room between elements (space-y-6 to space-y-8)
 - **Bento grid system**: 12-column responsive grid with thoughtful col-spans
 - **Uniform card heights**: Visual consistency (e.g., 130px, 140px for different contexts)
 - **Strategic emphasis**: Important elements get more space (e.g., Semi/Marathon at col-span-6)
-
-### Interaction Design
-- **Hover states**: Subtle shadows (hover:shadow-lg) and transitions (duration-300)
-- **Glassmorphism (selective)**: Used sparingly for navigation (`backdrop-filter: blur(40px)`)
-- **Gradient borders on hover**: Allure gradient appears as card border on hover for premium feel
-- **Smooth animations**: Framer Motion for page transitions and element reveals
 
 ## Content Philosophy
 
@@ -43,20 +78,13 @@
 - **No jargon overload**: Balance technical terms with accessibility
 - **Action-oriented**: CTAs are clear ("Ajouter un record", "Importer mes séances")
 
-## What Allure Is NOT
+---
 
-### Rejected Patterns
-- ❌ **Colorful badges everywhere**: We tried workout type badges—too noisy
-- ❌ **Icons for everything**: Icons broke the "classe" aesthetic on Records page
-- ❌ **Summary cards with stats**: Removed from Records page—redundant and biased
-- ❌ **Gradient backgrounds**: Rejected for Dashboard—overwhelming
-- ❌ **Dense forms**: No wall of input fields—use read/edit modes
-
-### Anti-Patterns
-- **Over-decoration**: More icons ≠ better UX
-- **Trendy for trendy's sake**: Glassmorphism everywhere = gimmicky
-- **Cognitive overload**: Too many metrics at once = confusion
-- **Administrative feel**: Forms that feel like paperwork, not athletic tools
+### ❌ Rejected Patterns
+- ❌ **Flat Design**: Too boring. We want depth.
+- ❌ **Generic Sans-Serifs**: Arial/Inter are too standard. We use Outfit for character.
+- ❌ **Static Data**: Numbers should feel alive (use italics/colors).
+- ❌ **Heavy Borders**: We use light and shadow, not thick lines.
 
 ## Key Design Decisions (Historical Context)
 

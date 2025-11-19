@@ -24,6 +24,12 @@ const config: Config = {
           5: 'hsl(var(--chart-5))',
         },
       },
+      fontFamily: {
+        sans: ['var(--font-outfit)', 'sans-serif'],
+        serif: ['var(--font-magilio)', 'serif'],
+        branch: ['var(--font-branch)', 'sans-serif'],
+        mono: ['var(--font-jetbrains)', 'monospace'],
+      },
     },
   },
   plugins: [],

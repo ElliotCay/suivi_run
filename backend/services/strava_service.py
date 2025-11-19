@@ -405,8 +405,33 @@ def sync_strava_activities(db: Session, user_id: int, limit: int = 30) -> Dict:
             new_workout.raw_data = workout_data["raw_data"]
 
             db.add(new_workout)
+            db.flush()  # Flush to get the workout ID
             imported_count += 1
             logger.info(f"  -> Successfully added workout {activity_id} to database")
+
+            # 🆕 AUTO-CHARACTERIZE workout using best efforts
+            try:
+                from services.workout_characterization_service import characterize_workout_from_best_efforts, get_user_training_zones
+
+                # Get user's training zones
+                zones = get_user_training_zones(db, user_id)
+
+                # Characterize the workout
+                workout_type, characterization_analysis = characterize_workout_from_best_efforts(new_workout, zones)
+
+                # Update workout with characterization
+                new_workout.workout_type = workout_type
+
+                # Store characterization analysis in raw_data
+                if not new_workout.raw_data:
+                    new_workout.raw_data = {}
+                new_workout.raw_data["characterization_analysis"] = characterization_analysis
+
+                logger.info(f"  -> Auto-characterized as '{workout_type}': {characterization_analysis.get('reasoning')}")
+
+            except Exception as e:
+                logger.warning(f"  -> Failed to auto-characterize workout {activity_id}: {e}")
+                # Continue without characterization - not a critical error
 
             # Update personal records from best efforts
             if best_efforts:

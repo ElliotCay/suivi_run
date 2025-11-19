@@ -35,7 +35,7 @@ export function useWeeklyRecaps(limit: number = 10): UseWeeklyRecapsReturn {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
   // Fetch all recaps
   const fetchRecaps = useCallback(async () => {

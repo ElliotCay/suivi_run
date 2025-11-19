@@ -42,11 +42,11 @@ export function MissingFeedbackModal() {
       setLoading(true)
 
       // Fetch workouts without feedback
-      const feedbackResponse = await fetch("http://localhost:8000/api/workouts/missing-feedback")
+      const feedbackResponse = await fetch("http://127.0.0.1:8000/api/workouts/missing-feedback")
       const feedbackData = await feedbackResponse.json()
 
       // Fetch pending Strava workouts
-      const stravaResponse = await fetch("http://localhost:8000/api/strava/pending")
+      const stravaResponse = await fetch("http://127.0.0.1:8000/api/strava/pending")
       const stravaData = await stravaResponse.json()
 
       setWorkoutsWithoutFeedback(feedbackData.workouts || [])
@@ -70,7 +70,7 @@ export function MissingFeedbackModal() {
 
   const handleQuickRAS = async (workoutId: number) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/workouts/${workoutId}`, {
+      const response = await fetch(`http://127.0.0.1:8000/api/workouts/${workoutId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json"
@@ -96,7 +96,7 @@ export function MissingFeedbackModal() {
 
   const handleImportStrava = async (stravaId: number) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/strava/import/${stravaId}`, {
+      const response = await fetch(`http://127.0.0.1:8000/api/strava/import/${stravaId}`, {
         method: "POST"
       })
 

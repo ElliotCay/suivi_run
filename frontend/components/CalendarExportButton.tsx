@@ -19,7 +19,7 @@ export function CalendarExportButton({
 }: CalendarExportButtonProps) {
   const handleExport = async () => {
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
       const url = suggestionId
         ? `${API_BASE}/api/calendar/suggestion/${suggestionId}.ics`
         : `${API_BASE}/api/calendar/export.ics`
@@ -87,7 +87,7 @@ export function CalendarDownloadAllButton({
 }: CalendarDownloadAllButtonProps) {
   const handleDownloadAll = async () => {
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'
       const url = `${API_BASE}/api/calendar/export.ics`
 
       const response = await fetch(url)

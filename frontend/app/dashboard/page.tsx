@@ -6,10 +6,15 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import VolumeChart from '@/components/VolumeChart'
-import ActivityHeatmap from '@/components/charts/ActivityHeatmap'
-import WorkoutTypeDistribution from '@/components/charts/WorkoutTypeDistribution'
-import PaceHeartRateScatter from '@/components/charts/PaceHeartRateScatter'
-import axios from 'axios'
+import CardiacEfficiency from '@/components/charts/CardiacEfficiency'
+import {
+  getDashboardSummary,
+  getVolumeHistory,
+  getWorkoutTypes,
+  getTrainingLoad,
+  getReadinessScore,
+  getWorkouts
+} from '@/lib/api'
 import Link from 'next/link'
 import { Activity, Calendar, Heart, TrendingUp, Zap, Award, ArrowRight, Upload, Info, TrendingDown, Clock, CheckCircle2, XCircle, Footprints, AlertTriangle } from 'lucide-react'
 import EmptyState from '@/components/EmptyState'
@@ -51,10 +56,10 @@ interface TrainingLoad {
 }
 
 
-interface PaceHRData {
-  pace_seconds_per_km: number
-  avg_heart_rate: number
+interface EfficiencyData {
   date: string
+  avg_heart_rate: number
+  avg_pace: number
   workout_type: string
 }
 
@@ -105,8 +110,7 @@ export default function DashboardPage() {
   const [volumeHistory, setVolumeHistory] = useState<VolumeData[]>([])
   const [workoutTypes, setWorkoutTypes] = useState<WorkoutTypeData[]>([])
   const [trainingLoad, setTrainingLoad] = useState<TrainingLoad | null>(null)
-  const [activityHeatmap, setActivityHeatmap] = useState<any[]>([])
-  const [paceHRData, setPaceHRData] = useState<PaceHRData[]>([])
+  const [efficiencyData, setEfficiencyData] = useState<EfficiencyData[]>([])
   const [readiness, setReadiness] = useState<ReadinessScore | null>(null)
   const [readinessDialogOpen, setReadinessDialogOpen] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -127,13 +131,39 @@ export default function DashboardPage() {
         workoutsRes,
         readinessRes
       ] = await Promise.all([
-        axios.get('http://localhost:8000/api/dashboard/summary'),
-        axios.get('http://localhost:8000/api/dashboard/volume-history?weeks=12'),
-        axios.get('http://localhost:8000/api/dashboard/workout-types'),
-        axios.get('http://localhost:8000/api/dashboard/training-load'),
-        axios.get('http://localhost:8000/api/workouts'),
-        axios.get('http://localhost:8000/api/profile/readiness')
+        getDashboardSummary(),
+        getVolumeHistory(12),
+        getWorkoutTypes(),
+        getTrainingLoad(),
+        getWorkouts(),
+        getReadinessScore()
       ])
+
+      // Handle errors from API helpers
+      if (summaryRes.error) {
+        console.error('Error loading summary:', summaryRes.error)
+        return
+      }
+      if (volumeRes.error) {
+        console.error('Error loading volume history:', volumeRes.error)
+        return
+      }
+      if (typesRes.error) {
+        console.error('Error loading workout types:', typesRes.error)
+        return
+      }
+      if (loadRes.error) {
+        console.error('Error loading training load:', loadRes.error)
+        return
+      }
+      if (workoutsRes.error) {
+        console.error('Error loading workouts:', workoutsRes.error)
+        return
+      }
+      if (readinessRes.error) {
+        console.error('Error loading readiness:', readinessRes.error)
+        return
+      }
 
       setSummary(summaryRes.data)
       setVolumeHistory(volumeRes.data)
@@ -148,34 +178,22 @@ export default function DashboardPage() {
       }))
       setWorkoutTypes(typesWithPercentage)
 
-      // Process workouts for heatmap (group by date)
-      const workoutsByDate: Record<string, { distance: number; count: number }> = {}
-      workoutsRes.data.forEach((workout: any) => {
-        const dateKey = workout.date
-        if (!workoutsByDate[dateKey]) {
-          workoutsByDate[dateKey] = { distance: 0, count: 0 }
-        }
-        workoutsByDate[dateKey].distance += workout.distance || 0
-        workoutsByDate[dateKey].count += 1
-      })
-
-      const heatmapData = Object.entries(workoutsByDate).map(([date, data]) => ({
-        date,
-        distance: data.distance,
-        count: data.count
-      }))
-      setActivityHeatmap(heatmapData)
-
-      // Process workouts for pace vs HR scatter
-      const paceHRWorkouts = workoutsRes.data
-        .filter((w: any) => w.avg_hr && w.avg_pace)
+      // Process workouts for cardiac efficiency (endurance sessions only)
+      const efficiencyWorkouts = workoutsRes.data
+        .filter((w: any) =>
+          w.avg_hr &&
+          w.avg_pace &&
+          (w.workout_type === 'facile' || w.workout_type === 'longue')
+        )
         .map((w: any) => ({
-          pace_seconds_per_km: w.avg_pace,
-          avg_heart_rate: w.avg_hr,
           date: w.date,
-          workout_type: w.workout_type || 'non_defini'
+          avg_heart_rate: w.avg_hr,
+          avg_pace: w.avg_pace,
+          workout_type: w.workout_type
         }))
-      setPaceHRData(paceHRWorkouts)
+        .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+      setEfficiencyData(efficiencyWorkouts)
 
     } catch (error) {
       console.error('Error loading dashboard data:', error)
@@ -244,7 +262,7 @@ export default function DashboardPage() {
 
       {/* Minimal Header */}
       <div className="space-y-2">
-        <h1 className="text-6xl font-bold tracking-tight">
+        <h1 className="text-6xl font-serif font-bold tracking-tight">
           Dashboard
         </h1>
         <p className="text-base text-muted-foreground">
@@ -257,13 +275,13 @@ export default function DashboardPage() {
         {/* Readiness Score - Featured */}
         <Card className="col-span-6 row-span-2 hover:shadow-lg transition-all duration-300 relative overflow-hidden group">
           <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"
-               style={{
-                 background: 'var(--allure-gradient)',
-                 padding: '2px',
-                 WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-                 WebkitMaskComposite: 'xor',
-                 maskComposite: 'exclude'
-               }} />
+            style={{
+              background: 'var(--allure-gradient)',
+              padding: '2px',
+              WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+              WebkitMaskComposite: 'xor',
+              maskComposite: 'exclude'
+            }} />
           <CardContent className="p-6 h-full flex flex-col justify-between relative z-10">
             <div>
               <div className="flex items-center justify-between mb-4">
@@ -281,15 +299,15 @@ export default function DashboardPage() {
                   {readiness?.emoji || '💚'}
                 </div>
                 <div>
-                  <div className="text-5xl font-bold">
+                  <div className="text-5xl font-mono font-bold">
                     {readiness?.score ?? '--'}/100
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
                     {readiness?.level ? (
                       readiness.level === 'excellent' ? 'Excellente' :
-                      readiness.level === 'good' ? 'Bonne' :
-                      readiness.level === 'moderate' ? 'Modérée' :
-                      readiness.level === 'fatigue' ? 'Fatigué' : 'Repos'
+                        readiness.level === 'good' ? 'Bonne' :
+                          readiness.level === 'moderate' ? 'Modérée' :
+                            readiness.level === 'fatigue' ? 'Fatigué' : 'Repos'
                     ) : 'Calcul...'}
                   </p>
                 </div>
@@ -334,9 +352,9 @@ export default function DashboardPage() {
                   <p className="text-sm text-muted-foreground">Niveau</p>
                   <p className="text-lg font-semibold">
                     {readiness?.level === 'excellent' ? 'Excellente' :
-                     readiness?.level === 'good' ? 'Bonne' :
-                     readiness?.level === 'moderate' ? 'Modérée' :
-                     readiness?.level === 'fatigue' ? 'Fatigué' : 'Repos'}
+                      readiness?.level === 'good' ? 'Bonne' :
+                        readiness?.level === 'moderate' ? 'Modérée' :
+                          readiness?.level === 'fatigue' ? 'Fatigué' : 'Repos'}
                   </p>
                 </div>
               </div>
@@ -486,18 +504,18 @@ export default function DashboardPage() {
         {/* Volume 7j */}
         <Card className="col-span-3 row-span-1 hover:shadow-lg transition-all duration-300 relative overflow-hidden group">
           <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"
-               style={{
-                 background: 'var(--allure-gradient)',
-                 padding: '2px',
-                 WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-                 WebkitMaskComposite: 'xor',
-                 maskComposite: 'exclude'
-               }} />
+            style={{
+              background: 'var(--allure-gradient)',
+              padding: '2px',
+              WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+              WebkitMaskComposite: 'xor',
+              maskComposite: 'exclude'
+            }} />
           <CardContent className="p-5 h-full flex flex-col justify-between relative z-10">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Volume 7j</p>
-                <div className="text-3xl font-bold mt-1">{summary?.week_volume_km || 0} km</div>
+                <div className="text-3xl font-mono font-bold mt-1">{summary?.week_volume_km || 0} km</div>
               </div>
               <Activity className="h-4 w-4 text-muted-foreground" />
             </div>
@@ -510,19 +528,19 @@ export default function DashboardPage() {
         {/* FC moyenne */}
         <Card className="col-span-3 row-span-1 hover:shadow-lg transition-all duration-300 relative overflow-hidden group">
           <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"
-               style={{
-                 background: 'var(--allure-gradient)',
-                 padding: '2px',
-                 WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-                 WebkitMaskComposite: 'xor',
-                 maskComposite: 'exclude'
-               }} />
+            style={{
+              background: 'var(--allure-gradient)',
+              padding: '2px',
+              WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+              WebkitMaskComposite: 'xor',
+              maskComposite: 'exclude'
+            }} />
           <CardContent className="p-5 h-full flex flex-col justify-between relative z-10">
             <div className="flex items-start justify-between">
               <p className="text-sm text-muted-foreground">FC moyenne</p>
               <Heart className="h-4 w-4 text-muted-foreground" />
             </div>
-            <div className="text-3xl font-bold">
+            <div className="text-3xl font-mono font-bold">
               {summary?.avg_heart_rate ? `${summary.avg_heart_rate}` : 'N/A'}
             </div>
             <p className="text-xs text-muted-foreground">bpm</p>
@@ -532,20 +550,20 @@ export default function DashboardPage() {
         {/* Charge */}
         <Card className="col-span-3 row-span-1 hover:shadow-lg transition-all duration-300 relative overflow-hidden group">
           <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"
-               style={{
-                 background: 'var(--allure-gradient)',
-                 padding: '2px',
-                 WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-                 WebkitMaskComposite: 'xor',
-                 maskComposite: 'exclude'
-               }} />
+            style={{
+              background: 'var(--allure-gradient)',
+              padding: '2px',
+              WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+              WebkitMaskComposite: 'xor',
+              maskComposite: 'exclude'
+            }} />
           <CardContent className="p-5 h-full flex flex-col justify-between relative z-10">
             <div className="flex items-start justify-between">
               <p className="text-sm text-muted-foreground">Charge</p>
               <Zap className="h-4 w-4 text-muted-foreground" />
             </div>
             <div>
-              <div className="text-3xl font-bold mb-1">
+              <div className="text-3xl font-mono font-bold mb-1">
                 {trainingLoad?.ratio?.toFixed(2) || 'N/A'}
               </div>
               {(() => {
@@ -566,13 +584,13 @@ export default function DashboardPage() {
           <Link href="/settings" className="col-span-3 row-span-1">
             <Card className="h-full hover:shadow-lg transition-all duration-300 relative overflow-hidden group cursor-pointer">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"
-                   style={{
-                     background: 'var(--allure-gradient)',
-                     padding: '2px',
-                     WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-                     WebkitMaskComposite: 'xor',
-                     maskComposite: 'exclude'
-                   }} />
+                style={{
+                  background: 'var(--allure-gradient)',
+                  padding: '2px',
+                  WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                  WebkitMaskComposite: 'xor',
+                  maskComposite: 'exclude'
+                }} />
               <CardContent className="p-5 h-full flex flex-col justify-between relative z-10">
                 <div className="flex items-start justify-between">
                   <p className="text-sm text-muted-foreground">Chaussures</p>
@@ -597,17 +615,17 @@ export default function DashboardPage() {
         {/* Total - Second Row */}
         <Card className="col-span-6 row-span-1 hover:shadow-lg transition-all duration-300 relative overflow-hidden group">
           <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"
-               style={{
-                 background: 'var(--allure-gradient)',
-                 padding: '2px',
-                 WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-                 WebkitMaskComposite: 'xor',
-                 maskComposite: 'exclude'
-               }} />
+            style={{
+              background: 'var(--allure-gradient)',
+              padding: '2px',
+              WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+              WebkitMaskComposite: 'xor',
+              maskComposite: 'exclude'
+            }} />
           <CardContent className="p-5 h-full flex flex-row items-center justify-between relative z-10">
             <div>
               <p className="text-sm text-muted-foreground">Total carrière</p>
-              <div className="text-4xl font-bold mt-1">{summary?.total_all_time_km || 0} km</div>
+              <div className="text-4xl font-mono font-bold mt-1">{summary?.total_all_time_km || 0} km</div>
             </div>
             <div className="text-right">
               <TrendingUp className="h-5 w-5 text-muted-foreground mb-2 ml-auto" />
@@ -626,7 +644,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-amber-500" />
-              <h2 className="text-2xl font-bold">Récap hebdomadaire</h2>
+              <h2 className="text-2xl font-serif font-bold">Récap hebdomadaire</h2>
             </div>
             <Button
               variant="outline"
@@ -676,7 +694,7 @@ export default function DashboardPage() {
         {/* Volume History */}
         <Card>
           <CardHeader className="pb-4">
-            <CardTitle className="text-base font-bold">Évolution du volume</CardTitle>
+            <CardTitle className="text-base font-serif font-bold">Évolution du volume</CardTitle>
           </CardHeader>
           <CardContent className="pt-2">
             {volumeHistory.length > 0 ? (
@@ -689,11 +707,8 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Activity Heatmap */}
-        <ActivityHeatmap data={activityHeatmap} />
-
-        {/* Pace vs HR Scatter */}
-        <PaceHeartRateScatter data={paceHRData} />
+        {/* Cardiac Efficiency */}
+        <CardiacEfficiency data={efficiencyData} />
       </div>
     </div>
   )

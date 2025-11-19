@@ -21,6 +21,8 @@ interface RecordCelebrationProps {
 export default function RecordCelebration({ open, onClose, record }: RecordCelebrationProps) {
   const { width, height } = useWindowSize()
 
+  if (!record) return null
+
   useEffect(() => {
     if (open) {
       // Auto-close after 5 seconds

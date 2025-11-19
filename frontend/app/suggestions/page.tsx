@@ -56,7 +56,7 @@ function CalendarSyncButton() {
   const syncToCalendar = async () => {
     setSyncing(true)
     try {
-      const response = await axios.post('http://localhost:8000/api/calendar/sync')
+      const response = await axios.post('http://127.0.0.1:8000/api/calendar/sync')
       toast.success(response.data.message)
     } catch (error: any) {
       console.error('Error syncing calendar:', error)
@@ -172,7 +172,7 @@ export default function SuggestionsPage() {
 
   const loadSuggestions = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/suggestions')
+      const response = await axios.get('http://127.0.0.1:8000/api/suggestions')
       setSuggestions(response.data)
     } catch (error) {
       console.error('Error loading suggestions:', error)
@@ -192,7 +192,7 @@ export default function SuggestionsPage() {
       nextMonday.setDate(today.getDate() + daysUntilMonday)
       nextMonday.setHours(0, 0, 0, 0)
 
-      const response = await axios.post('http://localhost:8000/api/training/generate-block', {
+      const response = await axios.post('http://127.0.0.1:8000/api/training/generate-block', {
         phase: 'base',  // base, development, peak, taper
         days_per_week: 3,
         start_date: nextMonday.toISOString()
@@ -217,7 +217,7 @@ export default function SuggestionsPage() {
     setGenerating(true)
     setShowOptions(false)
     try {
-      const response = await axios.post('http://localhost:8000/api/suggestions/generate', {
+      const response = await axios.post('http://127.0.0.1:8000/api/suggestions/generate', {
         use_sonnet: true,
         workout_type: workoutType,
         generate_week: generateWeek
@@ -245,8 +245,8 @@ export default function SuggestionsPage() {
   const markComplete = async (suggestionId: number) => {
     try {
       // Marquer comme terminée puis supprimer directement
-      await axios.patch(`http://localhost:8000/api/suggestions/${suggestionId}/complete`)
-      await axios.delete(`http://localhost:8000/api/suggestions/${suggestionId}`)
+      await axios.patch(`http://127.0.0.1:8000/api/suggestions/${suggestionId}/complete`)
+      await axios.delete(`http://127.0.0.1:8000/api/suggestions/${suggestionId}`)
       toast.success('Séance terminée et archivée')
       loadSuggestions()
     } catch (error: any) {
@@ -261,7 +261,7 @@ export default function SuggestionsPage() {
     }
 
     try {
-      await axios.delete(`http://localhost:8000/api/suggestions/${suggestionId}`)
+      await axios.delete(`http://127.0.0.1:8000/api/suggestions/${suggestionId}`)
       toast.success('Suggestion supprimée')
       loadSuggestions()
     } catch (error: any) {
@@ -272,7 +272,7 @@ export default function SuggestionsPage() {
 
   const scheduleSuggestion = async (suggestionId: number, scheduledDate: string) => {
     try {
-      await axios.patch(`http://localhost:8000/api/suggestions/${suggestionId}/schedule`, {
+      await axios.patch(`http://127.0.0.1:8000/api/suggestions/${suggestionId}/schedule`, {
         scheduled_date: scheduledDate
       })
       toast.success('Séance planifiée !')
@@ -286,7 +286,7 @@ export default function SuggestionsPage() {
   const downloadCalendarEvent = async (suggestionId: number) => {
     try {
       const response = await axios.get(
-        `http://localhost:8000/api/suggestions/${suggestionId}/calendar`,
+        `http://127.0.0.1:8000/api/suggestions/${suggestionId}/calendar`,
         { responseType: 'blob' }
       )
 

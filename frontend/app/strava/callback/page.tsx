@@ -35,7 +35,7 @@ function StravaCallbackContent() {
 
       try {
         // Call backend callback endpoint
-        const response = await axios.get('http://localhost:8000/api/strava/callback', {
+        const response = await axios.get('http://127.0.0.1:8000/api/strava/callback', {
           params: { code, scope, state }
         })
 

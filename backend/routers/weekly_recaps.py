@@ -4,6 +4,7 @@ API endpoints for weekly recaps.
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel
@@ -179,6 +180,12 @@ async def generate_last_week_recap(
     This endpoint is called automatically on dashboard load to ensure
     the user always has a recap for the completed week.
 
+    Logic:
+    - If today is Monday-Wednesday, check for last week's recap
+    - If recap doesn't exist and there were workouts, generate it
+    - If recap exists, return it
+    - If no workouts last week, return None
+
     Args:
         user_id: User ID (from auth)
         db: Database session
@@ -188,34 +195,50 @@ async def generate_last_week_recap(
     """
     from datetime import timedelta
 
-    # Calculate last week's Monday
-    current_monday, _ = get_week_boundaries()
-    last_week_monday = current_monday - timedelta(days=7)
+    try:
+        # Calculate last week's Monday
+        today = datetime.now()
+        current_monday, _ = get_week_boundaries(today)
+        last_week_monday = current_monday - timedelta(days=7)
 
-    # Try to get existing recap for last week
-    from services.weekly_recap_service import get_week_workouts
-    from models import WeeklyRecap
-    from sqlalchemy import and_
+        # Try to get existing recap for last week
+        from services.weekly_recap_service import get_week_workouts
+        from models import WeeklyRecap
+        from sqlalchemy import and_
 
-    existing_recap = db.query(WeeklyRecap).filter(
-        and_(
-            WeeklyRecap.user_id == user_id,
-            WeeklyRecap.week_start_date == last_week_monday
-        )
-    ).first()
+        # Compare only dates (not times) to handle microsecond differences
+        existing_recap = db.query(WeeklyRecap).filter(
+            and_(
+                WeeklyRecap.user_id == user_id,
+                func.date(WeeklyRecap.week_start_date) == last_week_monday.date()
+            )
+        ).first()
 
-    if existing_recap:
-        return existing_recap
+        if existing_recap:
+            print(f"✅ Found existing recap for week starting {last_week_monday.date()}")
+            return existing_recap
 
-    # Check if there were any workouts last week
-    last_week_sunday = last_week_monday + timedelta(days=6, hours=23, minutes=59, seconds=59)
-    workouts = get_week_workouts(db, user_id, last_week_monday, last_week_sunday)
+        # Check if there were any workouts last week
+        last_week_sunday = last_week_monday + timedelta(days=6, hours=23, minutes=59, seconds=59)
+        workouts = get_week_workouts(db, user_id, last_week_monday, last_week_sunday)
 
-    # Only generate if there were workouts (or if user wants empty week recap)
-    if not workouts:
-        # Don't generate recap for empty weeks in the past
+        # Only generate if there were workouts
+        if not workouts:
+            print(f"ℹ️  No workouts found for week starting {last_week_monday.date()}, skipping recap generation")
+            return None
+
+        # Generate the recap for last week
+        print(f"🔄 Generating recap for week starting {last_week_monday.date()} ({len(workouts)} workouts)")
+        recap = await generate_weekly_recap(db, user_id, last_week_monday)
+
+        if recap:
+            print(f"✅ Successfully generated recap for week starting {last_week_monday.date()}")
+
+        return recap
+    except Exception as e:
+        # Log the error but don't crash the dashboard
+        print(f"❌ Error generating last week recap: {e}")
+        import traceback
+        traceback.print_exc()
+        # Return None instead of raising HTTPException to not block dashboard
         return None
-
-    # Generate the recap
-    recap = await generate_weekly_recap(db, user_id, last_week_monday)
-    return recap

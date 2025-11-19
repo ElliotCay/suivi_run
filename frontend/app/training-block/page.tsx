@@ -4,11 +4,13 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
 import { Loader2, Calendar, CheckCircle, Circle, Dumbbell, ChevronDown, ChevronUp, Edit2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import axios from "axios"
 import { formatPace } from "@/lib/utils"
+import { WeekWorkoutsContainer } from "@/components/WeekWorkoutsContainer"
 
 interface PlannedWorkout {
   id: number
@@ -140,6 +142,20 @@ export default function TrainingBlockPage() {
     return diffDays
   }
 
+  const getBlockProgress = () => {
+    if (!block) return 0
+    const start = new Date(block.start_date).getTime()
+    const end = new Date(block.end_date).getTime()
+    const now = new Date().getTime()
+
+    if (now < start) return 0
+    if (now > end) return 100
+
+    const total = end - start
+    const current = now - start
+    return Math.round((current / total) * 100)
+  }
+
   // Show notification if block is ending soon
   useEffect(() => {
     if (block) {
@@ -152,10 +168,10 @@ export default function TrainingBlockPage() {
     }
   }, [block])
 
-  const loadCurrentBlock = async () => {
+  const loadCurrentBlock = async (showLoading = true) => {
     try {
-      setLoading(true)
-      const response = await axios.get("http://localhost:8000/api/training/current-block")
+      if (showLoading) setLoading(true)
+      const response = await axios.get("http://127.0.0.1:8000/api/training/current-block")
       setBlock(response.data)
     } catch (error: any) {
       if (error?.response?.status === 404) {
@@ -166,24 +182,24 @@ export default function TrainingBlockPage() {
         toast.error("Erreur lors du chargement du bloc")
       }
     } finally {
-      setLoading(false)
+      if (showLoading) setLoading(false)
     }
   }
 
   const completeWorkout = async (workoutId: number) => {
     try {
-      await axios.post(`http://localhost:8000/api/training/workouts/${workoutId}/complete`)
-      toast.success("Séance marquée comme complétée !")
-      loadCurrentBlock()
+      await axios.post(`http://127.0.0.1:8000/api/training/workouts/${workoutId}/complete`)
+      toast.success("Séance validée ! Bravo 🎉")
+      loadCurrentBlock(false)
     } catch (error) {
       console.error("Error completing workout:", error)
-      toast.error("Erreur lors de la validation")
+      toast.error("Erreur lors de la validation de la séance")
     }
   }
 
   const completeStrengthening = async (reminderId: number) => {
     try {
-      await axios.patch(`http://localhost:8000/api/training/strengthening-reminders/${reminderId}/complete`)
+      await axios.patch(`http://127.0.0.1:8000/api/training/strengthening-reminders/${reminderId}/complete`)
       toast.success("Renforcement validé !")
       loadCurrentBlock()
     } catch (error) {
@@ -200,7 +216,7 @@ export default function TrainingBlockPage() {
     }
 
     try {
-      await axios.delete(`http://localhost:8000/api/training/blocks/${block.id}`)
+      await axios.delete(`http://127.0.0.1:8000/api/training/blocks/${block.id}`)
       toast.success("Bloc supprimé")
       setBlock(null)
     } catch (error) {
@@ -212,7 +228,7 @@ export default function TrainingBlockPage() {
   const syncToCalendar = async () => {
     setSyncingCalendar(true)
     try {
-      const response = await axios.post('http://localhost:8000/api/calendar/sync')
+      const response = await axios.post('http://127.0.0.1:8000/api/calendar/sync')
       toast.success(response.data.message || "Synchronisation réussie")
     } catch (error: any) {
       console.error('Error syncing calendar:', error)
@@ -232,7 +248,7 @@ export default function TrainingBlockPage() {
 
     setGeneratingNextBlock(true)
     try {
-      const response = await axios.post(`http://localhost:8000/api/training/blocks/${block.id}/complete-and-generate-next`)
+      const response = await axios.post(`http://127.0.0.1:8000/api/training/blocks/${block.id}/complete-and-generate-next`)
 
       // Show success message with analysis
       const analysis = response.data.analysis
@@ -249,7 +265,7 @@ export default function TrainingBlockPage() {
       // Automatically sync new block to calendar
       setTimeout(async () => {
         try {
-          await axios.post('http://localhost:8000/api/calendar/sync')
+          await axios.post('http://127.0.0.1:8000/api/calendar/sync')
           toast.success("Nouveau bloc synchronisé au calendrier !")
         } catch (e) {
           console.error("Calendar sync error:", e)
@@ -284,7 +300,7 @@ export default function TrainingBlockPage() {
     if (!editingDate) return
 
     try {
-      await axios.patch(`http://localhost:8000/api/training/workouts/${workoutId}/reschedule`,
+      await axios.patch(`http://127.0.0.1:8000/api/training/workouts/${workoutId}/reschedule`,
         null,
         { params: { new_date: editingDate } }
       )
@@ -362,7 +378,11 @@ export default function TrainingBlockPage() {
     )
   }
 
-  const workoutsByWeek = groupWorkoutsByWeek(block.planned_workouts)
+  const workoutsByWeek = groupWorkoutsByWeek(
+    [...block.planned_workouts].sort((a, b) =>
+      new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime()
+    )
+  )
   const strengthening = block.strengthening_reminders || []
 
   // Calculate actual percentages from planned workouts
@@ -382,11 +402,11 @@ export default function TrainingBlockPage() {
   const actualIntervalPct = Math.round((intervalDistance / totalDistance) * 100)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 pb-12">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="space-y-2">
-          <h1 className="text-6xl font-bold tracking-tight">Bloc d'entraînement</h1>
+          <h1 className="text-6xl font-serif font-bold tracking-tight">Bloc d'entraînement</h1>
           <p className="text-base text-muted-foreground">
             {block.name} • {phaseLabels[block.phase] || block.phase}
           </p>
@@ -413,7 +433,7 @@ export default function TrainingBlockPage() {
             variant="default"
             onClick={completeBlockAndGenerateNext}
             disabled={generatingNextBlock}
-            className="bg-green-600 hover:bg-green-700"
+            className="bg-emerald-600 hover:bg-emerald-700"
           >
             {generatingNextBlock ? (
               <>
@@ -433,289 +453,187 @@ export default function TrainingBlockPage() {
         </div>
       </div>
 
-      {/* Block Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Informations du bloc</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Période</p>
-              <p className="font-bold">
-                {new Date(block.start_date).toLocaleDateString("fr-FR")} -{" "}
-                {new Date(block.end_date).toLocaleDateString("fr-FR")}
-              </p>
+      {/* Block Info & Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Progress Card */}
+        <Card className="md:col-span-1">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Progression du bloc</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-end justify-between mb-2">
+              <span className="text-3xl font-bold font-mono">{getDaysRemaining()}</span>
+              <span className="text-sm text-muted-foreground mb-1">jours restants</span>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Jours restants</p>
-              <Badge
-                variant={getDaysRemaining() <= 3 ? "destructive" : getDaysRemaining() <= 7 ? "default" : "secondary"}
-                className="font-bold"
-              >
-                {getDaysRemaining() > 0 ? `${getDaysRemaining()} jour${getDaysRemaining() > 1 ? 's' : ''}` : 'Terminé'}
-              </Badge>
+            <Progress value={getBlockProgress()} className="h-2" />
+            <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+              <span>{new Date(block.start_date).toLocaleDateString("fr-FR", { day: 'numeric', month: 'short' })}</span>
+              <span>{new Date(block.end_date).toLocaleDateString("fr-FR", { day: 'numeric', month: 'short' })}</span>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Fréquence</p>
-              <p className="font-bold">{block.days_per_week} séances/semaine</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Volume cible</p>
-              <p className="font-bold">{block.target_weekly_volume} km/semaine</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Phase</p>
-              <Badge className="bg-muted text-foreground">
-                {phaseLabels[block.phase] || block.phase}
-              </Badge>
-            </div>
-          </div>
+          </CardContent>
+        </Card>
 
-          <div>
-            <p className="text-sm text-muted-foreground mb-2">Distribution des intensités</p>
-            <div className="flex gap-4 text-sm">
-              <span>Facile (dont longues): {actualEasyPct}%</span>
-              <span>Seuil: {actualThresholdPct}%</span>
-              <span>Fractionné: {actualIntervalPct}%</span>
+        {/* Volume Card */}
+        <Card className="md:col-span-1">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Volume Hebdomadaire</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-end justify-between">
+              <span className="text-3xl font-bold font-mono">{block.target_weekly_volume}</span>
+              <span className="text-sm text-muted-foreground mb-1">km / semaine</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Objectif: {block.easy_percentage}/{block.threshold_percentage}/{block.interval_percentage}
+            <p className="text-xs text-muted-foreground mt-2">
+              {block.days_per_week} séances par semaine
             </p>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Weeks */}
-      {Object.keys(workoutsByWeek)
-        .sort((a, b) => Number(a) - Number(b))
-        .map((weekNum) => {
-          const weekWorkouts = workoutsByWeek[Number(weekNum)]
-          // Filter strengthening by week number instead of exact date match
-          const weekStrengthening = strengthening.filter((s) => {
-            // Get week number from scheduled_date
-            const reminderDate = new Date(s.scheduled_date)
-            const blockStartDate = new Date(block.start_date)
-            const daysDiff = Math.floor((reminderDate.getTime() - blockStartDate.getTime()) / (1000 * 60 * 60 * 24))
-            const reminderWeek = Math.floor(daysDiff / 7) + 1
-            return reminderWeek === Number(weekNum)
-          })
-
-          return (
-            <div key={weekNum}>
-              <h2 className="text-2xl font-bold mb-3">Semaine {weekNum}</h2>
-              <div className="space-y-2">
-                {weekWorkouts.map((workout) => {
-                  const isExpanded = expandedWorkouts.has(workout.id)
-
-                  return (
-                    <Card
-                      key={workout.id}
-                      className={`transition-opacity ${workout.status === "completed" ? "opacity-50" : ""}`}
-                    >
-                      <CardContent className="p-3">
-                        <div className="flex items-center justify-between gap-4">
-                          {/* Left: Type + Day + Date */}
-                          <div className="flex items-center gap-3 w-[320px]">
-                            <Badge
-                              className={`${
-                                workoutTypeColors[workout.workout_type] ||
-                                "bg-gray-100 text-gray-800"
-                              } w-[90px] justify-center shrink-0`}
-                            >
-                              {workoutTypeLabels[workout.workout_type] || workout.workout_type}
-                            </Badge>
-                            {editingWorkoutId === workout.id ? (
-                              <div className="flex items-center gap-2">
-                                <Input
-                                  type="date"
-                                  value={editingDate}
-                                  onChange={(e) => setEditingDate(e.target.value)}
-                                  className="h-8 w-36 text-sm"
-                                />
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => saveNewDate(workout.id)}
-                                  className="h-6 px-2 text-xs"
-                                >
-                                  ✓
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={cancelEditingDate}
-                                  className="h-6 px-2 text-xs"
-                                >
-                                  ✕
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <div className="text-sm w-[130px]">
-                                  <div className="font-medium">{workout.day_of_week}</div>
-                                  <div className="text-muted-foreground text-xs">
-                                    {new Date(workout.scheduled_date).toLocaleDateString("fr-FR", {
-                                      day: "numeric",
-                                      month: "short"
-                                    })}
-                                  </div>
-                                </div>
-                                {workout.status !== "completed" && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => startEditingDate(workout.id, workout.scheduled_date)}
-                                    className="h-6 w-6 p-0 hover:bg-muted"
-                                    title="Modifier la date"
-                                  >
-                                    <Edit2 className="h-3 w-3" />
-                                  </Button>
-                                )}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Center: Title + Pace */}
-                          <div className="flex-1">
-                            <div className="font-bold text-sm">{workout.title}</div>
-                            {workout.target_pace_min && workout.target_pace_max && (
-                              <div className="text-xs text-muted-foreground">
-                                Allure: {formatPace(workout.target_pace_min)} - {formatPace(workout.target_pace_max)}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Right: Expand + Status buttons */}
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => toggleWorkout(workout.id)}
-                              className="text-xs"
-                            >
-                              {isExpanded ? (
-                                <ChevronUp className="h-3 w-3" />
-                              ) : (
-                                <ChevronDown className="h-3 w-3" />
-                              )}
-                            </Button>
-                            {workout.status === "completed" ? (
-                              <Button variant="ghost" size="sm" disabled className="text-xs">
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Fait
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => completeWorkout(workout.id)}
-                                className="text-xs"
-                              >
-                                <Circle className="h-3 w-3 mr-1" />
-                                Valider
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Collapsible details */}
-                        {isExpanded && (
-                          <div className="mt-3 pt-3 border-t">
-                            <div className="prose prose-sm max-w-none">
-                              <div className="text-sm whitespace-pre-wrap">{workout.description}</div>
-                            </div>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-
-                {/* Strengthening reminders for this week */}
-                {weekStrengthening.map((reminder) => {
-                  const isExpanded = expandedReminders.has(reminder.id)
-
-                  return (
-                    <Card
-                      key={reminder.id}
-                      className={`border-purple-200 transition-opacity ${reminder.completed ? "opacity-50" : ""}`}
-                    >
-                      <CardContent className="p-3">
-                        <div className="flex items-center justify-between gap-4">
-                          {/* Left: Icon + Day */}
-                          <div className="flex items-center gap-3 w-[240px]">
-                            <div className="w-[90px] flex items-center justify-center shrink-0">
-                              <Dumbbell className="h-4 w-4 text-purple-600" />
-                            </div>
-                            <div className="text-sm w-[130px]">
-                              <div className="font-medium">{reminder.day_of_week}</div>
-                              <div className="text-muted-foreground text-xs">
-                                {new Date(reminder.scheduled_date).toLocaleDateString("fr-FR", {
-                                  day: "numeric",
-                                  month: "short"
-                                })}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Center: Title */}
-                          <div className="flex-1">
-                            <div className="font-bold text-sm text-purple-700">{reminder.title}</div>
-                            <div className="text-xs text-muted-foreground">{reminder.duration_minutes} min</div>
-                          </div>
-
-                          {/* Right: Expand + Status buttons */}
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => toggleReminder(reminder.id)}
-                              className="text-xs"
-                            >
-                              {isExpanded ? (
-                                <ChevronUp className="h-3 w-3" />
-                              ) : (
-                                <ChevronDown className="h-3 w-3" />
-                              )}
-                            </Button>
-                            {reminder.completed ? (
-                              <Button variant="ghost" size="sm" disabled className="text-xs">
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Fait
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => completeStrengthening(reminder.id)}
-                                className="text-xs"
-                              >
-                                <Circle className="h-3 w-3 mr-1" />
-                                Valider
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Collapsible details */}
-                        {isExpanded && (
-                          <div className="mt-3 pt-3 border-t border-purple-100">
-                            <div className="prose prose-sm max-w-none">
-                              <div className="text-sm whitespace-pre-wrap">
-                                {strengtheningDetails[reminder.session_type] || "Détails non disponibles"}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  )
-                })}
+        {/* Intensity Distribution Card */}
+        <Card className="md:col-span-1">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Distribution d'intensité</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex h-4 w-full overflow-hidden rounded-full bg-secondary mt-2">
+              <div className="bg-emerald-500 h-full" style={{ width: `${actualEasyPct}%` }} title={`Facile: ${actualEasyPct}%`} />
+              <div className="bg-orange-500 h-full" style={{ width: `${actualThresholdPct}%` }} title={`Seuil: ${actualThresholdPct}%`} />
+              <div className="bg-red-500 h-full" style={{ width: `${actualIntervalPct}%` }} title={`Fractionné: ${actualIntervalPct}%`} />
+            </div>
+            <div className="flex justify-between mt-3 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span>Facile {actualEasyPct}%</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-orange-500" />
+                <span>Seuil {actualThresholdPct}%</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-red-500" />
+                <span>Intensité {actualIntervalPct}%</span>
               </div>
             </div>
-          )
-        })}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Weeks with Drag & Drop */}
+      <div className="space-y-12">
+        {Object.keys(workoutsByWeek)
+          .sort((a, b) => Number(a) - Number(b))
+          .map((weekNum) => {
+            const weekWorkouts = workoutsByWeek[Number(weekNum)]
+            // Filter strengthening by week number instead of exact date match
+            const weekStrengthening = strengthening.filter((s) => {
+              // Get week number from scheduled_date
+              const reminderDate = new Date(s.scheduled_date)
+              const blockStartDate = new Date(block.start_date)
+              const daysDiff = Math.floor((reminderDate.getTime() - blockStartDate.getTime()) / (1000 * 60 * 60 * 24))
+              const reminderWeek = Math.floor(daysDiff / 7) + 1
+              return reminderWeek === Number(weekNum)
+            })
+
+            return (
+              <div key={weekNum} className="relative">
+                <div className="flex items-center gap-4 mb-6">
+                  <h2 className="text-2xl font-serif font-bold tracking-tight text-foreground">Semaine {weekNum}</h2>
+                  <div className="h-[1px] flex-1 bg-border/60" />
+                </div>
+
+                {/* Use new drag & drop component for workouts */}
+                <WeekWorkoutsContainer
+                  weekNumber={Number(weekNum)}
+                  workouts={weekWorkouts}
+                  workoutTypeLabels={workoutTypeLabels}
+                  workoutTypeColors={workoutTypeColors}
+                  onWorkoutsSwapped={() => loadCurrentBlock(false)}
+                  onComplete={completeWorkout}
+                />
+
+                {/* Strengthening Section - Styled as Cards */}
+                {weekStrengthening.length > 0 && (
+                  <div className="mt-4 space-y-3">
+                    <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <Dumbbell className="h-4 w-4" />
+                      Renforcement
+                    </h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {weekStrengthening.map((reminder) => {
+                        const isExpanded = expandedReminders.has(reminder.id)
+
+                        return (
+                          <div
+                            key={reminder.id}
+                            className="relative overflow-hidden rounded-xl bg-card border border-border/50 transition-all hover:shadow-md group"
+                          >
+                            {/* Vertical Purple Bar */}
+                            <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-purple-500" />
+
+                            {/* Dashboard-style Gradient Border on Hover */}
+                            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl pointer-events-none"
+                              style={{
+                                background: 'var(--allure-gradient)',
+                                padding: '2px',
+                                WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                                WebkitMaskComposite: 'xor',
+                                maskComposite: 'exclude'
+                              }}
+                            />
+
+                            <div className="p-4 pl-5">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  {reminder.completed ? (
+                                    <button disabled className="cursor-default">
+                                      <CheckCircle className="h-5 w-5 text-emerald-600" />
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        completeStrengthening(reminder.id)
+                                      }}
+                                      className="hover:scale-110 transition-transform group/btn"
+                                      title="Valider le renforcement"
+                                    >
+                                      <Circle className="h-5 w-5 text-muted-foreground group-hover/btn:text-emerald-600 transition-colors" />
+                                    </button>
+                                  )}
+                                  <div>
+                                    <p className={`font-serif font-bold text-base ${reminder.completed ? 'opacity-50' : ''}`}>{reminder.title}</p>
+                                    <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                                      {reminder.day_of_week} • {reminder.duration_minutes} min
+                                    </p>
+                                  </div>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => toggleReminder(reminder.id)}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                </Button>
+                              </div>
+
+                              {isExpanded && (
+                                <div className="mt-3 p-3 bg-muted/50 rounded-md text-sm whitespace-pre-wrap text-muted-foreground border border-border/50">
+                                  {strengtheningDetails[reminder.session_type] || "Aucun détail disponible"}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+      </div>
     </div>
   )
 }

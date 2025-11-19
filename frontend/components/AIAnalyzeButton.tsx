@@ -47,8 +47,8 @@ export function AIAnalyzeButton({
     try {
       // Fetch additional context
       const [profileRes, workoutsRes] = await Promise.all([
-        axios.get('http://localhost:8000/api/profile'),
-        axios.get('http://localhost:8000/api/workouts')
+        axios.get('http://127.0.0.1:8000/api/profile'),
+        axios.get('http://127.0.0.1:8000/api/workouts')
       ])
 
       // Find recent workouts (excluding current one)
@@ -88,7 +88,7 @@ export function AIAnalyzeButton({
     setDialogOpen(true)
     try {
       // Call API for analysis
-      const response = await axios.post(`http://localhost:8000/api/workouts/${workoutId}/analyze`)
+      const response = await axios.post(`http://127.0.0.1:8000/api/workouts/${workoutId}/analyze`)
       setAnalysis(response.data.analysis)
       toast.success('Analyse terminée !')
       if (onAnalysisComplete) {

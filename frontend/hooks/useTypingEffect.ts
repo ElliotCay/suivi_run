@@ -27,6 +27,15 @@ export function useTypingEffect({
     setDisplayedText('');
     setIsComplete(false);
 
+    // Instant display if speed is 0
+    if (speed === 0) {
+      const timeout = setTimeout(() => {
+        setDisplayedText(text);
+        setIsComplete(true);
+      }, startDelay);
+      return () => clearTimeout(timeout);
+    }
+
     const startTimeout = setTimeout(() => {
       const interval = setInterval(() => {
         if (currentIndex < text.length) {

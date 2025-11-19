@@ -72,7 +72,7 @@ export default function ImportPage() {
 
   const loadAutoImportStatus = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/auto-import/status')
+      const response = await axios.get('http://127.0.0.1:8000/api/auto-import/status')
       setAutoImportStatus(response.data)
     } catch (error) {
       console.error('Error loading auto-import status:', error)
@@ -81,7 +81,7 @@ export default function ImportPage() {
 
   const loadStravaStatus = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/strava/status')
+      const response = await axios.get('http://127.0.0.1:8000/api/strava/status')
       setStravaStatus(response.data)
     } catch (error) {
       console.error('Error loading Strava status:', error)
@@ -90,7 +90,7 @@ export default function ImportPage() {
 
   const connectStrava = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/strava/auth-url')
+      const response = await axios.get('http://127.0.0.1:8000/api/strava/auth-url')
       window.location.href = response.data.auth_url
     } catch (error: any) {
       console.error('Error getting Strava auth URL:', error)
@@ -101,7 +101,7 @@ export default function ImportPage() {
   const syncStrava = async () => {
     setSyncing(true)
     try {
-      const response = await axios.post('http://localhost:8000/api/strava/sync')
+      const response = await axios.post('http://127.0.0.1:8000/api/strava/sync')
       toast.success(`Synchronisation réussie : ${response.data.imported} activités importées`)
       await loadStravaStatus()
     } catch (error: any) {
@@ -116,7 +116,7 @@ export default function ImportPage() {
     if (!confirm('Voulez-vous vraiment déconnecter votre compte Strava ?')) return
 
     try {
-      await axios.delete('http://localhost:8000/api/strava/disconnect')
+      await axios.delete('http://127.0.0.1:8000/api/strava/disconnect')
       toast.success('Compte Strava déconnecté')
       await loadStravaStatus()
     } catch (error: any) {
@@ -128,7 +128,7 @@ export default function ImportPage() {
   const startAutoImport = async () => {
     setLoadingStatus(true)
     try {
-      await axios.post('http://localhost:8000/api/auto-import/start')
+      await axios.post('http://127.0.0.1:8000/api/auto-import/start')
       await loadAutoImportStatus()
       toast.success('Import automatique démarré ! Le système surveille maintenant le dossier iCloud Drive.')
     } catch (error: any) {
@@ -142,7 +142,7 @@ export default function ImportPage() {
   const stopAutoImport = async () => {
     setLoadingStatus(true)
     try {
-      await axios.post('http://localhost:8000/api/auto-import/stop')
+      await axios.post('http://127.0.0.1:8000/api/auto-import/stop')
       await loadAutoImportStatus()
       toast.success('Import automatique arrêté')
     } catch (error: any) {

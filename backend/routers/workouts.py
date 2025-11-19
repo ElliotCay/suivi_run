@@ -7,15 +7,29 @@ from datetime import datetime, date
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc
+from pydantic import BaseModel
 
 from database import get_db
-from models import Workout
+from models import Workout, TrainingBlock, PlannedWorkout
 from schemas import WorkoutResponse, WorkoutUpdate
 import logging
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+class AnalyzeWorkoutRequest(BaseModel):
+    """Request to analyze a workout with optional conversation history."""
+    message: str
+    conversation_history: Optional[List[dict]] = None
+
+
+class AnalyzeWorkoutResponse(BaseModel):
+    """Response from workout analysis."""
+    response: str
+    suggested_block_adjustments: Optional[dict] = None
+    conversation_id: Optional[str] = None
 
 
 @router.get("/workouts", response_model=List[WorkoutResponse])
@@ -405,3 +419,274 @@ RÉPONDS EN JSON STRICT:
     except Exception as e:
         logger.error(f"Classification error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/workouts/{workout_id}/analyze", response_model=AnalyzeWorkoutResponse)
+async def analyze_workout(
+    workout_id: int,
+    request: AnalyzeWorkoutRequest,
+    db: Session = Depends(get_db),
+    user_id: int = 1,  # TODO: Get from auth
+):
+    """
+    Analyze a workout session with Claude Haiku.
+
+    Provides interactive chat-based analysis of the workout:
+    - Reviews workout performance vs. planned targets
+    - Analyzes user comments and feedback
+    - Detects patterns (e.g., repeated pain/fatigue)
+    - Suggests block adjustments if needed
+    - Allows follow-up questions and discussion
+
+    Args:
+        workout_id: ID of the workout to analyze
+        request: User message and optional conversation history
+        user_id: User ID (from auth)
+        db: Database session
+
+    Returns:
+        AI analysis with optional block adjustment suggestions
+    """
+    from services.claude_service import call_claude_api
+    from datetime import timedelta
+    import json
+
+    # Get the workout
+    workout = db.query(Workout).filter(
+        and_(Workout.id == workout_id, Workout.user_id == user_id)
+    ).first()
+
+    if not workout:
+        raise HTTPException(status_code=404, detail="Workout not found")
+
+    # Get recent workouts for context (last 2 weeks)
+    recent_workouts = db.query(Workout).filter(
+        and_(
+            Workout.user_id == user_id,
+            Workout.date >= workout.date - timedelta(days=14),
+            Workout.date < workout.date
+        )
+    ).order_by(desc(Workout.date)).limit(10).all()
+
+    # Get active training block if exists
+    active_block = db.query(TrainingBlock).filter(
+        and_(
+            TrainingBlock.user_id == user_id,
+            TrainingBlock.status == "active"
+        )
+    ).first()
+
+    # Check if this workout was part of a planned workout
+    planned_workout = None
+    if active_block:
+        planned_workout = db.query(PlannedWorkout).filter(
+            and_(
+                PlannedWorkout.block_id == active_block.id,
+                PlannedWorkout.completed_workout_id == workout_id
+            )
+        ).first()
+
+    # Extract best efforts from raw_data if available
+    best_efforts = {}
+    if workout.raw_data and isinstance(workout.raw_data, dict):
+        best_efforts = workout.raw_data.get('best_efforts', {})
+
+    # Format workout data
+    workout_data = {
+        "date": workout.date.strftime("%A %d %B %Y"),
+        "type": workout.workout_type or "Non classifié",
+        "distance_km": round(workout.distance, 2) if workout.distance else None,
+        "duration_min": round(workout.duration / 60, 1) if workout.duration else None,
+        "avg_pace": f"{int(workout.avg_pace // 60)}:{int(workout.avg_pace % 60):02d}/km" if workout.avg_pace else None,
+        "avg_hr": workout.avg_hr,
+        "max_hr": workout.max_hr,
+        "user_comment": workout.user_comment or "Aucun commentaire",
+        "best_efforts": {k: f"{int(v['time_seconds'] // 60)}:{int(v['time_seconds'] % 60):02d} ({v['pace_seconds_per_km']//60}:{int(v['pace_seconds_per_km']%60):02d}/km)"
+                        for k, v in best_efforts.items()} if best_efforts else None
+    }
+
+    # Format planned workout if exists
+    planned_data = None
+    if planned_workout:
+        planned_data = {
+            "target_distance_km": planned_workout.target_distance,
+            "target_pace": f"{int(planned_workout.target_pace // 60)}:{int(planned_workout.target_pace % 60):02d}/km" if planned_workout.target_pace else None,
+            "description": planned_workout.description,
+            "workout_type": planned_workout.workout_type
+        }
+
+    # Format recent workouts for pattern detection
+    recent_data = []
+    for w in recent_workouts:
+        recent_data.append({
+            "date": w.date.strftime("%d/%m"),
+            "type": w.workout_type,
+            "distance_km": round(w.distance, 2) if w.distance else None,
+            "avg_pace": f"{int(w.avg_pace // 60)}:{int(w.avg_pace % 60):02d}/km" if w.avg_pace else None,
+            "comment": w.user_comment[:50] + "..." if w.user_comment and len(w.user_comment) > 50 else w.user_comment
+        })
+
+    # Build conversation context
+    conversation_context = ""
+    if request.conversation_history:
+        for msg in request.conversation_history:
+            role = msg.get('role', 'user')
+            content = msg.get('content', '')
+            conversation_context += f"\n{role.upper()}: {content}\n"
+
+    # Build prompt
+    prompt = f"""Tu es un coach running expérimenté qui analyse les séances d'entraînement.
+
+SÉANCE À ANALYSER:
+{json.dumps(workout_data, indent=2, ensure_ascii=False)}
+
+{"SÉANCE PLANIFIÉE:" if planned_data else ""}
+{json.dumps(planned_data, indent=2, ensure_ascii=False) if planned_data else ""}
+
+HISTORIQUE RÉCENT (2 dernières semaines):
+{json.dumps(recent_data, indent=2, ensure_ascii=False)}
+
+{"CONVERSATION PRÉCÉDENTE:" if conversation_context else ""}
+{conversation_context}
+
+MESSAGE DE L'UTILISATEUR:
+{request.message}
+
+CONSIGNES:
+1. Analyse factuelle basée sur les données
+2. Compare avec l'objectif prévu si applicable
+3. Détecte les patterns problématiques (douleurs répétées, surcharge, etc.)
+4. Si tu suggères un ajustement de bloc, indique-le clairement avec "AJUSTEMENT RECOMMANDÉ:"
+5. Sois direct et encourageant sans être excessif
+6. Tutoiement, ton professionnel
+7. Si l'utilisateur pose une question de suivi, réponds en contexte
+
+FORMAT DE RÉPONSE:
+- Réponse conversationnelle (max 200 mots)
+- Si ajustement nécessaire, termine par:
+
+  AJUSTEMENT RECOMMANDÉ:
+  {{
+    "type": "pace_reduction" | "split_workout" | "rest_day" | "swap_sessions",
+    "reason": "Explication brève",
+    "suggestion": "Description concrète de l'ajustement"
+  }}
+
+Réponds maintenant:"""
+
+    try:
+        # Call Claude Haiku
+        response = call_claude_api(prompt, use_sonnet=False)
+        content = response["content"]
+
+        # Parse adjustment if present
+        suggested_adjustments = None
+        if "AJUSTEMENT RECOMMANDÉ:" in content:
+            adjustment_start = content.find("AJUSTEMENT RECOMMANDÉ:")
+            adjustment_text = content[adjustment_start:]
+
+            # Extract JSON from adjustment section
+            json_start = adjustment_text.find("{")
+            json_end = adjustment_text.rfind("}") + 1
+
+            if json_start >= 0 and json_end > json_start:
+                try:
+                    suggested_adjustments = json.loads(adjustment_text[json_start:json_end])
+                except json.JSONDecodeError:
+                    pass
+
+            # Remove adjustment section from main response
+            content = content[:adjustment_start].strip()
+
+        return AnalyzeWorkoutResponse(
+            response=content,
+            suggested_block_adjustments=suggested_adjustments,
+            conversation_id=f"workout_{workout_id}"
+        )
+
+    except Exception as e:
+        logger.error(f"Workout analysis error: {e}")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+
+@router.post("/workouts/{workout_id}/characterize")
+async def characterize_workout(
+    workout_id: int,
+    db: Session = Depends(get_db),
+    user_id: int = 1
+):
+    """
+    Automatically characterize a single workout using best efforts analysis.
+
+    Uses Strava best_efforts data to determine workout type more accurately
+    than using global average pace alone.
+
+    Args:
+        workout_id: Workout ID to characterize
+
+    Returns:
+        Workout type and analysis details
+    """
+    from services.workout_characterization_service import auto_characterize_workout
+
+    # Verify workout exists and belongs to user
+    workout = db.query(Workout).filter(
+        Workout.id == workout_id,
+        Workout.user_id == user_id
+    ).first()
+
+    if not workout:
+        raise HTTPException(status_code=404, detail="Workout not found")
+
+    # Characterize
+    try:
+        workout_type = auto_characterize_workout(db, workout_id)
+
+        # Get updated workout
+        db.refresh(workout)
+
+        analysis = workout.raw_data.get("characterization_analysis", {}) if workout.raw_data else {}
+
+        return {
+            "success": True,
+            "workout_id": workout_id,
+            "workout_type": workout_type,
+            "analysis": analysis
+        }
+
+    except Exception as e:
+        logger.error(f"Characterization error for workout {workout_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Characterization failed: {str(e)}")
+
+
+@router.post("/workouts/characterize-all")
+async def characterize_all_workouts(
+    db: Session = Depends(get_db),
+    user_id: int = 1,
+    limit: int = Query(100, ge=1, le=500)
+):
+    """
+    Bulk characterize all uncharacterized workouts for a user.
+
+    Processes workouts without a workout_type and assigns them based on
+    best efforts analysis.
+
+    Args:
+        limit: Maximum number of workouts to process (default 100, max 500)
+
+    Returns:
+        Summary with counts and breakdown by type
+    """
+    from services.workout_characterization_service import bulk_characterize_workouts
+
+    try:
+        result = bulk_characterize_workouts(db, user_id, limit=limit)
+
+        return {
+            "success": True,
+            **result
+        }
+
+    except Exception as e:
+        logger.error(f"Bulk characterization error: {e}")
+        raise HTTPException(status_code=500, detail=f"Bulk characterization failed: {str(e)}")

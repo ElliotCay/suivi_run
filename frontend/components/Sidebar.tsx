@@ -87,9 +87,9 @@ export default function Sidebar() {
                     initial={{ opacity: 0, width: 0 }}
                     animate={{ opacity: 1, width: 'auto' }}
                     exit={{ opacity: 0, width: 0 }}
-                    className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
+                    className="text-3xl font-branch text-foreground -mt-1"
                   >
-                    StrideAI
+                    allure
                   </motion.span>
                 )}
               </AnimatePresence>

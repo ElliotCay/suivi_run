@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
+import { MessageCircle } from 'lucide-react'
 import axios from 'axios'
+import WorkoutAnalysisModal from '@/components/WorkoutAnalysisModal'
 
 interface GpxSplit {
   km: number
@@ -58,6 +60,7 @@ export default function WorkoutDetailPage() {
   const [comment, setComment] = useState('')
   const [workoutType, setWorkoutType] = useState('')
   const [saving, setSaving] = useState(false)
+  const [analysisModalOpen, setAnalysisModalOpen] = useState(false)
 
   useEffect(() => {
     loadWorkout()
@@ -65,7 +68,7 @@ export default function WorkoutDetailPage() {
 
   const loadWorkout = async () => {
     try {
-      const response = await axios.get(`http://localhost:8000/api/workouts/${params.id}`)
+      const response = await axios.get(`http://127.0.0.1:8000/api/workouts/${params.id}`)
       setWorkout(response.data)
       setRating(response.data.user_rating || 0)
       setComment(response.data.user_comment || '')
@@ -80,7 +83,7 @@ export default function WorkoutDetailPage() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      await axios.patch(`http://localhost:8000/api/workouts/${params.id}`, {
+      await axios.patch(`http://127.0.0.1:8000/api/workouts/${params.id}`, {
         user_rating: rating || null,
         user_comment: comment || null,
         workout_type: workoutType || null
@@ -93,6 +96,12 @@ export default function WorkoutDetailPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleBlockAdjustment = (adjustment: any) => {
+    console.log('Block adjustment accepted:', adjustment)
+    // TODO: Implement actual block adjustment logic
+    alert(`Ajustement appliqué: ${adjustment.suggestion}`)
   }
 
   const formatDate = (dateStr: string) => {
@@ -127,9 +136,19 @@ export default function WorkoutDetailPage() {
 
   return (
     <div className="container mx-auto py-8">
-      <Button onClick={() => router.back()} variant="outline" className="mb-4">
-        ← Retour
-      </Button>
+      <div className="flex items-center justify-between mb-4">
+        <Button onClick={() => router.back()} variant="outline">
+          ← Retour
+        </Button>
+
+        <Button
+          onClick={() => setAnalysisModalOpen(true)}
+          className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+        >
+          <MessageCircle className="mr-2 h-4 w-4" />
+          💬 Analyser avec Claude
+        </Button>
+      </div>
 
       <h1 className="text-3xl font-bold mb-6">{formatDate(workout.date)}</h1>
 
@@ -301,6 +320,14 @@ export default function WorkoutDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Analysis Modal */}
+      <WorkoutAnalysisModal
+        workoutId={Number(params.id)}
+        open={analysisModalOpen}
+        onOpenChange={setAnalysisModalOpen}
+        onBlockAdjustment={handleBlockAdjustment}
+      />
     </div>
   )
 }

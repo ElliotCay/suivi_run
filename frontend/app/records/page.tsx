@@ -213,7 +213,7 @@ export default function RecordsPage() {
         className={className}
       >
         <Card
-          className={`h-full group cursor-pointer transition-all duration-200 hover:shadow-lg ${
+          className={`h-full group cursor-pointer transition-all duration-200 hover:shadow-lg overflow-hidden ${
             hasRecord ? 'border-foreground/10' : 'border-dashed'
           } ${isEditing ? 'ring-2 ring-emerald-500/70' : ''}`}
           onClick={() => {
@@ -228,7 +228,7 @@ export default function RecordsPage() {
                 isEditing ? 'rotate-y-180' : ''
               }`}
             >
-              <CardContent className="p-4 h-full flex flex-col justify-between absolute inset-0 backface-hidden">
+              <CardContent className="p-4 h-full flex flex-col justify-between absolute inset-0 backface-hidden bg-card">
                 {/* Header */}
                 <div className="flex items-start justify-between">
                   <div>
@@ -276,7 +276,7 @@ export default function RecordsPage() {
                 )}
               </CardContent>
 
-              <CardContent className="p-4 h-full flex flex-col justify-between absolute inset-0 backface-hidden [transform:rotateY(180deg)]">
+              <CardContent className="p-4 h-full flex flex-col justify-between absolute inset-0 backface-hidden [transform:rotateY(180deg)] bg-card overflow-y-auto">
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="font-bold text-lg">{distanceInfo.label}</h3>

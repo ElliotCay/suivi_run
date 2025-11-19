@@ -7,25 +7,16 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import axios from 'axios'
 import { Award, Calendar, X, Save, Trophy } from 'lucide-react'
 import { toast } from 'sonner'
 import EmptyState from '@/components/EmptyState'
 import RecordCelebration from '@/components/RecordCelebration'
+import { FlipCard } from '@/components/FlipCard'
 
 interface PersonalRecord {
   id: number
   distance: string
-  time_seconds: number
-  time_display: string
-  date_achieved: string
-  is_current: boolean
-  notes: string | null
-}
-
-interface RecordHistory {
-  id: number
   time_seconds: number
   time_display: string
   date_achieved: string
@@ -57,9 +48,7 @@ function calculatePace(timeSeconds: number, distanceKm: number): string {
 
 export default function RecordsPage() {
   const [records, setRecords] = useState<PersonalRecord[]>([])
-  const [history, setHistory] = useState<{ [key: string]: RecordHistory[] }>({})
   const [editingDistance, setEditingDistance] = useState<string | null>(null)
-  const [showHistory, setShowHistory] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     distance: '',
     minutes: '',
@@ -97,17 +86,6 @@ export default function RecordsPage() {
     }
   }
 
-  const loadHistory = async (distance: string) => {
-    try {
-      const response = await axios.get(`http://localhost:8000/api/records/${distance}`)
-      setHistory(prev => ({ ...prev, [distance]: response.data }))
-      setShowHistory(distance)
-    } catch (error) {
-      console.error('Error loading history:', error)
-      toast.error('Erreur lors du chargement de l\'historique')
-    }
-  }
-
   const getRecordForDistance = (distance: string): PersonalRecord | null => {
     return records.find(r => r.distance === distance && r.is_current) || null
   }
@@ -134,6 +112,10 @@ export default function RecordsPage() {
       })
     }
     setEditingDistance(distance)
+  }
+
+  const cancelEdit = () => {
+    setEditingDistance(null)
   }
 
   const handleSave = async () => {
@@ -221,6 +203,7 @@ export default function RecordsPage() {
 
     const record = getRecordForDistance(distanceValue)
     const hasRecord = record !== null
+    const isEditing = editingDistance === distanceValue
 
     return (
       <motion.div
@@ -230,60 +213,155 @@ export default function RecordsPage() {
         transition={{ duration: 0.4 }}
         className={className}
       >
-        <Card
-          className={`h-full group cursor-pointer transition-all duration-200 hover:shadow-lg ${
-            hasRecord ? 'border-foreground/10' : 'border-dashed'
-          }`}
-          onClick={() => startEdit(distanceValue)}
-        >
-          <CardContent className="p-4 h-full flex flex-col justify-between">
-            {/* Header */}
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className={`font-bold ${isLarge ? 'text-lg' : 'text-sm'}`}>
-                  {distanceInfo.label}
-                </h3>
-                {!isLarge && (
-                  <p className="text-xs text-muted-foreground">{distanceInfo.km} km</p>
-                )}
-              </div>
-              <Award className={`${isLarge ? 'h-5 w-5' : 'h-4 w-4'} text-muted-foreground`} />
-            </div>
-
-            {/* Content */}
-            {hasRecord ? (
-              <div className="space-y-1">
-                {/* Time */}
-                <div className={`font-bold ${isLarge ? 'text-4xl' : 'text-2xl'}`}>
-                  {record.time_display}
+        <FlipCard
+          isFlipped={isEditing}
+          onFlip={(flipped) => {
+            if (flipped && !isEditing) {
+              startEdit(distanceValue)
+            }
+            if (!flipped && isEditing) {
+              cancelEdit()
+            }
+          }}
+          className="h-full"
+          front={(
+            <Card
+              className={`h-full group transition-all duration-150 hover:shadow-lg ${
+                hasRecord ? 'border-foreground/10' : 'border-dashed'
+              } ${isEditing ? 'ring-2 ring-emerald-500/70' : ''}`}
+            >
+              <CardContent className="p-4 h-full flex flex-col justify-between">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className={`font-bold ${isLarge ? 'text-lg' : 'text-sm'}`}>
+                      {distanceInfo.label}
+                    </h3>
+                    {!isLarge && (
+                      <p className="text-xs text-muted-foreground">{distanceInfo.km} km</p>
+                    )}
+                  </div>
+                  <Award className={`${isLarge ? 'h-5 w-5' : 'h-4 w-4'} text-muted-foreground`} />
                 </div>
 
-                {/* Pace */}
-                <div className="text-xs text-muted-foreground font-mono">
-                  {calculatePace(record.time_seconds, distanceInfo.km)}
-                </div>
-
-                {/* Date - always show */}
-                {record.date_achieved && (
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground pt-1">
-                    <Calendar className="h-3 w-3" />
-                    <span>
-                      {new Date(record.date_achieved).toLocaleDateString('fr-FR', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric'
-                      })}
-                    </span>
+                {hasRecord ? (
+                  <div className="space-y-1">
+                    <div className={`font-bold ${isLarge ? 'text-4xl' : 'text-2xl'}`}>
+                      {record.time_display}
+                    </div>
+                    <div className="text-xs text-muted-foreground font-mono">
+                      {calculatePace(record.time_seconds, distanceInfo.km)}
+                    </div>
+                    {record.date_achieved && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground pt-1">
+                        <Calendar className="h-3 w-3" />
+                        <span>
+                          {new Date(record.date_achieved).toLocaleDateString('fr-FR', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric'
+                          })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <span className="text-xs text-muted-foreground">Ajouter</span>
                   </div>
                 )}
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <span className="text-xs text-muted-foreground">Ajouter</span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          )}
+          back={(
+            <Card className="h-full" onClick={(e) => e.stopPropagation()}>
+              <CardContent className="p-4 h-full flex flex-col justify-between">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-bold text-lg">{distanceInfo.label}</h3>
+                    <p className="text-xs text-muted-foreground">Modifier le record</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      cancelEdit()
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Minutes</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={formData.minutes}
+                        onChange={(e) => setFormData({ ...formData, minutes: e.target.value })}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <Label>Secondes</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="59"
+                        value={formData.seconds}
+                        onChange={(e) => setFormData({ ...formData, seconds: e.target.value })}
+                        placeholder="00"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Date</Label>
+                    <Input
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Notes (optionnel)</Label>
+                    <Textarea
+                      value={formData.notes}
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      placeholder="Course, conditions, sensations..."
+                      rows={3}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      cancelEdit()
+                    }}
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Annuler
+                  </Button>
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleSave()
+                    }}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    Enregistrer
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        />
       </motion.div>
     )
   }
@@ -346,76 +424,6 @@ export default function RecordsPage() {
         {renderBentoCard('marathon', 'col-span-4 row-span-2', true)}
         </div>
       )}
-
-      {/* Edit Dialog */}
-      <Dialog open={!!editingDistance} onOpenChange={(open) => !open && setEditingDistance(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {getRecordForDistance(editingDistance || '') ? 'Modifier' : 'Ajouter'} un record
-            </DialogTitle>
-            <DialogDescription>
-              {DISTANCES.find(d => d.value === editingDistance)?.label}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Minutes</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={formData.minutes}
-                  onChange={(e) => setFormData({ ...formData, minutes: e.target.value })}
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <Label>Secondes</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="59"
-                  value={formData.seconds}
-                  onChange={(e) => setFormData({ ...formData, seconds: e.target.value })}
-                  placeholder="00"
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label>Date</Label>
-              <Input
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              />
-            </div>
-
-            <div>
-              <Label>Notes (optionnel)</Label>
-              <Textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Course, conditions, sensations..."
-                rows={3}
-              />
-            </div>
-
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setEditingDistance(null)}>
-                <X className="h-4 w-4 mr-2" />
-                Annuler
-              </Button>
-              <Button onClick={handleSave}>
-                <Save className="h-4 w-4 mr-2" />
-                Enregistrer
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Record Celebration */}
       <RecordCelebration

@@ -257,7 +257,7 @@ export default function RecordsPage() {
                 <div>
                   <h3 className={cn(
                     "font-[family-name:var(--font-branch)] font-bold tracking-tight text-lg transition-colors",
-                    isJustSaved && "text-emerald-500"
+                    isJustSaved ? "text-emerald-500 duration-100" : "duration-[3000ms]"
                   )}>
                     {distanceInfo.label}
                   </h3>
@@ -283,7 +283,7 @@ export default function RecordsPage() {
                 <div className="space-y-1">
                   <div className={cn(
                     "font-[family-name:var(--font-jetbrains)] font-bold tabular-nums tracking-tighter leading-none text-3xl transition-colors",
-                    isJustSaved && "text-emerald-500"
+                    isJustSaved ? "text-emerald-500 duration-100" : "duration-[3000ms]"
                   )}>
                     {record.time_display}
                   </div>
@@ -313,22 +313,23 @@ export default function RecordsPage() {
           </motion.div>
 
           <motion.div
-            className="absolute inset-0 w-full h-full overflow-hidden border border-foreground/10 bg-background rounded-xl shadow-xl"
+            className="absolute inset-0 w-full h-full overflow-hidden border border-foreground/10 bg-background/60 backdrop-blur-xl rounded-xl shadow-xl"
             style={{
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
               transformStyle: 'preserve-3d'
             }}
+            initial={{ rotateY: 180 }}
             animate={{ rotateY: isFlipped ? 360 : 180 }}
             transition={{ duration: 0.6, ease: "easeInOut" }}
           >
-            <div className="p-4 h-full flex flex-col gap-3">
-              <div className="flex items-center justify-between border-b border-border/50 pb-2">
+            <div className="p-4 h-full flex flex-col gap-2">
+              <div className="flex items-center justify-between border-b border-foreground/5 pb-2">
                 <span className="font-[family-name:var(--font-branch)] text-sm font-bold">{distanceInfo.label}</span>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 -mr-2 hover:bg-transparent text-muted-foreground hover:text-foreground"
+                  className="h-6 w-6 -mr-2 hover:bg-foreground/5 text-muted-foreground hover:text-foreground"
                   onClick={(e) => {
                     e.stopPropagation()
                     setEditingDistance(null)
@@ -345,21 +346,21 @@ export default function RecordsPage() {
                       type="number"
                       value={formData.minutes}
                       onChange={(e) => setFormData({ ...formData, minutes: e.target.value })}
-                      className="h-10 w-16 text-center font-mono text-lg p-0 border-border/50 bg-transparent focus-visible:ring-0 focus-visible:border-foreground"
+                      className="h-9 w-14 text-center font-[family-name:var(--font-jetbrains)] text-lg p-0 border-foreground/10 bg-foreground/5 focus-visible:ring-0 focus-visible:border-foreground/30 placeholder:text-muted-foreground/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       placeholder="0"
                     />
-                    <span className="text-[10px] text-muted-foreground uppercase">Min</span>
+                    <span className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">Min</span>
                   </div>
-                  <span className="text-xl font-mono pb-3">:</span>
+                  <span className="text-lg font-[family-name:var(--font-jetbrains)] pb-4 text-muted-foreground/40">:</span>
                   <div className="flex flex-col items-center gap-1">
                     <Input
                       type="number"
                       value={formData.seconds}
                       onChange={(e) => setFormData({ ...formData, seconds: e.target.value })}
-                      className="h-10 w-16 text-center font-mono text-lg p-0 border-border/50 bg-transparent focus-visible:ring-0 focus-visible:border-foreground"
+                      className="h-9 w-14 text-center font-[family-name:var(--font-jetbrains)] text-lg p-0 border-foreground/10 bg-foreground/5 focus-visible:ring-0 focus-visible:border-foreground/30 placeholder:text-muted-foreground/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       placeholder="00"
                     />
-                    <span className="text-[10px] text-muted-foreground uppercase">Sec</span>
+                    <span className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">Sec</span>
                   </div>
                 </div>
 
@@ -367,7 +368,7 @@ export default function RecordsPage() {
                   type="date"
                   value={formData.date}
                   onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  className="h-8 text-xs text-center border-border/50 bg-transparent focus-visible:ring-0 focus-visible:border-foreground"
+                  className="h-8 text-xs text-center border-foreground/10 bg-foreground/5 focus-visible:ring-0 focus-visible:border-foreground/30 font-[family-name:var(--font-outfit)]"
                 />
               </div>
 
@@ -376,7 +377,7 @@ export default function RecordsPage() {
                   e.stopPropagation()
                   handleSave()
                 }}
-                className="w-full h-8 text-xs font-medium bg-foreground text-background hover:bg-foreground/90"
+                className="w-full h-8 text-xs font-medium bg-foreground text-background hover:bg-foreground/90 shadow-sm"
               >
                 Enregistrer
               </Button>

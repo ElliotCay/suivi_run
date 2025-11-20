@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import Confetti from 'react-confetti'
 import { useWindowSize } from 'react-use'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Trophy } from 'lucide-react'
 
@@ -44,12 +44,15 @@ export default function RecordCelebration({ open, onClose, record }: RecordCeleb
           tweenDuration={5000}
         />
       )}
-      <DialogContent className="sm:max-w-md">
+      <DialogContent
+        overlayClassName="bg-background/60 backdrop-blur-xl"
+        className="sm:max-w-md border border-foreground/15 bg-background/95 shadow-[0_20px_60px_rgba(0,0,0,0.35)] backdrop-blur-2xl"
+      >
         <div className="flex flex-col items-center text-center p-6">
           <Trophy className="h-16 w-16 text-yellow-500 mb-4 animate-bounce" />
-          <h2 className="text-2xl font-bold mb-2">
+          <DialogTitle className="text-2xl font-bold mb-2">
             🎉 Nouveau Record !
-          </h2>
+          </DialogTitle>
           <p className="text-lg mb-2 font-bold">
             {record.distance} en {record.newTime}
           </p>

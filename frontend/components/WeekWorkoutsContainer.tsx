@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { memo, useState, useEffect, useCallback, useMemo } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -42,7 +42,7 @@ interface WeekWorkoutsContainerProps {
   onComplete: (id: number) => void
 }
 
-export function WeekWorkoutsContainer({
+export const WeekWorkoutsContainer = memo(function WeekWorkoutsContainer({
   weekNumber,
   workouts,
   workoutTypeLabels,
@@ -52,8 +52,11 @@ export function WeekWorkoutsContainer({
 }: WeekWorkoutsContainerProps) {
   const [expandedWorkouts, setExpandedWorkouts] = useState<Set<number>>(new Set())
   const [activeId, setActiveId] = useState<number | null>(null)
+  const api = useMemo(() => axios.create({
+    baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000'
+  }), [])
 
-  const toggleExpanded = (workoutId: number) => {
+  const toggleExpanded = useCallback((workoutId: number) => {
     setExpandedWorkouts(prev => {
       const newSet = new Set(prev)
       if (newSet.has(workoutId)) {
@@ -63,7 +66,7 @@ export function WeekWorkoutsContainer({
       }
       return newSet
     })
-  }
+  }, [])
 
   const [items, setItems] = useState(workouts)
 
@@ -72,11 +75,11 @@ export function WeekWorkoutsContainer({
     setItems(workouts)
   }, [workouts])
 
-  const handleDragStart = (event: DragStartEvent) => {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id as number)
-  }
+  }, [])
 
-  const handleDragEnd = async (event: DragEndEvent) => {
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event
     setActiveId(null)
 
@@ -123,16 +126,12 @@ export function WeekWorkoutsContainer({
     }
 
     try {
-      console.log('Swapping workouts:', workout1.id, workout2.id)
-      const response = await axios.post('http://127.0.0.1:8000/api/training/swap-workout-dates', {
+      await api.post('/api/training/swap-workout-dates', {
         workout_1_id: workout1.id,
         workout_2_id: workout2.id
       })
-      console.log('Swap response:', response.data)
-
       toast.success(`📅 Séances échangées : ${workout1.workout_type} ↔ ${workout2.workout_type}`)
-      // Don't reload - the optimistic update is already applied
-      // This prevents scrolling to top and unnecessary API calls
+      onWorkoutsSwapped?.()
     } catch (error: any) {
       console.error('Error swapping workouts:', error)
       const errorMsg = error?.response?.data?.detail || 'Erreur lors de l\'échange'
@@ -140,7 +139,7 @@ export function WeekWorkoutsContainer({
       // Revert on error
       setItems(items)
     }
-  }
+  }, [api, items, onWorkoutsSwapped])
 
   const activeWorkout = workouts.find(w => w.id === activeId)
 
@@ -193,4 +192,4 @@ export function WeekWorkoutsContainer({
       )}
     </div>
   )
-}
+})

@@ -110,6 +110,7 @@ async def create_personal_record(
     Create or update a personal record.
 
     If a better time is submitted, the old record is marked as superseded.
+    If the same time is submitted, we simply update the date/notes.
     """
     # Check if there's an existing current record for this distance
     existing_record = db.query(PersonalRecord).filter(
@@ -119,10 +120,29 @@ async def create_personal_record(
     ).first()
 
     # If exists and new time is worse, don't update
-    if existing_record and record.time_seconds >= existing_record.time_seconds:
+    if existing_record and record.time_seconds > existing_record.time_seconds:
         raise HTTPException(
             status_code=400,
             detail=f"Le temps saisi ({format_time(record.time_seconds)}) n'est pas meilleur que le record actuel ({format_time(existing_record.time_seconds)})"
+        )
+
+    # If exists and time is the same, update metadata only (date/notes)
+    if existing_record and record.time_seconds == existing_record.time_seconds:
+        existing_record.date_achieved = record.date_achieved
+        existing_record.notes = record.notes
+        db.commit()
+        db.refresh(existing_record)
+        logger.info(f"Updated record metadata for {record.distance} with same time {format_time(record.time_seconds)}")
+        return PersonalRecordResponse(
+            id=existing_record.id,
+            distance=existing_record.distance,
+            time_seconds=existing_record.time_seconds,
+            time_display=format_time(existing_record.time_seconds),
+            date_achieved=existing_record.date_achieved,
+            is_current=bool(existing_record.is_current),
+            notes=existing_record.notes,
+            created_at=existing_record.created_at,
+            superseded_at=existing_record.superseded_at
         )
 
     # If exists and new time is better, mark old as superseded

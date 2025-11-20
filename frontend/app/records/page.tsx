@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import axios from 'axios'
-import { Award, Calendar, X, Save, Trophy, Plus } from 'lucide-react'
+import { Award, Plus, Trophy, X } from 'lucide-react'
 import { toast } from 'sonner'
 import EmptyState from '@/components/EmptyState'
 import RecordCelebration from '@/components/RecordCelebration'
@@ -149,11 +149,9 @@ export default function RecordsPage() {
         notes: formData.notes || null
       })
 
-      // Check if it's a new record (better time)
       const isNewRecord = !currentRecord || timeSeconds < currentRecord.time_seconds
 
       if (isNewRecord) {
-        // Format times for display
         const newMinutes = Math.floor(timeSeconds / 60)
         const newSeconds = timeSeconds % 60
         const newTimeDisplay = `${newMinutes}:${newSeconds.toString().padStart(2, '0')}`
@@ -174,7 +172,6 @@ export default function RecordsPage() {
             : `${impSeconds}s`
         }
 
-        // Show celebration
         setCelebration({
           open: true,
           record: {
@@ -186,7 +183,6 @@ export default function RecordsPage() {
         })
       } else {
         toast.success('Record enregistré')
-        // Trigger Green Flash only for normal saves (celebration covers new records)
         setSavedId(formData.distance)
         setTimeout(() => setSavedId(null), 2000)
       }
@@ -198,7 +194,6 @@ export default function RecordsPage() {
     }
   }
 
-  // Find best PR for hero section
   const bestPR = records.reduce((best, record) => {
     if (!best) return record
     const distanceInfo = DISTANCES.find(d => d.value === record.distance)
@@ -212,7 +207,6 @@ export default function RecordsPage() {
 
   const bestDistanceInfo = bestPR ? DISTANCES.find(d => d.value === bestPR.distance) : null
 
-  // Find the most recent record date
   const mostRecentDate = records.length > 0
     ? records.reduce((latest, record) => {
       const recordDate = new Date(record.date_achieved)
@@ -220,7 +214,6 @@ export default function RecordsPage() {
     }, new Date(records[0].date_achieved))
     : null
 
-  // Render a record card (Flip Interaction)
   const renderRecordCard = (distanceValue: string, className: string) => {
     const distanceInfo = DISTANCES.find(d => d.value === distanceValue)
     if (!distanceInfo) return null
@@ -230,37 +223,32 @@ export default function RecordsPage() {
     const isFlipped = editingDistance === distanceValue
     const isJustSaved = savedId === distanceValue
 
-    // Check if this record was achieved on the most recent date
     const isNew = record && mostRecentDate && (() => {
       const recordDate = new Date(record.date_achieved)
       return recordDate.toDateString() === mostRecentDate.toDateString()
     })()
 
-    // Should we show the KM label? Only for Semi and Marathon
     const showKmLabel = distanceValue === 'semi' || distanceValue === 'marathon'
 
     return (
-      <div className={cn("perspective-1000", className)} key={distanceValue}>
-        <motion.div
-          className="relative w-full h-full transition-all duration-300 preserve-3d overflow-hidden"
-          animate={{ rotateY: isFlipped ? 180 : 0 }}
-          transition={{ duration: 0.3, ease: "easeInOut" }}
-        >
-          {/* FRONT FACE */}
-          <div
+      <div className={cn("relative perspective-1000", className)} key={distanceValue}>
+        <div className="relative z-10 w-full h-full overflow-hidden rounded-xl preserve-3d" style={{ transformStyle: 'preserve-3d' }}>
+          <motion.div
             className={cn(
-              "absolute inset-0 backface-hidden w-full h-full overflow-hidden border transition-all duration-500 cursor-pointer group rounded-xl",
+              "absolute inset-0 w-full h-full overflow-hidden cursor-pointer group rounded-xl border border-foreground/10",
               hasRecord
-                ? "bg-background/40 hover:bg-background/60 border-foreground/10 hover:border-foreground/20 shadow-sm"
-                : "bg-transparent border-dashed border-muted hover:border-muted-foreground/50 hover:bg-muted/5",
-              isJustSaved && "border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_30px_-5px_rgba(16,185,129,0.3)]",
-              isFlipped ? "opacity-0 pointer-events-none" : "opacity-100"
+                ? "bg-background/40 hover:bg-background/60 shadow-sm"
+                : "bg-transparent hover:bg-muted/5"
             )}
             style={{
               backdropFilter: 'blur(12px)',
               WebkitBackdropFilter: 'blur(12px)',
-              transform: 'rotateY(0deg)',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+              transformStyle: 'preserve-3d'
             }}
+            animate={{ rotateY: isFlipped ? 180 : 0 }}
+            transition={{ duration: 0.6, ease: "easeInOut" }}
             onClick={() => startEdit(distanceValue)}
           >
             <div className="relative z-10 p-5 h-full flex flex-col justify-between">
@@ -291,7 +279,6 @@ export default function RecordsPage() {
                 )}
               </div>
 
-              {/* Main Content */}
               {hasRecord ? (
                 <div className="space-y-1">
                   <div className={cn(
@@ -323,17 +310,17 @@ export default function RecordsPage() {
                 </div>
               )}
             </div>
-          </div>
+          </motion.div>
 
-          {/* BACK FACE (EDIT FORM) */}
-          <div
-            className={cn(
-              "absolute inset-0 backface-hidden w-full h-full overflow-hidden border border-foreground/10 bg-background rounded-xl rotate-y-180 shadow-xl transition-opacity",
-              isFlipped ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-            )}
+          <motion.div
+            className="absolute inset-0 w-full h-full overflow-hidden border border-foreground/10 bg-background rounded-xl shadow-xl"
             style={{
-              transform: 'rotateY(180deg)'
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+              transformStyle: 'preserve-3d'
             }}
+            animate={{ rotateY: isFlipped ? 360 : 180 }}
+            transition={{ duration: 0.6, ease: "easeInOut" }}
           >
             <div className="p-4 h-full flex flex-col gap-3">
               <div className="flex items-center justify-between border-b border-border/50 pb-2">
@@ -352,7 +339,6 @@ export default function RecordsPage() {
               </div>
 
               <div className="flex-1 flex flex-col justify-center gap-3">
-                {/* Time Inputs */}
                 <div className="flex items-end gap-2 justify-center">
                   <div className="flex flex-col items-center gap-1">
                     <Input
@@ -377,7 +363,6 @@ export default function RecordsPage() {
                   </div>
                 </div>
 
-                {/* Date Input */}
                 <Input
                   type="date"
                   value={formData.date}
@@ -396,15 +381,14 @@ export default function RecordsPage() {
                 Enregistrer
               </Button>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="space-y-8 pb-20">
-      {/* Add global styles for 3D transforms */}
       <style jsx global>{`
         .perspective-1000 {
           perspective: 1000px;
@@ -420,7 +404,6 @@ export default function RecordsPage() {
         }
       `}</style>
 
-      {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -434,7 +417,6 @@ export default function RecordsPage() {
         </p>
       </motion.div>
 
-      {/* Loading State */}
       {loading ? (
         <div className="flex items-center justify-center h-96">
           <div className="relative">
@@ -455,21 +437,16 @@ export default function RecordsPage() {
           }}
         />
       ) : (
-        /* Dynamic Grid Layout (No Holes) */
         <div className="grid grid-cols-12 gap-4">
-          {/* Row 1: Short Distances (3 items -> span 4) */}
           {DISTANCES.slice(0, 3).map(distance =>
             renderRecordCard(distance.value, "col-span-12 md:col-span-4 h-[200px]")
           )}
-
-          {/* Row 2: Long Distances (4 items -> span 3) */}
           {DISTANCES.slice(3).map(distance =>
             renderRecordCard(distance.value, "col-span-12 md:col-span-3 h-[200px]")
           )}
         </div>
       )}
 
-      {/* Record Celebration */}
       <RecordCelebration
         open={celebration.open}
         onClose={() => setCelebration({ ...celebration, open: false })}

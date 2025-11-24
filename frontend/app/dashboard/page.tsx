@@ -205,7 +205,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="container mx-auto py-8">
-        <h1 className="text-3xl font-bold mb-6">Tableau de bord</h1>
+        <h1 className="text-6xl font-serif font-bold tracking-tight mb-6">Dashboard</h1>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {[1, 2, 3, 4].map(i => (
             <Card key={i}>
@@ -235,7 +235,7 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6">
         <div className="space-y-2">
-          <h1 className="text-6xl font-bold tracking-tight">
+          <h1 className="text-6xl font-serif font-bold tracking-tight">
             Dashboard
           </h1>
           <p className="text-base text-muted-foreground">

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/sonner';
-import TopNav from '@/components/TopNav';
+import Navigation from '@/components/Navigation';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { MissingFeedbackModal } from '@/components/missing-feedback-modal';
 import { ScrollToTop } from '@/components/ScrollToTop';
@@ -67,7 +67,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <ScrollToTop />
-          <TopNav />
+          <Navigation />
           <main className="min-h-screen mt-6">
             <div className="container mx-auto p-8 max-w-7xl">
               {children}

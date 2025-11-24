@@ -4,7 +4,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, Circle, Calendar } from 'lucide-react'
+import { CheckCircle, Circle, Calendar, ChevronDown, ChevronUp } from 'lucide-react'
 import { formatPace } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -86,11 +86,12 @@ export function DraggableWorkoutCard({
         layout
         {...attributes}
         {...listeners}
+        onClick={() => onExpandToggle(workout.id)}
         className={`
           relative mb-4 overflow-hidden rounded-xl transition-all duration-300
           border border-white/10
           bg-white/5 backdrop-blur-xl bg-noise
-          ${isDragging ? 'opacity-0' : 'cursor-grab hover:shadow-lg hover:bg-white/10'}
+          ${isDragging ? 'opacity-0' : 'cursor-pointer hover:shadow-lg hover:bg-white/10'}
           group-hover:border-white/20
         `}
       >
@@ -171,20 +172,11 @@ export function DraggableWorkoutCard({
                 )}
               </div>
 
-              {/* Expand button for description */}
+              {/* Expand button for description - Chevron icon */}
               {workout.description && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onExpandToggle(workout.id)
-                  }}
-                  className="mt-3 h-auto p-0 text-xs text-muted-foreground hover:text-foreground cursor-pointer font-medium"
-                >
-                  {isExpanded ? 'Masquer les détails' : 'Voir les détails'}
-                </Button>
+                <div className="absolute right-4 top-4 text-muted-foreground/50">
+                  {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                </div>
               )}
 
               {/* Description (expanded) */}

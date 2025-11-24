@@ -1,64 +1,97 @@
 'use client'
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { cn } from '@/lib/utils'
-import { Home, Activity, BarChart3, Sparkles, User, Upload, Award, Settings, Calendar, CalendarDays } from 'lucide-react'
-import { ThemeToggle } from '@/components/ThemeToggle'
-import Image from 'next/image'
+import { useState, useEffect } from 'react'
+import Navbar from './Navbar'
+import { Button } from '@/components/ui/button'
+import { LayoutTemplate, MonitorPlay, History, Minimize } from 'lucide-react'
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
-  { href: '/workouts', label: 'Séances', icon: Activity },
-  { href: '/records', label: 'Records', icon: Award },
-  { href: '/training-block', label: 'Bloc 4 sem.', icon: CalendarDays },
-  { href: '/suggestions', label: 'Coach AI', icon: Sparkles },
-  { href: '/settings', label: 'Plus', icon: Settings },
-]
+type NavbarStyle = 'floating' | 'floating-compact' | 'classic'
+const NAVBAR_STORAGE_KEY = 'navbar-preference'
+const isNavbarStyle = (value: any): value is NavbarStyle =>
+  value === 'floating' || value === 'floating-compact' || value === 'classic'
 
 export default function Navigation() {
-  const pathname = usePathname()
+  // Default to floating (Concept 1) as recommended
+  const [activeDesign, setActiveDesign] = useState<NavbarStyle>('floating')
+  const [mounted, setMounted] = useState(false)
+
+  const persistNavbarStyle = (style: NavbarStyle) => {
+    setActiveDesign(style)
+    localStorage.setItem(NAVBAR_STORAGE_KEY, style)
+    window.dispatchEvent(new CustomEvent('navbar-preference-change', { detail: style }))
+  }
+
+  useEffect(() => {
+    setMounted(true)
+    // Try to restore preference from local storage
+    const saved = localStorage.getItem(NAVBAR_STORAGE_KEY)
+    if (isNavbarStyle(saved)) {
+      setActiveDesign(saved)
+    }
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === NAVBAR_STORAGE_KEY && isNavbarStyle(event.newValue)) {
+        setActiveDesign(event.newValue)
+      }
+    }
+
+    const handleCustomEvent = (event: Event) => {
+      const detail = (event as CustomEvent<string>).detail
+      if (isNavbarStyle(detail)) {
+        setActiveDesign(detail)
+      }
+    }
+
+    window.addEventListener('storage', handleStorage)
+    window.addEventListener('navbar-preference-change', handleCustomEvent)
+
+    return () => {
+      window.removeEventListener('storage', handleStorage)
+      window.removeEventListener('navbar-preference-change', handleCustomEvent)
+    }
+  }, [])
+
+  const toggleDesign = () => {
+    let newDesign: NavbarStyle
+
+    if (activeDesign === 'floating') newDesign = 'floating-compact'
+    else if (activeDesign === 'floating-compact') newDesign = 'classic'
+    else newDesign = 'floating'
+
+    persistNavbarStyle(newDesign)
+  }
+
+  if (!mounted) return null
 
   return (
-    <nav className="border-b bg-background">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Image
-              src="/favicon.ico"
-              alt="Logo"
-              width={24}
-              height={24}
-              className="h-6 w-6"
-            />
-            <span className="text-xl font-bold">StrideAI</span>
-          </div>
+    <>
+      <Navbar mode={activeDesign} />
 
-          <div className="flex items-center gap-1">
-            {navItems.map((item) => {
-              const Icon = item.icon
-              const isActive = pathname === item.href
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span className="hidden sm:inline">{item.label}</span>
-                </Link>
-              )
-            })}
-            <ThemeToggle />
-          </div>
-        </div>
+      {/* Dev Toggle Button */}
+      <div className="fixed bottom-6 right-6 z-[9999]">
+        <Button
+          onClick={toggleDesign}
+          size="sm"
+          className="bg-blue-600 text-white hover:bg-blue-700 shadow-2xl border-2 border-white/20 gap-2"
+        >
+          {activeDesign === 'floating' ? (
+            <>
+              <Minimize className="h-4 w-4" />
+              <span>Switch to Compact</span>
+            </>
+          ) : activeDesign === 'floating-compact' ? (
+            <>
+              <History className="h-4 w-4" />
+              <span>Switch to Classic</span>
+            </>
+          ) : (
+            <>
+              <MonitorPlay className="h-4 w-4" />
+              <span>Switch to Floating</span>
+            </>
+          )}
+        </Button>
       </div>
-    </nav>
+    </>
   )
 }

@@ -320,7 +320,7 @@ export default function SuggestionsPage() {
       {/* Minimal Header */}
       <div className="flex justify-between items-start">
         <div className="space-y-2">
-          <h1 className="text-6xl font-bold tracking-tight">
+          <h1 className="text-6xl font-serif font-bold tracking-tight">
             Suggestions
           </h1>
           <p className="text-base text-muted-foreground">

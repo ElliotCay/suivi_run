@@ -9,7 +9,6 @@ import { Upload, Edit2, Plus, X } from 'lucide-react'
 import { ThemeSwitcherCard } from '@/components/ThemeSwitcherCard'
 import { useProfile, useTrainingPreferences } from '@/hooks/useProfile'
 import { useShoes, type Shoe, type ShoeCreate } from '@/hooks/useShoes'
-import { useTheme } from 'next-themes'
 import { ImageCropDialog } from '@/components/ImageCropDialog'
 import {
   Dialog,
@@ -21,6 +20,7 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { NavbarStyleCard, type NavbarStyle } from '@/components/NavbarStyleCard'
 
 const DAYS = [
   { value: 'monday', label: 'Lun' },
@@ -36,7 +36,6 @@ export default function SettingsPage() {
   const { profile, loading: profileLoading, updateProfile, uploadProfilePicture } = useProfile()
   const { preferences, updatePreferences } = useTrainingPreferences()
   const { shoes, loading: shoesLoading, createShoe, updateShoe, deleteShoe, reload: reloadShoes } = useShoes(true)
-  const { theme, setTheme } = useTheme()
 
   // Edit mode
   const [isEditingProfile, setIsEditingProfile] = useState(false)
@@ -75,6 +74,8 @@ export default function SettingsPage() {
   // Prevent hydration mismatch for theme-dependent elements
   const [mounted, setMounted] = useState(false)
 
+  // Navbar preference
+  const [navbarStyle, setNavbarStyle] = useState<NavbarStyle>('floating')
 
   useEffect(() => {
     setMounted(true)
@@ -116,6 +117,18 @@ export default function SettingsPage() {
       setPreferredTime(preferences.preferred_time || '18:00')
     }
   }, [preferences])
+
+  // Load navbar preference
+  useEffect(() => {
+    if (!mounted) return
+    const saved = localStorage.getItem('navbar-preference')
+    if (saved === 'floating' || saved === 'floating-compact' || saved === 'classic') {
+      setNavbarStyle(saved)
+    } else {
+      localStorage.setItem('navbar-preference', 'floating')
+      setNavbarStyle('floating')
+    }
+  }, [mounted])
 
   const handleSaveProfile = async () => {
     setSavingProfile(true)
@@ -237,6 +250,12 @@ export default function SettingsPage() {
     }
   }
 
+  const handleNavbarStyleChange = (style: NavbarStyle) => {
+    setNavbarStyle(style)
+    localStorage.setItem('navbar-preference', style)
+    window.dispatchEvent(new CustomEvent('navbar-preference-change', { detail: style }))
+  }
+
   const handlePictureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -283,7 +302,7 @@ export default function SettingsPage() {
     <div className="space-y-12 pb-20">
       {/* Header */}
       <div className="space-y-3">
-        <h1 className="text-6xl font-bold tracking-tight">
+        <h1 className="text-6xl font-serif font-bold tracking-tight">
           Réglages
         </h1>
         <p className="text-lg text-muted-foreground">
@@ -578,6 +597,10 @@ export default function SettingsPage() {
         <h3 className="text-2xl font-bold">Apparence</h3>
 
         <ThemeSwitcherCard />
+        <NavbarStyleCard
+          activeStyle={navbarStyle}
+          onChange={handleNavbarStyleChange}
+        />
       </div>
 
       {/* Image Crop Dialog */}

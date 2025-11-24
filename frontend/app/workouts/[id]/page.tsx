@@ -141,16 +141,18 @@ export default function WorkoutDetailPage() {
           ← Retour
         </Button>
 
-        <Button
-          onClick={() => setAnalysisModalOpen(true)}
-          className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-        >
-          <MessageCircle className="mr-2 h-4 w-4" />
-          💬 Analyser avec Claude
-        </Button>
-      </div>
+      <Button
+        onClick={() => setAnalysisModalOpen(true)}
+        className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+      >
+        <MessageCircle className="mr-2 h-4 w-4" />
+        💬 Analyser avec Claude
+      </Button>
+    </div>
 
-      <h1 className="text-3xl font-bold mb-6">{formatDate(workout.date)}</h1>
+    <h1 className="text-6xl font-serif font-bold tracking-tight mb-6">
+      {formatDate(workout.date)}
+    </h1>
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>

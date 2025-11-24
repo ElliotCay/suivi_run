@@ -259,14 +259,7 @@ export default function Home() {
               className="mb-8 flex items-center justify-center"
             >
               <div className="relative flex items-center gap-2">
-                <Image
-                  src="/chatgpt-runner-mono.png"
-                  alt="allure"
-                  width={50}
-                  height={50}
-                  className="brightness-0 invert"
-                />
-                <h1 className="text-3xl md:text-4xl font-[family-name:var(--font-branch)] text-white">
+                <h1 className="text-6xl md:text-7xl font-[family-name:var(--font-branch)] text-white">
                   allure
                 </h1>
               </div>
@@ -499,7 +492,7 @@ export default function Home() {
                         <Target className="h-4 w-4 text-white" />
                         <span className="text-sm font-medium text-white">Votre potentiel</span>
                       </div>
-                      <h2 className="text-3xl md:text-4xl font-bold mb-2 text-white">
+                      <h2 className="text-3xl md:text-4xl font-serif font-bold mb-2 text-white">
                         Marge de progression détectée
                       </h2>
                       <p className="text-white/80">

@@ -119,7 +119,7 @@ export default function TrainingPlanDetailPage() {
       {/* En-tête */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-3xl font-bold">{plan.name}</h1>
+          <h1 className="text-6xl font-serif font-bold tracking-tight">{plan.name}</h1>
           <Badge variant={plan.status === "active" ? "default" : "secondary"}>
             {plan.status === "active" ? "Actif" : plan.status === "completed" ? "Terminé" : "Brouillon"}
           </Badge>

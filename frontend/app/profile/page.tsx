@@ -275,7 +275,7 @@ export default function ProfilePage() {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-2"
       >
-        <h1 className="text-6xl font-bold tracking-tight">
+        <h1 className="text-6xl font-serif font-bold tracking-tight">
           Profil
         </h1>
         <p className="text-base text-foreground">

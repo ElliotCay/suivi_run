@@ -48,7 +48,8 @@ Our typography is a "Tech-Couture" blend: High-performance sport meets high-end 
 *   **Usage**: `font-branch` (with forced ligatures)
 
 ## Color Palette & Materials
-*   **Glass**: `bg-white/5` to `bg-white/10` with `backdrop-blur-xl`
+*   **Glass**: Standard `bg-white/5` to `bg-white/10` with `backdrop-blur-xl`.
+*   **Super Glass**: For high-priority overlays (Navbar, Floating UI), use `backdrop-blur(40px) saturate(150%)` with subtle inner shadow (`inset 0 1px 0 0 rgba(255, 255, 255, 0.1)`).
 *   **Borders**: Ultra-thin `border-white/10` for subtle definition.
 *   **Gradients**: The "Allure Gradient" (Pink/Purple/Blue) is used sparingly for accents and "living" elements.
 *   **Noise**: A subtle grain texture (`bg-noise`) adds tactility to the glass.

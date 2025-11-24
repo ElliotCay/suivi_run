@@ -256,7 +256,7 @@ export default function RecordsPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className={cn(
-                    "font-[family-name:var(--font-branch)] font-bold tracking-tight text-lg transition-colors",
+                    "font-serif font-bold tracking-tight text-lg transition-colors",
                     isJustSaved ? "text-emerald-500 duration-100" : "duration-[3000ms]"
                   )}>
                     {distanceInfo.label}
@@ -325,7 +325,7 @@ export default function RecordsPage() {
           >
             <div className="p-4 h-full flex flex-col gap-2">
               <div className="flex items-center justify-between border-b border-foreground/5 pb-2">
-                <span className="font-[family-name:var(--font-branch)] text-sm font-bold">{distanceInfo.label}</span>
+                <span className="font-serif text-sm font-bold">{distanceInfo.label}</span>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -410,7 +410,7 @@ export default function RecordsPage() {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-2"
       >
-        <h1 className="text-7xl font-[family-name:var(--font-branch)] font-bold tracking-tight">
+        <h1 className="text-6xl font-serif font-bold tracking-tight">
           Records
         </h1>
         <p className="text-xl text-muted-foreground font-[family-name:var(--font-outfit)] font-light">

@@ -9,7 +9,14 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Input } from "@/components/ui/input"
-import { Loader2, Calendar, CheckCircle, Dumbbell, ChevronDown, ChevronUp, Edit2 } from "lucide-react"
+import { Loader2, Calendar, CheckCircle, Dumbbell, ChevronDown, ChevronUp, Edit2, MoreHorizontal, Trash2 } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { formatPace } from "@/lib/utils"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000"
@@ -129,6 +136,8 @@ const LazyWeekWorkoutsContainer = dynamic(
   () => import("@/components/WeekWorkoutsContainer").then(mod => mod.WeekWorkoutsContainer),
   { ssr: false }
 )
+
+import { TrainingSession } from "@/components/WeekWorkoutsContainer"
 
 export default function TrainingBlockClient({ initialBlock }: TrainingBlockClientProps) {
   const [block, setBlock] = useState<TrainingBlock | null>(initialBlock)
@@ -315,12 +324,53 @@ export default function TrainingBlockClient({ initialBlock }: TrainingBlockClien
 
   const workoutsByWeek = useMemo(() => {
     if (!block) return {}
-    const sorted = [...block.planned_workouts].sort((a, b) =>
-      new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime()
-    )
-    return sorted.reduce<Record<number, PlannedWorkout[]>>((acc, workout) => {
-      if (!acc[workout.week_number]) acc[workout.week_number] = []
-      acc[workout.week_number].push(workout)
+
+    const workouts: TrainingSession[] = block.planned_workouts.map(w => ({ ...w, type: 'workout' }))
+    const reminders: TrainingSession[] = block.strengthening_reminders.map(r => ({ ...r, type: 'strengthening' }))
+
+    const allSessions = [...workouts, ...reminders].sort((a, b) => {
+      // Sort by date
+      const dateA = new Date(a.scheduled_date).getTime()
+      const dateB = new Date(b.scheduled_date).getTime()
+      if (dateA !== dateB) return dateA - dateB
+
+      // If same date, put workouts first
+      if (a.type !== b.type) return a.type === 'workout' ? -1 : 1
+
+      return 0
+    })
+
+    // Helper to get week number from date if not present (for reminders)
+    const getWeekNumber = (dateStr: string) => {
+      const date = new Date(dateStr)
+      const start = new Date(block.start_date)
+      const diffTime = Math.abs(date.getTime() - start.getTime())
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      return Math.ceil(diffDays / 7)
+    }
+
+    return allSessions.reduce<Record<number, TrainingSession[]>>((acc, session) => {
+      // Use existing week_number for workouts, calculate for reminders if needed
+      // Assuming reminders might not have week_number, but if they do, use it.
+      // The interface says reminders don't have week_number, so we calculate it based on block start date
+      // or we can try to match it with a workout on the same day.
+      // Ideally, the backend should provide week_number for reminders too, but let's calculate it relative to block start.
+
+      let week = 1
+      if ('week_number' in session) {
+        week = session.week_number
+      } else {
+        // Simple fallback calculation
+        const sessionDate = new Date(session.scheduled_date)
+        const startDate = new Date(block.start_date)
+        // Adjust to start of week (Monday) to be safe, but simple diff is okay for now
+        const diffTime = sessionDate.getTime() - startDate.getTime()
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+        week = Math.floor(diffDays / 7) + 1
+      }
+
+      if (!acc[week]) acc[week] = []
+      acc[week].push(session)
       return acc
     }, {})
   }, [block])
@@ -388,19 +438,48 @@ export default function TrainingBlockClient({ initialBlock }: TrainingBlockClien
             {block.name} • {phaseLabels[block.phase] || block.phase}
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" onClick={syncToCalendar} disabled={syncingCalendar}>
-            {syncingCalendar ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Synchronisation...</>) : (<><Calendar className="h-4 w-4 mr-2" />Synchroniser calendrier</>)}
-          </Button>
+        <div className="flex items-center gap-2">
           <Button
-            variant="default"
+            variant="outline"
+            onClick={syncToCalendar}
+            disabled={syncingCalendar}
+            className="hidden sm:flex"
+          >
+            {syncingCalendar ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Synchronisation...</>) : (<><Calendar className="h-4 w-4 mr-2" />Synchroniser</>)}
+          </Button>
+
+          <Button
+            variant="outline"
             onClick={completeBlockAndGenerateNext}
             disabled={generatingNextBlock}
-            className="bg-emerald-600 hover:bg-emerald-700"
           >
-            {generatingNextBlock ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Génération...</>) : (<><CheckCircle className="h-4 w-4 mr-2" />Terminer et générer le suivant</>)}
+            {generatingNextBlock ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <CheckCircle className="h-4 w-4 mr-2 text-emerald-600 dark:text-emerald-500" />
+            )}
+            Terminer et générer le suivant
           </Button>
-          <Button variant="destructive" onClick={abandonBlock}>Supprimer le bloc</Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+                <span className="sr-only">Options</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={syncToCalendar} disabled={syncingCalendar} className="sm:hidden">
+                <Calendar className="h-4 w-4 mr-2" />
+                Synchroniser calendrier
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="sm:hidden" />
+              <DropdownMenuItem onClick={abandonBlock} className="text-destructive focus:text-destructive">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Supprimer le bloc
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -465,105 +544,31 @@ export default function TrainingBlockClient({ initialBlock }: TrainingBlockClien
                   <CardTitle className="text-sm font-medium text-muted-foreground">Semaine {week}</CardTitle>
                   <p className="text-xs text-muted-foreground">Séances planifiées</p>
                 </div>
-                <Badge variant="outline">{workouts.length} séances</Badge>
+                <Badge variant="outline">
+                  {workouts.filter(s => s.type === 'workout').length} séances
+                </Badge>
               </div>
             </CardHeader>
             <CardContent>
               <LazyWeekWorkoutsContainer
                 weekNumber={parseInt(week, 10)}
-                workouts={workouts}
+                sessions={workouts}
                 workoutTypeLabels={workoutTypeLabels}
                 workoutTypeColors={workoutTypeColors}
+                strengtheningDetails={strengtheningDetails}
                 onWorkoutsSwapped={() => loadCurrentBlock(false)}
-                onComplete={completeWorkout}
+                onCompleteWorkout={completeWorkout}
+                onCompleteStrengthening={completeStrengthening}
               />
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Strengthening reminders */}
-      {strengthening.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Renforcement & prévention</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {strengthening.map((reminder) => (
-              <div key={reminder.id} className="border rounded-lg p-3 bg-muted/30">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Dumbbell className="h-4 w-4 text-purple-500" />
-                    <div>
-                      <p className="text-sm font-medium">{reminder.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(reminder.scheduled_date).toLocaleDateString("fr-FR", { weekday: 'short', day: 'numeric', month: 'short' })}
-                        &nbsp;• {reminder.session_type}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={reminder.completed ? "default" : "outline"}>
-                      {reminder.completed ? "Terminé" : `${reminder.duration_minutes} min`}
-                    </Badge>
-                    <Button size="sm" variant="ghost" onClick={() => toggleReminder(reminder.id)}>
-                      {expandedReminders.has(reminder.id) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    </Button>
-                    <Button size="sm" onClick={() => completeStrengthening(reminder.id)} disabled={reminder.completed}>
-                      {reminder.completed ? "Déjà fait" : "Marquer fait"}
-                    </Button>
-                  </div>
-                </div>
-                {expandedReminders.has(reminder.id) && (
-                  <div className="mt-3 text-sm text-muted-foreground whitespace-pre-wrap">
-                    {strengtheningDetails[reminder.session_type] || "Routine personnalisée"}
-                  </div>
-                )}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+      {/* Strengthening reminders - REMOVED (now integrated in weekly view) */}
 
       {/* Quick edit dates */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Corrections rapides de date</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {block.planned_workouts.slice(0, 8).map((workout) => (
-            <div key={workout.id} className="flex items-center gap-3 border rounded-lg p-3 bg-muted/20">
-              <div className="flex-1">
-                <p className="text-sm font-semibold">{workout.title}</p>
-                <p className="text-xs text-muted-foreground">
-                  {workoutTypeLabels[workout.workout_type] || workout.workout_type} • {formatPace(workout.target_pace_min, workout.target_pace_max)}
-                </p>
-              </div>
-              {editingWorkoutId === workout.id ? (
-                <>
-                  <Input
-                    type="date"
-                    value={editingDate}
-                    onChange={(e) => setEditingDate(e.target.value)}
-                    className="w-40"
-                  />
-                  <Button size="sm" onClick={() => saveNewDate(workout.id)}>Sauver</Button>
-                  <Button size="sm" variant="ghost" onClick={cancelEditingDate}>Annuler</Button>
-                </>
-              ) : (
-                <>
-                  <Badge variant="outline">
-                    {new Date(workout.scheduled_date).toLocaleDateString("fr-FR", { weekday: 'short', day: 'numeric', month: 'short' })}
-                  </Badge>
-                  <Button size="sm" variant="ghost" onClick={() => startEditingDate(workout.id, workout.scheduled_date)}>
-                    <Edit2 className="h-4 w-4 mr-1" /> Changer la date
-                  </Button>
-                </>
-              )}
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+
     </div>
   )
 }

@@ -54,15 +54,8 @@ export default function TopNav() {
             WebkitBackdropFilter: 'blur(40px) saturate(150%)',
             boxShadow: 'inset 0 1px 0 0 rgba(255, 255, 255, 0.1), 0 10px 30px -10px rgba(0, 0, 0, 0.3)',
           }}>
-            <div className="flex items-center gap-0" style={{ marginLeft: '-3.08px' }}>
-              <Image
-                src="/chatgpt-runner-mono.png"
-                alt="allure runner"
-                width={24}
-                height={24}
-                className={isHomePage || isDark ? "brightness-0 invert" : ""}
-              />
-              <span className={cn("text-base font-[family-name:var(--font-branch)] -ml-1", textClass)}>
+            <div className="flex items-center justify-center h-full px-1">
+              <span className={cn("font-branch text-[1.7rem] font-bold tracking-tight transition-all duration-300 hover:scale-105 lowercase -mt-1", textClass)}>
                 allure
               </span>
             </div>

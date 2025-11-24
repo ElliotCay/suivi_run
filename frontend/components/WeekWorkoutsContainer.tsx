@@ -7,13 +7,18 @@ import {
   DragEndEvent,
   DragOverlay,
   DragStartEvent,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  TouchSensor,
 } from '@dnd-kit/core'
 import {
   SortableContext,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { DraggableWorkoutCard } from './DraggableWorkoutCard'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { DraggableStrengtheningCard } from './DraggableStrengtheningCard'
+import { Card, CardContent } from '@/components/ui/card'
 import axios from 'axios'
 import { toast } from 'sonner'
 
@@ -33,50 +38,87 @@ interface PlannedWorkout {
   completed_workout_id: number | null
 }
 
+interface StrengtheningReminder {
+  id: number
+  scheduled_date: string
+  day_of_week: string
+  session_type: string
+  title: string
+  duration_minutes: number
+  completed: boolean
+}
+
+export type TrainingSession =
+  | ({ type: 'workout' } & PlannedWorkout)
+  | ({ type: 'strengthening' } & StrengtheningReminder)
+
 interface WeekWorkoutsContainerProps {
   weekNumber: number
-  workouts: PlannedWorkout[]
+  sessions: TrainingSession[]
   workoutTypeLabels: Record<string, string>
   workoutTypeColors: Record<string, string>
+  strengtheningDetails: Record<string, string>
   onWorkoutsSwapped: () => void
-  onComplete: (id: number) => void
+  onCompleteWorkout: (id: number) => void
+  onCompleteStrengthening: (id: number) => void
 }
 
 export const WeekWorkoutsContainer = memo(function WeekWorkoutsContainer({
   weekNumber,
-  workouts,
+  sessions,
   workoutTypeLabels,
   workoutTypeColors,
+  strengtheningDetails,
   onWorkoutsSwapped,
-  onComplete
+  onCompleteWorkout,
+  onCompleteStrengthening
 }: WeekWorkoutsContainerProps) {
-  const [expandedWorkouts, setExpandedWorkouts] = useState<Set<number>>(new Set())
-  const [activeId, setActiveId] = useState<number | null>(null)
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
+  const [activeId, setActiveId] = useState<string | null>(null)
+
   const api = useMemo(() => axios.create({
     baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000'
   }), [])
 
-  const toggleExpanded = useCallback((workoutId: number) => {
-    setExpandedWorkouts(prev => {
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 5,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 5,
+      },
+    })
+  )
+
+  const toggleExpanded = useCallback((itemId: string) => {
+    setExpandedItems(prev => {
       const newSet = new Set(prev)
-      if (newSet.has(workoutId)) {
-        newSet.delete(workoutId)
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId)
       } else {
-        newSet.add(workoutId)
+        newSet.add(itemId)
       }
       return newSet
     })
   }, [])
 
-  const [items, setItems] = useState(workouts)
+  const [items, setItems] = useState(sessions)
 
   // Sync local state when props change
   useEffect(() => {
-    setItems(workouts)
-  }, [workouts])
+    setItems(sessions)
+  }, [sessions])
+
+  const getDndId = (session: TrainingSession) =>
+    session.type === 'workout' ? session.id : `strengthening-${session.id}`
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveId(event.active.id as number)
+    setActiveId(event.active.id as string)
   }, [])
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
@@ -88,14 +130,23 @@ export const WeekWorkoutsContainer = memo(function WeekWorkoutsContainer({
     }
 
     // Find indices
-    const oldIndex = items.findIndex(w => w.id === active.id)
-    const newIndex = items.findIndex(w => w.id === over.id)
+    const oldIndex = items.findIndex(s => getDndId(s) == active.id)
+    const newIndex = items.findIndex(s => getDndId(s) == over.id)
 
     if (oldIndex === -1 || newIndex === -1) return
 
+    const item1 = items[oldIndex]
+    const item2 = items[newIndex]
+
+    // Only allow swapping if BOTH are workouts
+    if (item1.type !== 'workout' || item2.type !== 'workout') {
+      // toast.info("Le réarrangement n'est possible qu'entre séances de course pour le moment")
+      return
+    }
+
     // Optimistic update: Swap dates and re-sort
-    const workout1 = { ...items[oldIndex] }
-    const workout2 = { ...items[newIndex] }
+    const workout1 = { ...item1 }
+    const workout2 = { ...item2 }
 
     // Swap dates and days
     const tempDate = workout1.scheduled_date
@@ -141,49 +192,71 @@ export const WeekWorkoutsContainer = memo(function WeekWorkoutsContainer({
     }
   }, [api, items, onWorkoutsSwapped])
 
-  const activeWorkout = workouts.find(w => w.id === activeId)
+  const activeSession = items.find(s => getDndId(s) == activeId)
 
   return (
     <div className="space-y-4">
       <DndContext
+        sensors={sensors}
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
         <SortableContext
-          items={items.map(w => w.id)}
+          items={items.map(getDndId)}
           strategy={verticalListSortingStrategy}
         >
-          {items.map((workout) => (
-            <DraggableWorkoutCard
-              key={workout.id}
-              workout={workout}
-              workoutTypeLabels={workoutTypeLabels}
-              workoutTypeColors={workoutTypeColors}
-              onExpandToggle={toggleExpanded}
-              isExpanded={expandedWorkouts.has(workout.id)}
-              onComplete={onComplete}
-            />
+          {items.map((session) => (
+            session.type === 'workout' ? (
+              <DraggableWorkoutCard
+                key={session.id}
+                workout={session}
+                workoutTypeLabels={workoutTypeLabels}
+                workoutTypeColors={workoutTypeColors}
+                onExpandToggle={() => toggleExpanded(session.id.toString())}
+                isExpanded={expandedItems.has(session.id.toString())}
+                onComplete={onCompleteWorkout}
+              />
+            ) : (
+              <DraggableStrengtheningCard
+                key={`strengthening-${session.id}`}
+                reminder={session}
+                onExpandToggle={() => toggleExpanded(`strengthening-${session.id}`)}
+                isExpanded={expandedItems.has(`strengthening-${session.id}`)}
+                onComplete={onCompleteStrengthening}
+                details={strengtheningDetails[session.session_type] || "Routine personnalisée"}
+              />
+            )
           ))}
         </SortableContext>
 
         <DragOverlay>
-          {activeWorkout && (
+          {activeSession && (
             <div className="shadow-2xl">
-              <DraggableWorkoutCard
-                workout={activeWorkout}
-                workoutTypeLabels={workoutTypeLabels}
-                workoutTypeColors={workoutTypeColors}
-                onExpandToggle={() => { }}
-                isExpanded={false}
-                onComplete={() => { }}
-              />
+              {activeSession.type === 'workout' ? (
+                <DraggableWorkoutCard
+                  workout={activeSession}
+                  workoutTypeLabels={workoutTypeLabels}
+                  workoutTypeColors={workoutTypeColors}
+                  onExpandToggle={() => { }}
+                  isExpanded={false}
+                  onComplete={() => { }}
+                />
+              ) : (
+                <DraggableStrengtheningCard
+                  reminder={activeSession}
+                  onExpandToggle={() => { }}
+                  isExpanded={false}
+                  onComplete={() => { }}
+                  details={strengtheningDetails[activeSession.session_type] || "Routine personnalisée"}
+                />
+              )}
             </div>
           )}
         </DragOverlay>
       </DndContext>
 
-      {workouts.length === 0 && (
+      {items.length === 0 && (
         <Card className="border-dashed">
           <CardContent className="text-sm text-muted-foreground text-center py-8">
             Aucune séance prévue cette semaine

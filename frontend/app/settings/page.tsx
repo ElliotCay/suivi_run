@@ -71,14 +71,17 @@ export default function SettingsPage() {
   const [cropDialogOpen, setCropDialogOpen] = useState(false)
   const [imageToCrop, setImageToCrop] = useState<string | null>(null)
 
-  // Prevent hydration mismatch for theme-dependent elements
-  const [mounted, setMounted] = useState(false)
-
   // Navbar preference
   const [navbarStyle, setNavbarStyle] = useState<NavbarStyle>('floating')
 
   useEffect(() => {
-    setMounted(true)
+    const storedStyle = localStorage.getItem('navbar-preference')
+    if (storedStyle === 'floating-compact') {
+      setNavbarStyle('compact')
+      localStorage.setItem('navbar-preference', 'compact')
+    } else if (storedStyle === 'floating' || storedStyle === 'compact' || storedStyle === 'classic') {
+      setNavbarStyle(storedStyle as NavbarStyle)
+    }
   }, [])
 
   // Calculate age
@@ -117,18 +120,6 @@ export default function SettingsPage() {
       setPreferredTime(preferences.preferred_time || '18:00')
     }
   }, [preferences])
-
-  // Load navbar preference
-  useEffect(() => {
-    if (!mounted) return
-    const saved = localStorage.getItem('navbar-preference')
-    if (saved === 'floating' || saved === 'floating-compact' || saved === 'classic') {
-      setNavbarStyle(saved)
-    } else {
-      localStorage.setItem('navbar-preference', 'floating')
-      setNavbarStyle('floating')
-    }
-  }, [mounted])
 
   const handleSaveProfile = async () => {
     setSavingProfile(true)

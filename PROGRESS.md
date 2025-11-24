@@ -5,6 +5,12 @@
 
 ---
 
+## Notes rapides (Navbar transitions) - 2025-01-24
+- NavbarUnified ajouté avec squelette commun + collapse compact géré en interne; Orchestrator simplifié pour s’appuyer dessus.
+- Jump vertical atténué en supprimant les wrappers absolus et en harmonisant sticky/top.
+- NavbarStyleCard alignée sur les modes actuels (floating/compact/classic) avec migration de l’ancien `floating-compact`; mini bounce de stabilisation ajouté sur changement de mode.
+- Reste à caler les séquences fines du cahier des charges (merge/split phases, micro-bounce) et aligner NavbarStyleCard/anciens composants une fois validé.
+
 ## ✅ PHASES COMPLÉTÉES
 
 ### ✨ Phase 1: Setup & Infrastructure (100%)

@@ -1,11 +1,11 @@
 'use client'
 
-import { AnimatePresence, motion } from 'framer-motion'
-import { Activity, Award, BarChart3, CalendarDays, LayoutTemplate, PanelTop, PanelsTopLeft, Settings, Sparkles, Sun } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { LayoutTemplate, PanelTop, PanelsTopLeft } from 'lucide-react'
 import type { ElementType } from 'react'
 import { cn } from '@/lib/utils'
 
-export type NavbarStyle = 'floating' | 'floating-compact' | 'classic'
+export type NavbarStyle = 'floating' | 'compact' | 'classic'
 
 const NAVBAR_OPTIONS: { id: NavbarStyle; title: string; description: string; icon: ElementType }[] = [
   {
@@ -21,9 +21,9 @@ const NAVBAR_OPTIONS: { id: NavbarStyle; title: string; description: string; ico
     icon: PanelsTopLeft,
   },
   {
-    id: 'floating-compact',
-    title: 'Floating compact',
-    description: 'Version compacte qui se replie quand tu scrolles.',
+    id: 'compact',
+    title: 'Compact',
+    description: 'Version compacte centrée qui se replie au scroll.',
     icon: PanelTop,
   },
 ]
@@ -34,42 +34,12 @@ interface NavbarStyleCardProps {
 }
 
 export function NavbarStyleCard({ activeStyle, onChange }: NavbarStyleCardProps) {
-  const current = NAVBAR_OPTIONS.find((option) => option.id === activeStyle) ?? NAVBAR_OPTIONS[0]
-
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
       <div className="relative overflow-hidden rounded-[24px] border border-neutral-200/70 dark:border-neutral-800/80 bg-neutral-50/80 dark:bg-neutral-900/60 shadow-2xl">
         <div className="grid gap-4 md:grid-cols-[1.2fr,1fr] p-6">
           {/* Preview */}
-          <div className="relative h-[260px] rounded-2xl bg-gradient-to-br from-slate-100 via-white to-slate-50 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 border border-white/60 dark:border-white/5 shadow-inner overflow-hidden">
-            <div className="absolute inset-0">
-              <motion.div
-                className="absolute -left-10 top-6 h-24 w-24 rounded-full bg-sky-200/50 blur-3xl"
-                animate={{ x: [0, 20, 0], opacity: [0.7, 0.9, 0.7] }}
-                transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
-              />
-              <motion.div
-                className="absolute right-0 -bottom-4 h-28 w-28 rounded-full bg-indigo-300/60 blur-3xl"
-                animate={{ x: [0, -15, 0], opacity: [0.6, 0.85, 0.6] }}
-                transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
-              />
-            </div>
-
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeStyle}
-                initial={{ opacity: 0, y: 14, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -12, scale: 0.98 }}
-                transition={{ duration: 0.45, ease: [0.25, 0.25, 0.01, 1] }}
-                className="relative h-full w-full"
-              >
-                {activeStyle === 'floating' && <FloatingPreview />}
-                {activeStyle === 'floating-compact' && <FloatingCompactPreview />}
-                {activeStyle === 'classic' && <ClassicPreview />}
-              </motion.div>
-            </AnimatePresence>
-          </div>
+          <MiniNavbarMock activeStyle={activeStyle} />
 
           {/* Controls */}
           <div className="space-y-6">
@@ -135,203 +105,134 @@ export function NavbarStyleCard({ activeStyle, onChange }: NavbarStyleCardProps)
   )
 }
 
-function FloatingPreview() {
-  return (
-    <div className="flex h-full items-center justify-center">
-      <motion.div
-        layoutId="navbarPreviewShell"
-        className="group relative flex items-center gap-3 rounded-full border border-white/20 bg-white/70 px-5 py-3 shadow-2xl ring-1 ring-black/5 backdrop-blur-2xl dark:border-white/10 dark:bg-white/10 dark:ring-white/10"
-        transition={{ type: 'spring', stiffness: 200, damping: 26 }}
-      >
-        <GlassPill label="allure" />
-        <div className="flex items-center gap-1 overflow-hidden">
-          {floatingItems.map((item, index) => (
-            <FloatingChip key={item.label} {...item} emphasize={index === 1} />
-          ))}
-        </div>
-        <div className="mx-1 h-8 w-px bg-white/30 dark:bg-white/10" />
-        <ThemeDot />
-      </motion.div>
-    </div>
-  )
-}
+function MiniNavbarMock({ activeStyle }: { activeStyle: NavbarStyle }) {
+  const pillBase = 'rounded-full border border-white/30 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.08)] backdrop-blur-xl bg-white/70 dark:bg-white/10'
+  const textBase = 'text-xs font-medium text-slate-800 dark:text-slate-100'
+  const navItems = ['Dashboard', 'Séances', 'Records', 'Bloc 4 sem.', 'Coach AI', 'Plus']
+  const compactIcons = ['🏠', '🏃', '🏅', '📅', '✨', '⋯']
 
-function FloatingCompactPreview() {
   return (
-    <div className="flex h-full items-center justify-center">
-      <motion.div
-        layoutId="navbarPreviewShell"
-        className="group relative flex items-center gap-2 rounded-full border border-white/25 bg-white/60 px-4 py-2 shadow-xl ring-1 ring-black/5 backdrop-blur-xl dark:border-white/10 dark:bg-white/10 dark:ring-white/10"
-        animate={{
-          gap: [8, 3, 8],
-          paddingRight: [16, 10, 16],
-          paddingLeft: [16, 10, 16],
-        }}
-        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        <GlassPill label="A" compact />
+    <div className="relative h-[260px] rounded-2xl bg-gradient-to-br from-slate-100 via-white to-slate-50 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 border border-white/60 dark:border-white/5 shadow-inner overflow-hidden flex items-center justify-center">
+      <div className="absolute inset-0 pointer-events-none">
         <motion.div
-          className="flex items-center gap-1 overflow-hidden"
-          animate={{
-            width: ['220px', '130px', '220px'],
-            opacity: [1, 0.35, 1],
-          }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-        >
-          {floatingItems.map((item, index) => (
-            <FloatingChip key={item.label} {...item} compact emphasize={index === 1} />
-          ))}
-        </motion.div>
-        <div className="mx-1 h-7 w-px bg-white/25 dark:bg-white/10" />
-        <ThemeDot compact />
-      </motion.div>
+          className="absolute -left-10 top-6 h-24 w-24 rounded-full bg-sky-200/40 blur-3xl"
+          animate={{ x: [0, 18, 0], opacity: [0.5, 0.8, 0.5] }}
+          transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div
+          className="absolute right-0 -bottom-6 h-28 w-28 rounded-full bg-indigo-300/50 blur-3xl"
+          animate={{ x: [0, -14, 0], opacity: [0.45, 0.75, 0.45] }}
+          transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      </div>
+
+      <div className="relative flex flex-col gap-4 w-full max-w-3xl px-6 pointer-events-none">
+        <ModeRow
+          label="Classic"
+          active={activeStyle === 'classic'}
+          hint="Pills séparées"
+          render={() => (
+            <div className="flex items-center gap-3 w-full justify-between">
+              <div className={cn(pillBase, 'px-3 py-1.5 min-w-[96px] text-center font-semibold lowercase text-sm text-slate-900 dark:text-white')}>allure</div>
+              <div className={cn(pillBase, 'flex-1 flex items-center justify-center gap-1 px-3 py-1.5 max-w-[520px]')}
+                   style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5), 0 10px 30px rgba(0,0,0,0.05)' }}>
+                {navItems.map((item) => (
+                  <div
+                    key={item}
+                    className={cn(
+                      textBase,
+                      'px-2 py-1 rounded-full transition-colors',
+                      item === 'Séances' ? 'bg-black/10 dark:bg-white/10 font-semibold' : 'bg-transparent'
+                    )}
+                  >
+                    {item}
+                  </div>
+                ))}
+              </div>
+              <div className={cn(pillBase, 'h-10 w-10 flex items-center justify-center text-white bg-black dark:bg-white/20 border-none')}>
+                ☾
+              </div>
+            </div>
+          )}
+        />
+
+        <ModeRow
+          label="Floating"
+          active={activeStyle === 'floating'}
+          hint="Tout dans une pill"
+          render={() => (
+            <div className={cn(pillBase, 'flex items-center gap-3 px-4 py-2 justify-center w-full')}
+                 style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5), 0 10px 30px rgba(0,0,0,0.05)' }}>
+              <div className={cn('font-semibold text-sm text-slate-900 dark:text-white px-2 lowercase')}>allure</div>
+              {navItems.map((item) => (
+                <div
+                  key={item}
+                  className={cn(
+                    textBase,
+                    'px-2.5 py-1 rounded-full transition-colors',
+                    item === 'Séances' ? 'bg-black/10 dark:bg-white/10 font-semibold' : 'bg-transparent'
+                  )}
+                >
+                  {item}
+                </div>
+              ))}
+              <div className={cn('h-8 w-8 flex items-center justify-center rounded-full text-white bg-black dark:bg-white/20 border border-white/20 ml-1')}>
+                ☾
+              </div>
+            </div>
+          )}
+        />
+
+        <ModeRow
+          label="Compact"
+          active={activeStyle === 'compact'}
+          hint="Pictos uniquement"
+          render={() => (
+            <div className={cn(pillBase, 'flex items-center gap-2 px-3 py-2 justify-center w-full')}
+                 style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5), 0 10px 30px rgba(0,0,0,0.05)' }}>
+              <div className={cn('font-semibold text-sm text-slate-900 dark:text-white px-2 lowercase')}>allure</div>
+              <div className="flex items-center gap-1">
+                {compactIcons.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="h-7 w-7 rounded-full bg-white/25 dark:bg-white/10 text-[11px] flex items-center justify-center text-slate-800 dark:text-white shadow-sm"
+                  >
+                    {item}
+                  </div>
+                ))}
+              </div>
+              <div className={cn('h-8 w-8 flex items-center justify-center rounded-full text-white bg-black dark:bg-white/20 border border-white/20 ml-1')}>
+                ☾
+              </div>
+            </div>
+          )}
+        />
+      </div>
     </div>
   )
 }
 
-function ClassicPreview() {
-  return (
-    <div className="flex h-full items-center justify-center">
-      <motion.div
-        layoutId="navbarPreviewShell"
-        className="flex w-[70%] max-w-[620px] items-center rounded-2xl px-3.5 py-2 gap-3"
-        transition={{ type: 'spring', stiffness: 200, damping: 26 }}
-      >
-        <GlassPill label="allure" wide />
-
-        <div className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-black/5 bg-white/70 px-2.5 py-1.5 shadow-lg backdrop-blur-xl dark:border-white/10 dark:bg-white/5">
-          {classicItems.map((item, index) => (
-            <NavChip key={item.label} {...item} active={index === 0} />
-          ))}
-        </div>
-
-        <ThemePill />
-      </motion.div>
-    </div>
-  )
-}
-
-function GlassPill({ label, wide, compact }: { label: string; wide?: boolean; compact?: boolean }) {
-  return (
-    <div
-      className={cn(
-        'flex items-center justify-center rounded-full border border-white/30 bg-white/80 px-3 py-1.5 text-sm font-semibold text-slate-800 shadow-lg backdrop-blur-xl dark:border-white/15 dark:bg-white/10 dark:text-white',
-        wide && 'tracking-tight text-sm px-3.5',
-        compact && 'px-2 py-1 text-xs'
-      )}
-    >
-      {label}
-    </div>
-  )
-}
-
-function NavChip({
+function ModeRow({
   label,
-  icon: Icon,
+  hint,
   active,
+  render,
 }: {
   label: string
-  icon: ElementType
-  active?: boolean
+  hint: string
+  active: boolean
+  render: () => React.ReactNode
 }) {
   return (
-    <div
-      className={cn(
-        'flex items-center gap-1.5 rounded-full px-2 py-1.5 text-[10px] font-medium transition-all',
-        active
-          ? 'bg-black/10 text-black shadow-inner ring-1 ring-black/10 dark:bg-white/20 dark:text-white'
-          : 'text-slate-600 dark:text-slate-200 hover:bg-black/5 dark:hover:bg-white/10'
-      )}
-    >
-      <Icon className="h-4 w-4" />
-      <span>{label}</span>
+    <div className={cn('rounded-xl border border-white/50 dark:border-white/10 p-3 shadow-sm bg-white/60 dark:bg-white/5', active && 'ring-2 ring-blue-400/60')}>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <span>{label}</span>
+          <span className="text-xs text-muted-foreground">{hint}</span>
+        </div>
+        {active && <span className="text-xs font-semibold text-blue-600 dark:text-blue-300">Actif</span>}
+      </div>
+      {render()}
     </div>
   )
 }
-
-function FloatingChip({
-  label,
-  icon: Icon,
-  emphasize,
-  compact,
-}: {
-  label: string
-  icon: ElementType
-  emphasize?: boolean
-  compact?: boolean
-}) {
-  return (
-    <div
-      className={cn(
-        'group/nav relative flex items-center rounded-full px-3 py-1.5 text-xs font-semibold text-slate-800 transition-all dark:text-white',
-        emphasize ? 'bg-black/80 text-white shadow-lg dark:bg-white/20' : 'bg-white/40 dark:bg-white/10'
-      )}
-    >
-      <Icon className={cn('h-4 w-4', emphasize ? 'text-white' : 'text-slate-700 dark:text-white/70')} />
-      <motion.span
-        className={cn(
-          'ml-2 whitespace-nowrap text-[11px] font-semibold text-slate-700 dark:text-white/80',
-          compact && 'overflow-hidden'
-        )}
-        animate={
-          compact
-            ? {
-                width: ['56px', '0px', '56px'],
-                opacity: [1, 0, 1],
-              }
-            : undefined
-        }
-        transition={
-          compact
-            ? {
-                duration: 3,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              }
-            : undefined
-        }
-      >
-        {label}
-      </motion.span>
-    </div>
-  )
-}
-
-function ThemeDot({ compact }: { compact?: boolean }) {
-  return (
-    <div
-      className={cn(
-        'flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-blue-500 text-white shadow-lg',
-        compact && 'h-8 w-8'
-      )}
-    >
-      <Sun className="h-4 w-4" />
-    </div>
-  )
-}
-
-function ThemePill() {
-  return (
-    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white/90 text-slate-800 shadow-lg backdrop-blur-xl dark:border-white/15 dark:bg-white/10 dark:text-white">
-      <Sun className="h-4 w-4" />
-    </div>
-  )
-}
-
-const classicItems = [
-  { label: 'Dashboard', icon: BarChart3 },
-  { label: 'Séances', icon: Activity },
-  { label: 'Records', icon: Award },
-  { label: 'Blocs', icon: CalendarDays },
-  { label: 'Coach', icon: Sparkles },
-  { label: 'Réglages', icon: Settings },
-]
-
-const floatingItems = [
-  { label: 'Dashboard', icon: BarChart3 },
-  { label: 'Séances', icon: Activity },
-  { label: 'Records', icon: Award },
-  { label: 'Bloc', icon: CalendarDays },
-  { label: 'Coach AI', icon: Sparkles },
-  { label: 'Plus', icon: Settings },
-]

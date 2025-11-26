@@ -28,7 +28,9 @@ export default function NavbarCompact({ onScrollStateChange }: NavbarCompactProp
     const [mounted, setMounted] = useState(false)
     const [hasScrolled, setHasScrolled] = useState(false)
     const [isHovered, setIsHovered] = useState(false)
+    const [hoverOrigin, setHoverOrigin] = useState('center')
     const lastScrollY = useRef(0)
+    const navRef = useRef<HTMLElement>(null)
 
     useEffect(() => {
         setMounted(true)
@@ -67,41 +69,61 @@ export default function NavbarCompact({ onScrollStateChange }: NavbarCompactProp
     // When scrolled and NOT hovered, hide nav items and theme toggle
     const shouldHideItems = hasScrolled && !isHovered
 
+    // Handle mouse enter to determine expansion origin
+    const handleMouseEnter = (e: React.MouseEvent<HTMLElement>) => {
+        setIsHovered(true)
+
+        if (navRef.current) {
+            const rect = navRef.current.getBoundingClientRect()
+            const mouseX = e.clientX
+            const navCenter = rect.left + rect.width / 2
+            const relativeX = mouseX - rect.left
+            const position = relativeX / rect.width
+
+            // Determine origin: left (0-0.33), center (0.33-0.66), right (0.66-1)
+            if (position < 0.33) {
+                setHoverOrigin('left')
+            } else if (position > 0.66) {
+                setHoverOrigin('right')
+            } else {
+                setHoverOrigin('center')
+            }
+        }
+    }
+
     return (
         <div className="flex justify-center px-4 pointer-events-none">
             <motion.nav
-                onMouseEnter={() => setIsHovered(true)}
+                ref={navRef}
+                onMouseEnter={handleMouseEnter}
                 onMouseLeave={() => setIsHovered(false)}
                 className={cn(
-                    "pointer-events-auto flex items-center rounded-full px-4 py-2 min-h-[56px] w-fit border shadow-xl transition-all duration-500",
+                    "pointer-events-auto flex items-center rounded-full px-4 py-2 min-h-[56px] w-fit border shadow-xl",
                     floatingBgClass,
-                    borderClass,
-                    shouldHideItems ? "gap-0" : "gap-3"
+                    borderClass
                 )}
-                style={superGlassStyle}
+                style={{
+                    ...superGlassStyle,
+                    transformOrigin: hoverOrigin === 'left' ? 'left center' : hoverOrigin === 'right' ? 'right center' : 'center center',
+                }}
                 animate={{
                     gap: shouldHideItems ? 0 : 12,
+                    scale: shouldHideItems ? 1 : 1.01,
                 }}
-                transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+                transition={{
+                    duration: 0.2,
+                    ease: "easeOut"
+                }}
             >
                 {/* Logo Section */}
                 <motion.div
-                    layoutId="navbar-logo"
-                    className={cn(
-                        "flex items-center transition-all duration-500",
-                        shouldHideItems ? "mr-0" : "mr-2"
-                    )}
+                    className="flex items-center"
                     animate={{
                         marginRight: shouldHideItems ? 0 : 8,
                     }}
                     transition={{
-                        marginRight: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] },
-                        layout: {
-                            type: "spring",
-                            stiffness: 300,
-                            damping: 30,
-                            duration: 0.5
-                        }
+                        duration: 0.2,
+                        ease: "easeOut"
                     }}
                 >
                     <Link href="/" className="flex items-center">
@@ -116,31 +138,19 @@ export default function NavbarCompact({ onScrollStateChange }: NavbarCompactProp
 
                 {/* Nav Items Section */}
                 <motion.div
-                    layoutId="navbar-nav"
-                    className={cn(
-                        "flex items-center overflow-hidden transition-all duration-500 ease-in-out px-1",
-                        shouldHideItems ? "max-w-0 opacity-0 px-0" : "max-w-[800px] opacity-100"
-                    )}
+                    className="flex items-center overflow-hidden"
                     animate={{
-                        maxWidth: shouldHideItems ? 0 : 800,
+                        width: shouldHideItems ? 0 : 'auto',
                         opacity: shouldHideItems ? 0 : 1,
                         paddingLeft: shouldHideItems ? 0 : 4,
                         paddingRight: shouldHideItems ? 0 : 4,
                     }}
                     transition={{
-                        maxWidth: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] },
-                        opacity: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] },
-                        paddingLeft: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] },
-                        paddingRight: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] },
-                        layout: {
-                            type: "spring",
-                            stiffness: 300,
-                            damping: 30,
-                            duration: 0.5
-                        }
+                        duration: 0.2,
+                        ease: "easeOut"
                     }}
                 >
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 whitespace-nowrap">
                         {navItems.map((item) => {
                             const Icon = item.icon
                             const isActive = pathname === item.href
@@ -160,7 +170,7 @@ export default function NavbarCompact({ onScrollStateChange }: NavbarCompactProp
                                         <motion.span
                                             layoutId="activeNav"
                                             className="absolute inset-0 rounded-full bg-primary -z-10 shadow-[0_0_12px_rgba(0,0,0,0.15)]"
-                                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                            transition={{ type: "spring", stiffness: 400, damping: 35 }}
                                         />
                                     )}
                                     <Icon className={cn("h-4 w-4 transition-transform duration-300", isActive && "scale-110")} />
@@ -182,39 +192,23 @@ export default function NavbarCompact({ onScrollStateChange }: NavbarCompactProp
 
                 {/* Separator & Theme Section Container */}
                 <motion.div
-                    className={cn(
-                        "flex items-center overflow-hidden transition-all duration-500 ease-in-out",
-                        shouldHideItems ? "max-w-0 opacity-0" : "max-w-[120px] opacity-100"
-                    )}
+                    className="flex items-center overflow-hidden"
                     animate={{
-                        maxWidth: shouldHideItems ? 0 : 120,
+                        width: shouldHideItems ? 0 : 'auto',
                         opacity: shouldHideItems ? 0 : 1,
                     }}
-                    transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+                    transition={{
+                        duration: 0.2,
+                        ease: "easeOut"
+                    }}
                 >
                     {/* Separator */}
-                    <motion.div
-                        className="mx-2 h-6 w-px bg-white/10"
-                        initial={{ opacity: 0, scaleY: 0 }}
-                        animate={{ opacity: shouldHideItems ? 0 : 1, scaleY: shouldHideItems ? 0 : 1 }}
-                        transition={{ duration: 0.2, ease: "easeInOut" }}
-                    />
+                    <div className="mx-2 h-6 w-px bg-white/10" />
 
                     {/* Theme Toggle Section */}
-                    <motion.div
-                        layoutId="navbar-theme"
-                        className="flex items-center"
-                        transition={{
-                            layout: {
-                                type: "spring",
-                                stiffness: 300,
-                                damping: 30,
-                                duration: 0.5
-                            }
-                        }}
-                    >
+                    <div className="flex items-center">
                         <ThemeToggle />
-                    </motion.div>
+                    </div>
                 </motion.div>
             </motion.nav>
         </div>

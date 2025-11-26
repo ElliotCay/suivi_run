@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Input } from "@/components/ui/input"
-import { Loader2, Calendar, CheckCircle, Dumbbell, ChevronDown, ChevronUp, Edit2, MoreHorizontal, Trash2 } from "lucide-react"
+import { Loader2, Calendar, CheckCircle, Dumbbell, ChevronDown, ChevronUp, Edit2, MoreHorizontal, Trash2, MessageSquare } from "lucide-react"
+import { AIButton } from "@/components/ui/AIButton"
+import TrainingBlockChatModal from "@/components/TrainingBlockChatModal"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -148,6 +150,7 @@ export default function TrainingBlockClient({ initialBlock }: TrainingBlockClien
   const [editingWorkoutId, setEditingWorkoutId] = useState<number | null>(null)
   const [editingDate, setEditingDate] = useState<string>("")
   const [generatingNextBlock, setGeneratingNextBlock] = useState(false)
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false)
 
   useEffect(() => {
     if (!initialBlock) {
@@ -429,13 +432,13 @@ export default function TrainingBlockClient({ initialBlock }: TrainingBlockClien
   const strengthening = block.strengthening_reminders || []
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* Header */}
+    <div className="space-y-6 pb-12">
+      {/* Page Header */}
       <div className="flex items-start justify-between">
         <div className="space-y-2">
           <h1 className="text-6xl font-serif font-bold tracking-tight">Bloc d'entraînement</h1>
           <p className="text-base text-muted-foreground">
-            {block.name} • {phaseLabels[block.phase] || block.phase}
+            Planification et suivi de votre programme
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -483,92 +486,121 @@ export default function TrainingBlockClient({ initialBlock }: TrainingBlockClien
         </div>
       </div>
 
-      {/* Block Info & Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Progression du bloc</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-end justify-between mb-2">
-              <span className="text-3xl font-bold font-mono">{getDaysRemaining()}</span>
-              <span className="text-sm text-muted-foreground mb-1">jours restants</span>
+      {/* Main Training Block Card */}
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-4">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <CardTitle className="text-2xl font-bold">{block.name}</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                {phaseLabels[block.phase] || block.phase}
+              </p>
             </div>
-            <Progress value={getBlockProgress()} className="h-2" />
-            <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-              <span>{new Date(block.start_date).toLocaleDateString("fr-FR", { day: 'numeric', month: 'short' })}</span>
-              <span>{new Date(block.end_date).toLocaleDateString("fr-FR", { day: 'numeric', month: 'short' })}</span>
-            </div>
-          </CardContent>
-        </Card>
+            <AIButton
+              onClick={() => setIsChatModalOpen(true)}
+              animationType="none"
+              label="Ajuster avec l'IA"
+              iconClassName="w-4 h-4 text-purple-500"
+              className="w-full sm:w-auto border border-input shadow-sm"
+            />
+          </div>
+        </CardHeader>
 
-        <Card className="md:col-span-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Volume Hebdomadaire</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-end justify-between">
-              <span className="text-3xl font-bold font-mono">{block.target_weekly_volume}</span>
-              <span className="text-sm text-muted-foreground mb-1">km / semaine</span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">{block.days_per_week} séances par semaine</p>
-          </CardContent>
-        </Card>
-
-        <Card className="md:col-span-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Distribution d'intensité</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex h-4 w-full overflow-hidden rounded-full bg-secondary mt-2">
-              <div className="bg-emerald-500 h-full" style={{ width: `${intensityStats.actualEasyPct}%` }} title={`Facile: ${intensityStats.actualEasyPct}%`} />
-              <div className="bg-orange-500 h-full" style={{ width: `${intensityStats.actualThresholdPct}%` }} title={`Seuil: ${intensityStats.actualThresholdPct}%`} />
-              <div className="bg-red-500 h-full" style={{ width: `${intensityStats.actualIntervalPct}%` }} title={`Fractionné: ${intensityStats.actualIntervalPct}%`} />
-            </div>
-            <div className="flex justify-between mt-3 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500" /><span>Facile {intensityStats.actualEasyPct}%</span></div>
-              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-orange-500" /><span>Seuil {intensityStats.actualThresholdPct}%</span></div>
-              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500" /><span>Intensité {intensityStats.actualIntervalPct}%</span></div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Workouts by week */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {Object.entries(workoutsByWeek).map(([week, workouts]) => (
-          <Card key={week}>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Semaine {week}</CardTitle>
-                  <p className="text-xs text-muted-foreground">Séances planifiées</p>
-                </div>
-                <Badge variant="outline">
-                  {workouts.filter(s => s.type === 'workout').length} séances
-                </Badge>
+        <CardContent className="space-y-6">
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Progression */}
+            <div className="p-4 rounded-lg border bg-muted/30">
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+                Progression du bloc
+              </h4>
+              <div className="flex items-end justify-between mb-2">
+                <span className="text-3xl font-bold font-mono">{getDaysRemaining()}</span>
+                <span className="text-sm text-muted-foreground mb-1">jours restants</span>
               </div>
-            </CardHeader>
-            <CardContent>
-              <LazyWeekWorkoutsContainer
-                weekNumber={parseInt(week, 10)}
-                sessions={workouts}
-                workoutTypeLabels={workoutTypeLabels}
-                workoutTypeColors={workoutTypeColors}
-                strengtheningDetails={strengtheningDetails}
-                onWorkoutsSwapped={() => loadCurrentBlock(false)}
-                onCompleteWorkout={completeWorkout}
-                onCompleteStrengthening={completeStrengthening}
-              />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              <Progress value={getBlockProgress()} className="h-2" />
+              <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+                <span>{new Date(block.start_date).toLocaleDateString("fr-FR", { day: 'numeric', month: 'short' })}</span>
+                <span>{new Date(block.end_date).toLocaleDateString("fr-FR", { day: 'numeric', month: 'short' })}</span>
+              </div>
+            </div>
+
+            {/* Volume */}
+            <div className="p-4 rounded-lg border bg-muted/30">
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+                Volume Hebdomadaire
+              </h4>
+              <div className="flex items-end justify-between">
+                <span className="text-3xl font-bold font-mono">{block.target_weekly_volume.toFixed(2)}</span>
+                <span className="text-sm text-muted-foreground mb-1">km / semaine</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">{block.days_per_week} séances par semaine</p>
+            </div>
+
+            {/* Distribution */}
+            <div className="p-4 rounded-lg border bg-muted/30">
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+                Distribution d'intensité
+              </h4>
+              <div className="flex h-4 w-full overflow-hidden rounded-full bg-secondary mt-2">
+                <div className="bg-emerald-500 h-full" style={{ width: `${intensityStats.actualEasyPct}%` }} title={`Facile: ${intensityStats.actualEasyPct}%`} />
+                <div className="bg-orange-500 h-full" style={{ width: `${intensityStats.actualThresholdPct}%` }} title={`Seuil: ${intensityStats.actualThresholdPct}%`} />
+                <div className="bg-red-500 h-full" style={{ width: `${intensityStats.actualIntervalPct}%` }} title={`Fractionné: ${intensityStats.actualIntervalPct}%`} />
+              </div>
+              <div className="flex justify-between mt-3 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500" /><span>Facile {intensityStats.actualEasyPct}%</span></div>
+                <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-orange-500" /><span>Seuil {intensityStats.actualThresholdPct}%</span></div>
+                <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500" /><span>Intensité {intensityStats.actualIntervalPct}%</span></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Weekly Workouts Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            {Object.entries(workoutsByWeek).map(([week, workouts]) => (
+              <div key={week} className="p-4 rounded-lg border bg-muted/30">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h4 className="text-sm font-semibold">Semaine {week}</h4>
+                    <p className="text-xs text-muted-foreground">Séances planifiées</p>
+                  </div>
+                  <Badge variant="outline">
+                    {workouts.filter(s => s.type === 'workout').length} séances
+                  </Badge>
+                </div>
+                <LazyWeekWorkoutsContainer
+                  weekNumber={parseInt(week, 10)}
+                  sessions={workouts}
+                  workoutTypeLabels={workoutTypeLabels}
+                  workoutTypeColors={workoutTypeColors}
+                  strengtheningDetails={strengtheningDetails}
+                  onWorkoutsSwapped={() => loadCurrentBlock(false)}
+                  onCompleteWorkout={completeWorkout}
+                  onCompleteStrengthening={completeStrengthening}
+                />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Strengthening reminders - REMOVED (now integrated in weekly view) */}
 
       {/* Quick edit dates */}
 
+      {/* AI Chat Modal */}
+      {block && (
+        <TrainingBlockChatModal
+          blockId={block.id}
+          isOpen={isChatModalOpen}
+          onClose={() => setIsChatModalOpen(false)}
+          onChangesApplied={() => {
+            // Refresh block data after changes are applied
+            loadCurrentBlock(false)
+            toast.success('Ajustements appliqués avec succès')
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -168,7 +168,7 @@ export default function NavbarUnified({ mode, isPreview = false }: NavbarUnified
             layout
             initial={false}
             className={cn(
-              'flex items-center overflow-hidden transition-all duration-500 ease-in-out',
+              'flex items-center overflow-hidden',
               mode === 'classic'
                 ? cn('h-12 px-4 rounded-full border shadow-xl', classicBgClass, borderClass)
                 : 'px-1'
@@ -182,10 +182,10 @@ export default function NavbarUnified({ mode, isPreview = false }: NavbarUnified
               paddingRight: mode === 'classic' ? 16 : mode === 'compact' && shouldCollapse ? 0 : 4,
             }}
             transition={{
-              maxWidth: { duration: 0.4, ease: softEase },
-              opacity: { duration: 0.35, ease: softEase },
-              paddingLeft: { duration: 0.35, ease: softEase },
-              paddingRight: { duration: 0.35, ease: softEase },
+              maxWidth: { duration: 0.2, ease: 'easeOut' },
+              opacity: { duration: 0.2, ease: 'easeOut' },
+              paddingLeft: { duration: 0.2, ease: 'easeOut' },
+              paddingRight: { duration: 0.2, ease: 'easeOut' },
               layout: { type: 'tween', duration: 0.4, ease: softEase },
               backgroundColor: { duration: 0.3, ease: 'easeInOut' },
             }}
@@ -258,7 +258,7 @@ export default function NavbarUnified({ mode, isPreview = false }: NavbarUnified
             layoutId="navbar-theme"
             layout
             className={cn(
-              'flex items-center overflow-hidden transition-all duration-500 ease-in-out',
+              'flex items-center overflow-hidden',
               mode === 'classic'
                 ? cn('h-12 w-12 justify-center rounded-full border shadow-xl hover:scale-105 hover:shadow-2xl', classicBgClass, borderClass)
                 : ''
@@ -269,8 +269,8 @@ export default function NavbarUnified({ mode, isPreview = false }: NavbarUnified
               opacity: mode === 'compact' && shouldCollapse ? 0 : 1,
             }}
             transition={{
-              maxWidth: { duration: 0.35, ease: softEase },
-              opacity: { duration: 0.25, ease: softEase },
+              maxWidth: { duration: 0.2, ease: 'easeOut' },
+              opacity: { duration: 0.2, ease: 'easeOut' },
               layout: { type: 'tween', duration: 0.4, ease: softEase },
             }}
             onMouseEnter={() => setIsHovered(true)}

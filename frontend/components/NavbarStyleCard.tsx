@@ -36,8 +36,8 @@ interface NavbarStyleCardProps {
 export function NavbarStyleCard({ activeStyle, onChange }: NavbarStyleCardProps) {
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
-      <div className="relative overflow-hidden rounded-[24px] border border-neutral-200/70 dark:border-neutral-800/80 bg-neutral-50/80 dark:bg-neutral-900/60 shadow-2xl">
-        <div className="grid gap-4 md:grid-cols-[1.2fr,1fr] p-6">
+      <div className="relative overflow-hidden rounded-[24px] border bg-card shadow-2xl">
+        <div className="grid gap-6 md:grid-cols-[1.5fr,1fr] p-8">
           {/* Preview */}
           <MiniNavbarMock activeStyle={activeStyle} />
 
@@ -112,7 +112,7 @@ function MiniNavbarMock({ activeStyle }: { activeStyle: NavbarStyle }) {
   const compactIcons = ['🏠', '🏃', '🏅', '📅', '✨', '⋯']
 
   return (
-    <div className="relative h-[260px] rounded-2xl bg-gradient-to-br from-slate-100 via-white to-slate-50 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 border border-white/60 dark:border-white/5 shadow-inner overflow-hidden flex items-center justify-center">
+    <div className="relative h-[420px] rounded-2xl bg-gradient-to-br from-slate-100 via-white to-slate-50 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 border border-white/60 dark:border-white/5 shadow-inner overflow-hidden flex items-center justify-center">
       <div className="absolute inset-0 pointer-events-none">
         <motion.div
           className="absolute -left-10 top-6 h-24 w-24 rounded-full bg-sky-200/40 blur-3xl"
@@ -126,7 +126,7 @@ function MiniNavbarMock({ activeStyle }: { activeStyle: NavbarStyle }) {
         />
       </div>
 
-      <div className="relative flex flex-col gap-4 w-full max-w-3xl px-6 pointer-events-none">
+      <div className="relative flex flex-col gap-6 w-full max-w-3xl px-6 pointer-events-none">
         <ModeRow
           label="Classic"
           active={activeStyle === 'classic'}
@@ -224,8 +224,8 @@ function ModeRow({
   render: () => React.ReactNode
 }) {
   return (
-    <div className={cn('rounded-xl border border-white/50 dark:border-white/10 p-3 shadow-sm bg-white/60 dark:bg-white/5', active && 'ring-2 ring-blue-400/60')}>
-      <div className="flex items-center justify-between mb-2">
+    <div className={cn('rounded-xl border border-white/50 dark:border-white/10 p-4 shadow-sm bg-white/60 dark:bg-white/5', active && 'ring-2 ring-blue-400/60')}>
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2 text-sm font-semibold">
           <span>{label}</span>
           <span className="text-xs text-muted-foreground">{hint}</span>

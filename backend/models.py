@@ -527,3 +527,58 @@ class WeeklyRecap(Base):
 
     # Relationships
     user = relationship("User")
+
+
+class ChatConversation(Base):
+    """Chat conversation for training block adjustments with AI coach."""
+
+    __tablename__ = "chat_conversations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    block_id = Column(Integer, ForeignKey("training_blocks.id"), nullable=False)
+
+    # Conversation scope
+    scope_mode = Column(String, default="block_start", nullable=False)  # "block_start" or "rolling_4weeks"
+    scope_start_date = Column(DateTime, nullable=False)
+    scope_end_date = Column(DateTime, nullable=False)
+
+    # State management
+    state = Column(String, default="active", nullable=False)  # "active", "proposal_ready", "validated", "abandoned"
+    proposed_changes = Column(JSON, nullable=True)  # Stores the AI's proposed workout adjustments
+
+    # Token tracking
+    total_tokens = Column(Integer, default=0)
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User")
+    block = relationship("TrainingBlock")
+    messages = relationship("ChatMessage", back_populates="conversation", cascade="all, delete-orphan")
+
+
+class ChatMessage(Base):
+    """Individual message in a chat conversation."""
+
+    __tablename__ = "chat_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    conversation_id = Column(Integer, ForeignKey("chat_conversations.id"), nullable=False)
+
+    # Message content
+    role = Column(String, nullable=False)  # "user" or "assistant"
+    content = Column(Text, nullable=False)
+
+    # Prompt caching metrics
+    is_cached = Column(Boolean, default=False)
+    cache_creation_tokens = Column(Integer, default=0)  # Tokens used to create cache
+    cache_read_tokens = Column(Integer, default=0)  # Tokens saved by reading from cache
+
+    # Timestamp
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    conversation = relationship("ChatConversation", back_populates="messages")

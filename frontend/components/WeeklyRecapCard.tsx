@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { WeeklyRecap } from '@/hooks/useWeeklyRecaps';
 import { CalendarDays, TrendingUp, Activity, Heart, Sparkles } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface WeeklyRecapCardProps {
   recap: WeeklyRecap;
@@ -123,9 +125,9 @@ export default function WeeklyRecapCard({
 
         {/* AI-Generated Recap Text */}
         <div className="prose prose-sm dark:prose-invert max-w-none">
-          <div className="whitespace-pre-wrap leading-relaxed text-foreground/90">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {recap.recap_text}
-          </div>
+          </ReactMarkdown>
         </div>
 
         {/* Generated timestamp */}

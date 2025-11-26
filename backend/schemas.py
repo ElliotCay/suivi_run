@@ -442,3 +442,75 @@ class WorkoutFeedbackResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# Chat Adjustment schemas
+class CreateConversationRequest(BaseModel):
+    block_id: int
+    scope_mode: str = "block_start"  # "block_start" or "rolling_4weeks"
+
+
+class SendMessageRequest(BaseModel):
+    content: str = Field(..., min_length=1, max_length=5000)
+
+
+class ChatMessageResponse(BaseModel):
+    id: int
+    conversation_id: int
+    role: str
+    content: str
+    is_cached: bool
+    cache_creation_tokens: int
+    cache_read_tokens: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ChatConversationResponse(BaseModel):
+    id: int
+    user_id: int
+    block_id: int
+    scope_mode: str
+    scope_start_date: datetime
+    scope_end_date: datetime
+    state: str
+    proposed_changes: Optional[Dict[str, Any]]
+    total_tokens: int
+    created_at: datetime
+    updated_at: datetime
+    messages: Optional[List[ChatMessageResponse]] = None
+
+    class Config:
+        from_attributes = True
+
+
+class WorkoutAdjustment(BaseModel):
+    workout_id: int
+    action: str  # "modify", "delete", "reschedule"
+    current: Dict[str, Any]
+    proposed: Optional[Dict[str, Any]] = None  # None for delete actions
+    reasoning: str
+
+
+class ProposalResponse(BaseModel):
+    analysis: str
+    adjustments: List[WorkoutAdjustment]
+    tokens_used: int
+
+
+class ValidateResponse(BaseModel):
+    applied_count: int
+    modified_workout_ids: List[int]
+    conversation_id: int
+
+
+class MessageSendResponse(BaseModel):
+    message_id: int
+    content: str
+    tokens_used: int
+    is_cached: bool
+    message_count: int
+    approaching_limit: bool
+    max_messages: int

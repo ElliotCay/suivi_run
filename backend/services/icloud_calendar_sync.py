@@ -432,3 +432,186 @@ class iCloudCalendarSync:
 
         logger.info(f"🎯 Synchronisation terminée: {stats['created']} créés, {stats['skipped']} déjà présents, {stats['deleted']} supprimés, {stats['errors']} erreurs")
         return stats
+
+    def update_planned_workout_event(self, workout_data: Dict, old_calendar_uid: Optional[str] = None) -> Optional[str]:
+        """
+        Met à jour ou crée un événement calendrier pour un PlannedWorkout
+
+        Args:
+            workout_data: Données du PlannedWorkout (id, scheduled_date, workout_type, distance_km, description, etc.)
+            old_calendar_uid: UID de l'ancien événement à supprimer (si existe)
+
+        Returns:
+            UID du nouvel événement créé ou None en cas d'erreur
+        """
+        logger.info(f"🔧 update_planned_workout_event appelée pour workout ID: {workout_data.get('id')}")
+
+        if not self._calendar:
+            logger.error("❌ Calendrier non initialisé")
+            return None
+
+        try:
+            # Supprimer l'ancien événement si UID fourni
+            if old_calendar_uid:
+                logger.info(f"🗑️ Suppression de l'ancien événement: {old_calendar_uid}")
+                self.delete_workout_event(old_calendar_uid)
+
+            # Créer le nouvel événement
+            logger.info("📝 Création du nouvel événement iCalendar...")
+            cal = iCalendar()
+            cal.add('prodid', '-//Suivi Course//Training Block//FR')
+            cal.add('version', '2.0')
+
+            event = Event()
+
+            # UID unique basé sur l'ID du PlannedWorkout
+            event_uid = f"planned-workout-{workout_data['id']}@suivi-course.local"
+            event.add('uid', event_uid)
+            logger.info(f"🆔 UID généré: {event_uid}")
+
+            # Extraire les informations
+            workout_type = workout_data.get('workout_type', 'Course')
+            distance_km = workout_data.get('distance_km', 0)
+            title = workout_data.get('title', f'{workout_type.capitalize()} {distance_km}km')
+
+            logger.info(f"🏃 Type: {workout_type}, Distance: {distance_km}km, Titre: {title}")
+
+            # Titre de l'événement
+            event.add('summary', f"🏃 {title}")
+
+            # Description avec structure détaillée
+            description = workout_data.get('description', '')
+            if workout_data.get('target_pace_min') and workout_data.get('target_pace_max'):
+                pace_min_str = f"{workout_data['target_pace_min'] // 60}:{workout_data['target_pace_min'] % 60:02d}"
+                pace_max_str = f"{workout_data['target_pace_max'] // 60}:{workout_data['target_pace_max'] % 60:02d}"
+                description = f"Allure cible: {pace_min_str}-{pace_max_str}/km\n\n{description}"
+
+            event.add('description', description)
+
+            # Date et heure
+            scheduled_date = workout_data.get('scheduled_date')
+            if isinstance(scheduled_date, str):
+                scheduled_date = datetime.fromisoformat(scheduled_date.replace('Z', '+00:00'))
+
+            # Définir l'heure à 07:00 par défaut pour les workouts
+            start_time = scheduled_date.replace(hour=7, minute=0, second=0, microsecond=0)
+            start_time = self.timezone.localize(start_time)
+
+            # Durée estimée basée sur la distance (environ 6.5 min/km + échauffement/cooldown)
+            duration_minutes = int(distance_km * 6.5) + 10 if distance_km else 45
+            end_time = start_time + timedelta(minutes=duration_minutes)
+
+            event.add('dtstart', start_time)
+            event.add('dtend', end_time)
+            event.add('dtstamp', datetime.now(self.timezone))
+
+            # Localisation
+            event.add('location', 'Course à pied')
+
+            # Rappel 30 minutes avant
+            alarm = Alarm()
+            alarm.add('action', 'DISPLAY')
+            alarm.add('trigger', timedelta(minutes=-30))
+            alarm.add('description', f'Entraînement dans 30 minutes: {title}')
+            event.add_component(alarm)
+
+            # Ajouter l'événement au calendrier
+            cal.add_component(event)
+
+            logger.info("📤 Envoi de l'événement au calendrier iCloud...")
+            self._calendar.save_event(cal.to_ical())
+
+            logger.info(f"✅ Événement PlannedWorkout créé avec succès: {event_uid}")
+            return event_uid
+
+        except Exception as e:
+            logger.error(f"❌ Erreur lors de la mise à jour de l'événement PlannedWorkout: {e}")
+            logger.exception(e)
+            return None
+
+    def batch_sync_planned_workouts(self, workout_ids: List[int], db) -> Dict[str, int]:
+        """
+        Synchronise en batch plusieurs PlannedWorkouts modifiés avec iCloud Calendar
+
+        Args:
+            workout_ids: Liste des IDs de PlannedWorkout à synchroniser
+            db: Session de base de données
+
+        Returns:
+            Dictionnaire avec les statistiques (updated, created, errors, skipped)
+        """
+        stats = {
+            'updated': 0,
+            'created': 0,
+            'errors': 0,
+            'skipped': 0
+        }
+
+        if not self._calendar:
+            logger.error("❌ Calendrier non initialisé pour la synchronisation batch")
+            return stats
+
+        from models import PlannedWorkout
+
+        logger.info(f"📊 Synchronisation batch de {len(workout_ids)} PlannedWorkouts...")
+
+        for workout_id in workout_ids:
+            try:
+                # Récupérer le PlannedWorkout depuis la DB
+                workout = db.query(PlannedWorkout).filter(PlannedWorkout.id == workout_id).first()
+
+                if not workout:
+                    logger.warning(f"⚠️ PlannedWorkout {workout_id} non trouvé")
+                    stats['skipped'] += 1
+                    continue
+
+                # Ne synchroniser que les séances futures et non complétées
+                if workout.scheduled_date < datetime.now() or workout.status == 'completed':
+                    logger.info(f"⏭️ Workout {workout_id} ignoré (passé ou complété)")
+                    stats['skipped'] += 1
+                    continue
+
+                # Préparer les données
+                workout_data = {
+                    'id': workout.id,
+                    'scheduled_date': workout.scheduled_date,
+                    'workout_type': workout.workout_type,
+                    'distance_km': workout.distance_km or 0,
+                    'duration_minutes': workout.duration_minutes,
+                    'title': workout.title,
+                    'description': workout.description,
+                    'target_pace_min': workout.target_pace_min,
+                    'target_pace_max': workout.target_pace_max
+                }
+
+                # Mettre à jour ou créer l'événement
+                old_uid = workout.calendar_event_id
+                new_uid = self.update_planned_workout_event(workout_data, old_uid)
+
+                if new_uid:
+                    # Sauvegarder le nouvel UID en DB
+                    workout.calendar_event_id = new_uid
+                    db.commit()
+
+                    if old_uid:
+                        stats['updated'] += 1
+                        logger.info(f"✅ Workout {workout_id} mis à jour")
+                    else:
+                        stats['created'] += 1
+                        logger.info(f"✅ Workout {workout_id} créé")
+                else:
+                    stats['errors'] += 1
+                    logger.error(f"❌ Échec sync Workout {workout_id}")
+
+            except Exception as e:
+                logger.error(f"❌ Erreur lors de la sync du Workout {workout_id}: {e}")
+                logger.exception(e)
+                stats['errors'] += 1
+
+        logger.info(
+            f"🎯 Synchronisation batch terminée: "
+            f"{stats['created']} créés, {stats['updated']} mis à jour, "
+            f"{stats['skipped']} ignorés, {stats['errors']} erreurs"
+        )
+
+        return stats

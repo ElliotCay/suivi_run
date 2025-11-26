@@ -169,6 +169,87 @@ def call_claude_api(prompt: str, use_sonnet: bool = True) -> Dict[str, Any]:
         raise
 
 
+def call_claude_with_caching(
+    system_prompt: str,
+    messages: List[Dict[str, str]],
+    use_cache: bool = True,
+    use_sonnet: bool = True,
+    max_tokens: int = 2048
+) -> Dict[str, Any]:
+    """
+    Call Claude API with prompt caching support for multi-turn conversations.
+
+    Args:
+        system_prompt: System prompt to be cached (should be consistent across turns)
+        messages: List of conversation messages [{"role": "user"|"assistant", "content": "..."}]
+        use_cache: Whether to use prompt caching (cache the system prompt)
+        use_sonnet: True for Sonnet 4.5, False for Haiku 4.5
+        max_tokens: Maximum tokens in response
+
+    Returns:
+        dict with:
+            - content: Response text
+            - model: Model used
+            - input_tokens: Total input tokens
+            - output_tokens: Output tokens
+            - cache_creation_input_tokens: Tokens used to create cache (0 if cache hit)
+            - cache_read_input_tokens: Tokens read from cache
+    """
+    model = "claude-sonnet-4-5-20250929" if use_sonnet else "claude-haiku-4-5-20251001"
+
+    try:
+        client = _get_client()
+
+        # Build system array with cache_control if caching enabled
+        system_content = []
+        if use_cache:
+            system_content = [
+                {
+                    "type": "text",
+                    "text": system_prompt,
+                    "cache_control": {"type": "ephemeral"}  # Cache this content
+                }
+            ]
+        else:
+            system_content = [{"type": "text", "text": system_prompt}]
+
+        response = client.messages.create(
+            model=model,
+            max_tokens=max_tokens,
+            system=system_content,
+            messages=messages
+        )
+
+        content = response.content[0].text
+        usage = response.usage
+
+        # Extract caching metrics
+        cache_creation_tokens = getattr(usage, 'cache_creation_input_tokens', 0)
+        cache_read_tokens = getattr(usage, 'cache_read_input_tokens', 0)
+        input_tokens = usage.input_tokens
+        output_tokens = usage.output_tokens
+
+        logger.info(
+            f"Claude API call with caching: {model}, "
+            f"input={input_tokens}, output={output_tokens}, "
+            f"cache_creation={cache_creation_tokens}, cache_read={cache_read_tokens}"
+        )
+
+        return {
+            "content": content,
+            "model": model,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "cache_creation_input_tokens": cache_creation_tokens,
+            "cache_read_input_tokens": cache_read_tokens,
+            "is_cached": cache_read_tokens > 0  # True if we hit the cache
+        }
+
+    except Exception as e:
+        logger.error(f"Claude API error with caching: {e}")
+        raise
+
+
 def build_week_prompt(user_profile: Dict, recent_workouts: List, program_week: int = 2, ai_context: str = None) -> str:
     """
     Build prompt for generating a complete training week (3 workouts).

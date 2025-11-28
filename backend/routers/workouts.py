@@ -697,7 +697,7 @@ async def characterize_all_workouts(
 # ============================================================================
 
 @router.post("/workouts/{workout_id}/analyze-performance")
-async def analyze_workout_performance_endpoint(
+def analyze_workout_performance_endpoint(
     workout_id: int,
     db: Session = Depends(get_db),
     user_id: int = 1  # TODO: Get from auth
@@ -731,14 +731,14 @@ async def analyze_workout_performance_endpoint(
         raise HTTPException(status_code=404, detail="Workout not found")
 
     # Run AI analysis
-    analysis = await analyze_workout_performance(workout_id, db)
+    analysis = analyze_workout_performance(workout_id, db)
 
     if not analysis:
         raise HTTPException(status_code=500, detail="Analysis failed")
 
     # Check if adjustments needed
     if analysis.fatigue_detected or analysis.injury_risk_score > 5.0:
-        proposal = await generate_adjustment_proposal(analysis, user_id, db)
+        proposal = generate_adjustment_proposal(analysis, user_id, db)
 
         if proposal:
             return {
@@ -834,7 +834,7 @@ async def get_recent_analysis(
 
 
 @router.post("/adjustments/{proposal_id}/validate")
-async def validate_adjustment_proposal(
+def validate_adjustment_proposal(
     proposal_id: int,
     db: Session = Depends(get_db),
     user_id: int = 1  # TODO: Get from auth
@@ -862,7 +862,7 @@ async def validate_adjustment_proposal(
         )
 
     # Apply adjustments
-    await apply_adjustments_automatically(proposal.adjustments, db)
+    apply_adjustments_automatically(proposal.adjustments, db)
 
     # Update proposal status
     proposal.status = "validated"

@@ -58,7 +58,7 @@ def format_recent_workouts(workouts: List[Workout]) -> str:
     return "\n".join(lines)
 
 
-async def analyze_workout_performance(
+def analyze_workout_performance(
     workout_id: int,
     db: Session
 ) -> Optional[WorkoutAnalysis]:
@@ -127,14 +127,30 @@ async def analyze_workout_performance(
 
     # Call Claude API
     try:
-        response = await call_claude_api(
+        response = call_claude_api(
             prompt=prompt,
-            model="claude-sonnet-4",
-            max_tokens=2000
+            use_sonnet=True
         )
 
-        # Parse response
-        analysis_data = json.loads(response)
+        # Parse response - Claude sometimes adds text before/after JSON
+        content = response["content"].strip()
+
+        # Try to extract JSON if wrapped in markdown code blocks
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0].strip()
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0].strip()
+
+        # Find JSON object boundaries
+        start_idx = content.find("{")
+        end_idx = content.rfind("}")
+
+        if start_idx == -1 or end_idx == -1:
+            logger.error(f"No JSON found in Claude response: {content[:200]}")
+            return None
+
+        json_str = content[start_idx:end_idx+1]
+        analysis_data = json.loads(json_str)
 
         # Create WorkoutAnalysis record
         analysis = WorkoutAnalysis(
@@ -178,9 +194,9 @@ def build_analysis_prompt(
     zones_str = "Non disponibles"
     if zones:
         zones_str = f"""
-- Facile: {format_pace(zones.easy_pace_min)}-{format_pace(zones.easy_pace_max)}
-- Tempo: {format_pace(zones.threshold_pace_min)}-{format_pace(zones.threshold_pace_max)}
-- Intervalle: {format_pace(zones.interval_pace_min)}-{format_pace(zones.interval_pace_max)}
+- Facile: {format_pace(zones.easy_min_pace_sec)}-{format_pace(zones.easy_max_pace_sec)}
+- Tempo: {format_pace(zones.threshold_min_pace_sec)}-{format_pace(zones.threshold_max_pace_sec)}
+- Intervalle: {format_pace(zones.interval_min_pace_sec)}-{format_pace(zones.interval_max_pace_sec)}
 """
 
     # Format planned workout
@@ -280,7 +296,7 @@ def calculate_injury_risk_score(risk_factors: List[str]) -> float:
     return min(score, 10.0)  # Cap at 10
 
 
-async def generate_adjustment_proposal(
+def generate_adjustment_proposal(
     analysis: WorkoutAnalysis,
     user_id: int,
     db: Session
@@ -316,13 +332,12 @@ async def generate_adjustment_proposal(
     prompt = build_adjustment_prompt(analysis, future_workouts)
 
     try:
-        response = await call_claude_api(
+        response = call_claude_api(
             prompt=prompt,
-            model="claude-sonnet-4",
-            max_tokens=1500
+            use_sonnet=True
         )
 
-        adjustment_data = json.loads(response)
+        adjustment_data = json.loads(response["content"])
         adjustments = adjustment_data.get("adjustments", [])
 
         if not adjustments:
@@ -341,7 +356,7 @@ async def generate_adjustment_proposal(
         if max_change < 10:
             # Auto-apply small changes
             status = "auto_applied"
-            await apply_adjustments_automatically(adjustments, db)
+            apply_adjustments_automatically(adjustments, db)
         else:
             # Need validation
             status = "pending"
@@ -419,7 +434,7 @@ RÈGLES:
     return prompt
 
 
-async def apply_adjustments_automatically(
+def apply_adjustments_automatically(
     adjustments: List[Dict[str, Any]],
     db: Session
 ) -> None:
@@ -462,7 +477,7 @@ async def apply_adjustments_automatically(
     db.commit()
 
 
-async def detect_injury_risk(
+def detect_injury_risk(
     workout_id: int,
     user_id: int,
     db: Session

@@ -1,26 +1,103 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Target, Calendar, Sparkles } from 'lucide-react'
 import { AIButton } from '@/components/ui/AIButton'
+import { PostWorkoutAnalysisCard } from '@/components/PostWorkoutAnalysisCard'
+import { toast } from 'sonner'
+import api from '@/lib/api'
+
+interface WorkoutAnalysis {
+  id: number
+  workout_id: number
+  performance_vs_plan: "sur_objectif" | "conforme" | "sous_objectif" | "séance_libre"
+  pace_variance_pct: number | null
+  hr_zone_variance: string | null
+  fatigue_detected: boolean
+  injury_risk_score: number
+  injury_risk_factors: string[] | null
+  summary: string
+  analyzed_at: string
+}
+
+interface AdjustmentProposal {
+  id: number
+  status: "pending" | "auto_applied" | "validated" | "rejected"
+  adjustments: Array<any>
+  applied: boolean
+  created_at: string
+}
 
 export default function CoachPage() {
   const [activeTab, setActiveTab] = useState('race')
+  const [recentAnalysis, setRecentAnalysis] = useState<WorkoutAnalysis | null>(null)
+  const [recentProposal, setRecentProposal] = useState<AdjustmentProposal | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchRecentAnalysis()
+  }, [])
+
+  const fetchRecentAnalysis = async () => {
+    try {
+      const response = await api.get('/api/workouts/recent-analysis')
+      if (response.data.analysis) {
+        setRecentAnalysis(response.data.analysis)
+        setRecentProposal(response.data.proposal)
+      }
+    } catch (error) {
+      console.error('Error fetching recent analysis:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleValidate = async (proposalId: number) => {
+    try {
+      await api.post(`/api/adjustments/${proposalId}/validate`)
+      toast.success('Ajustements appliqués avec succès ✓')
+      fetchRecentAnalysis() // Refresh
+    } catch (error) {
+      console.error('Error validating proposal:', error)
+      toast.error('Erreur lors de la validation')
+    }
+  }
+
+  const handleReject = async (proposalId: number) => {
+    try {
+      await api.post(`/api/adjustments/${proposalId}/reject`)
+      toast.info('Proposition ignorée')
+      fetchRecentAnalysis() // Refresh
+    } catch (error) {
+      console.error('Error rejecting proposal:', error)
+      toast.error('Erreur lors du rejet')
+    }
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div className="space-y-2">
         <h1 className="text-6xl font-serif font-bold tracking-tight">
-          Coach
+          Coach IA
         </h1>
-        <p className="text-base text-muted-foreground">
-          Ton assistant d'entraînement personnalisé
+        <p className="text-xl text-muted-foreground">
+          Ton hub d'intelligence artificielle
         </p>
       </div>
+
+      {/* Post-Workout Analysis (if recent <24h) */}
+      {!loading && recentAnalysis && (
+        <PostWorkoutAnalysisCard
+          analysis={recentAnalysis}
+          proposal={recentProposal}
+          onValidate={handleValidate}
+          onReject={handleReject}
+        />
+      )}
 
       {/* Mode Selection Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">

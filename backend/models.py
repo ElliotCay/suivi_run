@@ -75,6 +75,7 @@ class Workout(Base):
 
     # Relationships
     user = relationship("User", back_populates="workouts")
+    analysis = relationship("WorkoutAnalysis", back_populates="workout", uselist=False)
 
 
 class StrengthSession(Base):
@@ -634,3 +635,63 @@ class ChatMessage(Base):
 
     # Relationships
     conversation = relationship("ChatConversation", back_populates="messages")
+
+
+class WorkoutAnalysis(Base):
+    """AI analysis of a completed workout performance."""
+
+    __tablename__ = "workout_analyses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    workout_id = Column(Integer, ForeignKey("workouts.id"), unique=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    # Performance metrics
+    performance_vs_plan = Column(String, nullable=True)  # "sur_objectif"|"conforme"|"sous_objectif"
+    pace_variance_pct = Column(Float, nullable=True)  # e.g., -5.2 = 5.2% faster than target
+    hr_zone_variance = Column(String, nullable=True)  # e.g., "zone_3_au_lieu_de_zone_2"
+
+    # Risk detection
+    fatigue_detected = Column(Boolean, default=False)
+    injury_risk_score = Column(Float, default=0.0)  # 0-10 scale
+    injury_risk_factors = Column(JSON, nullable=True)  # List of detected risk factors
+
+    # AI narrative
+    summary = Column(Text, nullable=True)  # AI-generated summary in French
+
+    # Metadata
+    analyzed_at = Column(DateTime, default=datetime.utcnow)
+    model_used = Column(String, default="claude-sonnet-4")
+
+    # Relationships
+    workout = relationship("Workout", back_populates="analysis")
+    adjustment_proposal = relationship("AdjustmentProposal", back_populates="analysis", uselist=False)
+
+
+class AdjustmentProposal(Base):
+    """Proposed adjustments to training plan based on workout analysis."""
+
+    __tablename__ = "adjustment_proposals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    analysis_id = Column(Integer, ForeignKey("workout_analyses.id"), unique=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    # Status
+    status = Column(String, default="pending", nullable=False)  # "pending"|"auto_applied"|"validated"|"rejected"
+
+    # Adjustments (JSON array of adjustment objects)
+    adjustments = Column(JSON, nullable=False)
+    # Format: [{"workout_id": 123, "action": "reduce_distance", "current_value": "15km",
+    #           "proposed_value": "12km", "change_pct": 20, "reasoning": "..."}]
+
+    # Validation tracking
+    validated_at = Column(DateTime, nullable=True)
+    applied = Column(Boolean, default=False)
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    analysis = relationship("WorkoutAnalysis", back_populates="adjustment_proposal")
+    user = relationship("User")

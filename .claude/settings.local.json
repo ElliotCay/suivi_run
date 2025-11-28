@@ -71,7 +71,8 @@
       "Bash(do file \"$f\")",
       "Bash(defaults read:*)",
       "Bash(while read f)",
-      "Bash(do cp \"$f\" moodboard.png)"
+      "Bash(do cp \"$f\" moodboard.png)",
+      "Bash(timeout 5 python:*)"
     ],
     "deny": [],
     "ask": []

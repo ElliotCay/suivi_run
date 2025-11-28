@@ -10,7 +10,7 @@ from sqlalchemy import and_, or_, desc
 from pydantic import BaseModel
 
 from database import get_db
-from models import Workout, TrainingBlock, PlannedWorkout
+from models import Workout, TrainingBlock, PlannedWorkout, WorkoutAnalysis, AdjustmentProposal
 from schemas import WorkoutResponse, WorkoutUpdate
 import logging
 
@@ -690,3 +690,240 @@ async def characterize_all_workouts(
     except Exception as e:
         logger.error(f"Bulk characterization error: {e}")
         raise HTTPException(status_code=500, detail=f"Bulk characterization failed: {str(e)}")
+
+
+# ============================================================================
+# POST-WORKOUT AI ANALYSIS ENDPOINTS
+# ============================================================================
+
+@router.post("/workouts/{workout_id}/analyze-performance")
+async def analyze_workout_performance_endpoint(
+    workout_id: int,
+    db: Session = Depends(get_db),
+    user_id: int = 1  # TODO: Get from auth
+):
+    """
+    Trigger AI analysis of completed workout performance.
+
+    This endpoint:
+    1. Analyzes workout vs planned targets
+    2. Detects fatigue and injury risks
+    3. Generates adjustment proposals
+    4. Auto-applies <10% changes, proposes >10% for validation
+
+    Returns:
+        analysis: WorkoutAnalysis object
+        proposal: AdjustmentProposal object (if adjustments needed)
+        status: "no_adjustments" | "auto_applied" | "pending_validation"
+    """
+    from services.post_workout_analyzer import (
+        analyze_workout_performance,
+        generate_adjustment_proposal
+    )
+
+    # Verify workout exists and belongs to user
+    workout = db.query(Workout).filter(
+        Workout.id == workout_id,
+        Workout.user_id == user_id
+    ).first()
+
+    if not workout:
+        raise HTTPException(status_code=404, detail="Workout not found")
+
+    # Run AI analysis
+    analysis = await analyze_workout_performance(workout_id, db)
+
+    if not analysis:
+        raise HTTPException(status_code=500, detail="Analysis failed")
+
+    # Check if adjustments needed
+    if analysis.fatigue_detected or analysis.injury_risk_score > 5.0:
+        proposal = await generate_adjustment_proposal(analysis, user_id, db)
+
+        if proposal:
+            return {
+                "analysis": {
+                    "id": analysis.id,
+                    "performance_vs_plan": analysis.performance_vs_plan,
+                    "pace_variance_pct": analysis.pace_variance_pct,
+                    "hr_zone_variance": analysis.hr_zone_variance,
+                    "fatigue_detected": analysis.fatigue_detected,
+                    "injury_risk_score": analysis.injury_risk_score,
+                    "injury_risk_factors": analysis.injury_risk_factors,
+                    "summary": analysis.summary,
+                    "analyzed_at": analysis.analyzed_at.isoformat()
+                },
+                "proposal": {
+                    "id": proposal.id,
+                    "status": proposal.status,
+                    "adjustments": proposal.adjustments,
+                    "applied": proposal.applied
+                },
+                "status": proposal.status
+            }
+
+    # No adjustments needed
+    return {
+        "analysis": {
+            "id": analysis.id,
+            "performance_vs_plan": analysis.performance_vs_plan,
+            "pace_variance_pct": analysis.pace_variance_pct,
+            "hr_zone_variance": analysis.hr_zone_variance,
+            "fatigue_detected": analysis.fatigue_detected,
+            "injury_risk_score": analysis.injury_risk_score,
+            "summary": analysis.summary,
+            "analyzed_at": analysis.analyzed_at.isoformat()
+        },
+        "proposal": None,
+        "status": "no_adjustments"
+    }
+
+
+@router.get("/workouts/recent-analysis")
+async def get_recent_analysis(
+    db: Session = Depends(get_db),
+    user_id: int = 1  # TODO: Get from auth
+):
+    """
+    Get most recent workout analysis (last 24h).
+    Used by /coach page to display post-workout insights.
+
+    Returns:
+        analysis: Most recent WorkoutAnalysis
+        proposal: Associated AdjustmentProposal (if exists)
+    """
+    from datetime import timedelta
+
+    # Get most recent analysis within 24h
+    yesterday = datetime.now() - timedelta(hours=24)
+
+    analysis = db.query(WorkoutAnalysis).join(Workout).filter(
+        Workout.user_id == user_id,
+        WorkoutAnalysis.analyzed_at >= yesterday
+    ).order_by(desc(WorkoutAnalysis.analyzed_at)).first()
+
+    if not analysis:
+        return {"analysis": None, "proposal": None}
+
+    # Get associated proposal if exists
+    proposal = db.query(AdjustmentProposal).filter(
+        AdjustmentProposal.analysis_id == analysis.id
+    ).first()
+
+    return {
+        "analysis": {
+            "id": analysis.id,
+            "workout_id": analysis.workout_id,
+            "performance_vs_plan": analysis.performance_vs_plan,
+            "pace_variance_pct": analysis.pace_variance_pct,
+            "hr_zone_variance": analysis.hr_zone_variance,
+            "fatigue_detected": analysis.fatigue_detected,
+            "injury_risk_score": analysis.injury_risk_score,
+            "injury_risk_factors": analysis.injury_risk_factors,
+            "summary": analysis.summary,
+            "analyzed_at": analysis.analyzed_at.isoformat()
+        },
+        "proposal": {
+            "id": proposal.id,
+            "status": proposal.status,
+            "adjustments": proposal.adjustments,
+            "applied": proposal.applied,
+            "created_at": proposal.created_at.isoformat()
+        } if proposal else None
+    }
+
+
+@router.post("/adjustments/{proposal_id}/validate")
+async def validate_adjustment_proposal(
+    proposal_id: int,
+    db: Session = Depends(get_db),
+    user_id: int = 1  # TODO: Get from auth
+):
+    """
+    Validate and apply proposed training plan adjustments.
+
+    Only works for proposals with status "pending".
+    Changes status to "validated" and applies adjustments.
+    """
+    from services.post_workout_analyzer import apply_adjustments_automatically
+
+    proposal = db.query(AdjustmentProposal).filter(
+        AdjustmentProposal.id == proposal_id,
+        AdjustmentProposal.user_id == user_id
+    ).first()
+
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+
+    if proposal.status != "pending":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Proposal already {proposal.status}"
+        )
+
+    # Apply adjustments
+    await apply_adjustments_automatically(proposal.adjustments, db)
+
+    # Update proposal status
+    proposal.status = "validated"
+    proposal.applied = True
+    proposal.validated_at = datetime.utcnow()
+
+    db.commit()
+
+    logger.info(f"✅ Proposal {proposal_id} validated and applied")
+
+    return {
+        "success": True,
+        "message": "Ajustements appliqués avec succès",
+        "proposal": {
+            "id": proposal.id,
+            "status": proposal.status,
+            "applied": proposal.applied,
+            "validated_at": proposal.validated_at.isoformat()
+        }
+    }
+
+
+@router.post("/adjustments/{proposal_id}/reject")
+async def reject_adjustment_proposal(
+    proposal_id: int,
+    db: Session = Depends(get_db),
+    user_id: int = 1  # TODO: Get from auth
+):
+    """
+    Reject proposed training plan adjustments.
+
+    Changes status to "rejected" without applying changes.
+    """
+    proposal = db.query(AdjustmentProposal).filter(
+        AdjustmentProposal.id == proposal_id,
+        AdjustmentProposal.user_id == user_id
+    ).first()
+
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+
+    if proposal.status != "pending":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Proposal already {proposal.status}"
+        )
+
+    # Reject proposal
+    proposal.status = "rejected"
+    proposal.applied = False
+
+    db.commit()
+
+    logger.info(f"❌ Proposal {proposal_id} rejected")
+
+    return {
+        "success": True,
+        "message": "Proposition ignorée",
+        "proposal": {
+            "id": proposal.id,
+            "status": proposal.status,
+            "applied": proposal.applied
+        }
+    }

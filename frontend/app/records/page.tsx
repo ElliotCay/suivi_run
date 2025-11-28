@@ -413,7 +413,7 @@ export default function RecordsPage() {
         <h1 className="text-6xl font-serif font-bold tracking-tight">
           Records
         </h1>
-        <p className="text-xl text-muted-foreground font-[family-name:var(--font-outfit)] font-light">
+        <p className="text-xl text-muted-foreground font-sans font-light">
           Vos meilleures performances, gravées dans le marbre.
         </p>
       </motion.div>

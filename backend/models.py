@@ -46,6 +46,8 @@ class User(Base):
     training_plans = relationship("TrainingPlan", back_populates="user")
     user_preferences = relationship("UserPreferences", back_populates="user", uselist=False)
     shoes = relationship("Shoe", back_populates="user")
+    race_objectives = relationship("RaceObjective", back_populates="user")
+    injury_records = relationship("InjuryHistory", back_populates="user")
 
 
 class Workout(Base):
@@ -307,6 +309,51 @@ class TrainingZone(Base):
     user = relationship("User")
 
 
+class RaceObjective(Base):
+    """User's race goal with date, distance, and target time."""
+
+    __tablename__ = "race_objectives"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    name = Column(String, nullable=False)  # e.g., "Marathon de Paris"
+    race_date = Column(DateTime, nullable=False)
+    distance = Column(String, nullable=False)  # e.g., "marathon", "half_marathon", "10k"
+    target_time_seconds = Column(Integer, nullable=True)  # Optional target finish time
+    location = Column(String, nullable=True)
+    status = Column(String, default="active")  # active, completed, abandoned
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User", back_populates="race_objectives")
+    training_blocks = relationship("TrainingBlock", back_populates="race_objective", cascade="all, delete-orphan")
+
+
+class InjuryHistory(Base):
+    """Track user's injury history for strengthening prioritization."""
+
+    __tablename__ = "injury_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    injury_type = Column(String, nullable=False)  # e.g., "plantar_fasciitis", "it_band", "shin_splints"
+    location = Column(String, nullable=False)  # e.g., "ankle", "knee", "it_band", "tfl", "calf"
+    side = Column(String, nullable=True)  # "left", "right", "both"
+    severity = Column(String, nullable=False)  # "minor", "moderate", "severe"
+    occurred_at = Column(DateTime, nullable=False)
+    resolved_at = Column(DateTime, nullable=True)
+    status = Column(String, default="resolved")  # active, monitoring, resolved
+    recurrence_count = Column(Integer, default=0)  # How many times this injury has occurred
+    description = Column(Text, nullable=True)  # Changed from notes to description
+    strengthening_focus = Column(JSON, nullable=True)  # ["tfl_hanche", "mollet_cheville"]
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User", back_populates="injury_records")
+
+
 class TrainingBlock(Base):
     """4-week training block with periodization."""
 
@@ -328,6 +375,10 @@ class TrainingBlock(Base):
     threshold_percentage = Column(Integer, nullable=False)  # e.g., 20 for base phase
     interval_percentage = Column(Integer, nullable=False)  # e.g., 10 for base phase
 
+    # Race preparation linkage
+    race_objective_id = Column(Integer, ForeignKey("race_objectives.id"), nullable=True)
+    block_sequence = Column(Integer, nullable=True)  # 1, 2, 3... for multi-block race plans
+
     status = Column(String, default="active")  # active, completed, abandoned
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -336,6 +387,7 @@ class TrainingBlock(Base):
     user = relationship("User")
     planned_workouts = relationship("PlannedWorkout", back_populates="block", cascade="all, delete-orphan")
     strengthening_reminders = relationship("StrengtheningReminder", back_populates="block", cascade="all, delete-orphan")
+    race_objective = relationship("RaceObjective", back_populates="training_blocks")
 
 
 class PlannedWorkout(Base):

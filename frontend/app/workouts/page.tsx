@@ -9,6 +9,7 @@ import axios from 'axios'
 import { Sparkles, Loader2, Activity, Upload, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import EmptyState from '@/components/EmptyState'
+import { AIButton } from '@/components/ui/AIButton'
 
 interface Workout {
   id: number
@@ -149,7 +150,7 @@ export default function WorkoutsPage() {
           <h1 className="text-6xl font-serif font-bold tracking-tight">
             Séances
           </h1>
-          <p className="text-base text-muted-foreground">
+          <p className="text-xl text-muted-foreground font-sans font-light">
             {workouts.length} entraînements
           </p>
         </div>
@@ -173,25 +174,17 @@ export default function WorkoutsPage() {
               </>
             )}
           </Button>
-          <Button
+          <AIButton
             onClick={classifyWorkouts}
             disabled={classifying}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2"
+            animationType="none"
+            label={classifying ? "Classification..." : "Classifier"}
+            iconClassName="w-4 h-4 text-purple-500"
+            className="border border-input shadow-sm text-sm px-4 py-1.5 h-9"
+            showIcon={!classifying}
           >
-            {classifying ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Classification...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4 w-4" />
-                Classifier
-              </>
-            )}
-          </Button>
+            {classifying && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+          </AIButton>
         </div>
       </div>
 

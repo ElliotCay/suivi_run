@@ -514,3 +514,99 @@ class MessageSendResponse(BaseModel):
     message_count: int
     approaching_limit: bool
     max_messages: int
+
+
+# Race Objective schemas
+class RaceObjectiveBase(BaseModel):
+    name: str
+    race_date: datetime
+    distance: str  # "5km", "10km", "semi", "marathon"
+    target_time_seconds: Optional[int] = None
+    location: Optional[str] = None
+
+
+class RaceObjectiveCreate(RaceObjectiveBase):
+    pass  # user_id is injected by the backend endpoint
+
+
+class RaceObjectiveUpdate(BaseModel):
+    name: Optional[str] = None
+    race_date: Optional[datetime] = None
+    distance: Optional[str] = None
+    target_time_seconds: Optional[int] = None
+    location: Optional[str] = None
+    status: Optional[str] = None
+
+
+class RaceObjectiveResponse(RaceObjectiveBase):
+    id: int
+    user_id: int
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# Injury History schemas
+class InjuryHistoryBase(BaseModel):
+    injury_type: str
+    location: str  # "ankle", "knee", "it_band", "tfl", "calf", "achilles", "plantar", "shin"
+    side: Optional[str] = None  # "left", "right", "both"
+    severity: str  # "minor", "moderate", "severe"
+    occurred_at: datetime
+    resolved_at: Optional[datetime] = None
+    recurrence_count: int = 0  # Changed from is_recurring to recurrence_count
+    description: Optional[str] = None
+    status: str = "resolved"  # "active", "monitoring", "resolved"
+    strengthening_focus: Optional[List[str]] = None  # ["tfl_hanche", "mollet_cheville"]
+
+
+class InjuryHistoryCreate(InjuryHistoryBase):
+    pass  # user_id is injected by backend
+
+
+class InjuryHistoryUpdate(BaseModel):
+    injury_type: Optional[str] = None
+    location: Optional[str] = None
+    side: Optional[str] = None
+    severity: Optional[str] = None
+    resolved_at: Optional[datetime] = None
+    recurrence_count: Optional[int] = None  # Changed from is_recurring
+    description: Optional[str] = None
+    status: Optional[str] = None
+    strengthening_focus: Optional[List[str]] = None
+
+
+class InjuryHistoryResponse(InjuryHistoryBase):
+    id: int
+    user_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# Planning schemas (for unified planning endpoint)
+class GeneratePlanningRequest(BaseModel):
+    mode: str  # "simple" or "race"
+    race_objective_id: Optional[int] = None
+    start_date: datetime
+    days_per_week: int = Field(..., ge=3, le=6)
+    phase: Optional[str] = "base"  # For simple mode: "base", "development", "peak"
+
+
+class PeriodizationSummary(BaseModel):
+    total_weeks: int
+    base_weeks: int = 0
+    development_weeks: int = 0
+    peak_weeks: int = 0
+    taper_weeks: int = 1
+
+
+class GeneratePlanningResponse(BaseModel):
+    race_objective: Optional[RaceObjectiveResponse] = None
+    blocks: List[TrainingBlockResponse]
+    periodization_summary: PeriodizationSummary

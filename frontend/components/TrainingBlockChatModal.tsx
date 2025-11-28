@@ -130,13 +130,13 @@ export default function TrainingBlockChatModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl h-[80vh] p-0 bg-white/5 backdrop-blur-xl border border-white/10">
+      <DialogContent className="max-w-4xl h-[80vh] p-0 bg-background/80 backdrop-blur-xl border border-border">
         {/* Header - Liquid Glass */}
-        <DialogHeader className="p-6 border-b border-white/10 bg-white/5">
+        <DialogHeader className="p-6 border-b border-border bg-muted/10">
           <DialogTitle className="font-serif text-3xl tracking-tight">
             Ajustement Intelligent
           </DialogTitle>
-          <p className="text-sm text-white/60 mt-2">
+          <p className="text-sm text-muted-foreground mt-2">
             Discutez avec votre coach IA pour adapter vos séances
           </p>
 
@@ -145,22 +145,20 @@ export default function TrainingBlockChatModal({
             <button
               onClick={() => setScopeMode('block_start')}
               disabled={!!conversation}
-              className={`px-4 py-2 text-sm rounded-lg transition-all ${
-                scopeMode === 'block_start'
+              className={`px-4 py-2 text-sm rounded-lg transition-all ${scopeMode === 'block_start'
                   ? 'bg-gradient-to-r from-[#ee95b3] to-[#667abf] text-white'
-                  : 'bg-white/5 text-white/60 hover:bg-white/10'
-              } ${conversation ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                } ${conversation ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               Depuis début du bloc
             </button>
             <button
               onClick={() => setScopeMode('rolling_4weeks')}
               disabled={!!conversation}
-              className={`px-4 py-2 text-sm rounded-lg transition-all ${
-                scopeMode === 'rolling_4weeks'
+              className={`px-4 py-2 text-sm rounded-lg transition-all ${scopeMode === 'rolling_4weeks'
                   ? 'bg-gradient-to-r from-[#ee95b3] to-[#667abf] text-white'
-                  : 'bg-white/5 text-white/60 hover:bg-white/10'
-              } ${conversation ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                } ${conversation ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               4 dernières semaines
             </button>
@@ -168,9 +166,9 @@ export default function TrainingBlockChatModal({
 
           {/* Token Counter */}
           {conversation && (
-            <div className="flex items-center gap-2 mt-3 text-xs font-mono text-white/40">
+            <div className="flex items-center gap-2 mt-3 text-xs font-mono text-muted-foreground/60">
               <span>Tokens utilisés:</span>
-              <span className="text-white/60">{conversation.total_tokens}</span>
+              <span className="text-muted-foreground">{conversation.total_tokens}</span>
               <span>•</span>
               <span>Messages: {messages.length}/{20}</span>
             </div>
@@ -181,13 +179,13 @@ export default function TrainingBlockChatModal({
         <div className="flex-1 flex flex-col overflow-hidden">
           {isInitializing ? (
             <div className="flex-1 flex items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-white/40" />
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : conversation?.state === 'validated' ? (
             <div className="flex-1 flex flex-col items-center justify-center space-y-4 p-8">
               <CheckCircle2 className="h-16 w-16 text-green-500" />
               <h3 className="font-serif text-2xl">Changements appliqués</h3>
-              <p className="text-white/60 text-center max-w-md">
+              <p className="text-muted-foreground text-center max-w-md">
                 Vos séances ont été ajustées avec succès. Les modifications sont visibles dans votre bloc d'entraînement.
               </p>
             </div>
@@ -208,17 +206,16 @@ export default function TrainingBlockChatModal({
                     className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-[80%] rounded-2xl p-4 ${
-                        msg.role === 'user'
+                      className={`max-w-[80%] rounded-2xl p-4 ${msg.role === 'user'
                           ? 'bg-gradient-to-r from-[#ee95b3] to-[#667abf] text-white'
-                          : 'bg-white/10 backdrop-blur-md border border-white/10'
-                      }`}
+                          : 'bg-muted/50 backdrop-blur-md border border-border'
+                        }`}
                     >
                       <p className="text-sm leading-relaxed whitespace-pre-wrap">
                         {msg.content}
                       </p>
                       {msg.is_cached && msg.role === 'assistant' && (
-                        <span className="text-xs text-white/40 mt-2 block font-mono">
+                        <span className="text-xs text-muted-foreground mt-2 block font-mono">
                           cached
                         </span>
                       )}
@@ -228,8 +225,8 @@ export default function TrainingBlockChatModal({
 
                 {isLoading && (
                   <div className="flex justify-start">
-                    <div className="bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-4">
-                      <Loader2 className="h-4 w-4 animate-spin text-white/60" />
+                    <div className="bg-muted/50 backdrop-blur-md border border-border rounded-2xl p-4">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                     </div>
                   </div>
                 )}
@@ -244,14 +241,14 @@ export default function TrainingBlockChatModal({
               </div>
 
               {/* Input Area - Super Glass */}
-              <div className="p-6 border-t border-white/10 bg-white/5 backdrop-blur-xl">
+              <div className="p-6 border-t border-border bg-background/50 backdrop-blur-xl">
                 <div className="flex gap-3">
                   <Textarea
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
                     onKeyDown={handleKeyPress}
                     placeholder="Décrivez vos ressentis, fatigue, douleurs..."
-                    className="flex-1 bg-white/5 border-white/10 focus:border-white/20 resize-none h-20"
+                    className="flex-1 bg-background border-input focus:border-ring resize-none h-20"
                     disabled={isLoading}
                   />
                   <div className="flex flex-col gap-2">
@@ -266,7 +263,7 @@ export default function TrainingBlockChatModal({
                       onClick={handleRequestProposal}
                       disabled={isLoading || messages.length < 4}
                       variant="outline"
-                      className="bg-white/5 border-white/10 hover:bg-white/10"
+                      className="bg-background border-input hover:bg-muted"
                       title="Demander une proposition d'ajustements"
                     >
                       <MessageSquare className="h-4 w-4" />
@@ -299,9 +296,9 @@ function ProposalView({
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6">
       {/* Analysis */}
-      <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6">
+      <div className="bg-muted/30 backdrop-blur-md border border-border rounded-2xl p-6">
         <h3 className="font-serif text-xl mb-3">Analyse</h3>
-        <p className="text-white/80 leading-relaxed">{proposal.analysis}</p>
+        <p className="text-foreground/80 leading-relaxed">{proposal.analysis}</p>
       </div>
 
       {/* Adjustments */}
@@ -314,7 +311,7 @@ function ProposalView({
       </div>
 
       {/* Actions */}
-      <div className="flex gap-3 pt-6 border-t border-white/10">
+      <div className="flex gap-3 pt-6 border-t border-border">
         <Button
           onClick={onValidate}
           disabled={isValidating}
@@ -330,7 +327,7 @@ function ProposalView({
           onClick={onReject}
           disabled={isValidating}
           variant="outline"
-          className="flex-1 bg-white/5 border-white/10 hover:bg-white/10 h-12"
+          className="flex-1 bg-background border-input hover:bg-muted h-12"
         >
           ✗ Refuser et continuer
         </Button>
@@ -363,16 +360,16 @@ function WorkoutDiff({ adjustment }: { adjustment: WorkoutAdjustment }) {
           <span className="font-mono text-sm text-red-400">ID {adjustment.workout_id}</span>
           {getActionBadge(adjustment.action)}
         </div>
-        <p className="text-white/60 text-sm">{adjustment.reasoning}</p>
+        <p className="text-muted-foreground text-sm">{adjustment.reasoning}</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-4 space-y-4">
+    <div className="bg-muted/30 backdrop-blur-md border border-border rounded-xl p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <span className="font-mono text-sm text-white/40">ID {adjustment.workout_id}</span>
+        <span className="font-mono text-sm text-muted-foreground">ID {adjustment.workout_id}</span>
         {getActionBadge(adjustment.action)}
       </div>
 
@@ -380,30 +377,30 @@ function WorkoutDiff({ adjustment }: { adjustment: WorkoutAdjustment }) {
       <div className="grid grid-cols-2 gap-4">
         {/* Current */}
         <div className="space-y-2">
-          <h4 className="text-xs font-medium text-white/40 uppercase tracking-wide">Actuel</h4>
+          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Actuel</h4>
           <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 space-y-1 font-mono text-sm">
-            <div className="text-white/60">{adjustment.current.date}</div>
+            <div className="text-muted-foreground">{adjustment.current.date}</div>
             <div className="text-red-400">{adjustment.current.type}</div>
-            <div className="text-white/80">{adjustment.current.distance_km}km</div>
-            <div className="text-white/60 text-xs">{adjustment.current.pace_target}</div>
+            <div className="text-foreground/80">{adjustment.current.distance_km}km</div>
+            <div className="text-muted-foreground text-xs">{adjustment.current.pace_target}</div>
           </div>
         </div>
 
         {/* Proposed */}
         <div className="space-y-2">
-          <h4 className="text-xs font-medium text-white/40 uppercase tracking-wide">Proposé</h4>
+          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Proposé</h4>
           <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-3 space-y-1 font-mono text-sm">
-            <div className="text-white/60">{adjustment.proposed.date}</div>
+            <div className="text-muted-foreground">{adjustment.proposed.date}</div>
             <div className="text-green-400">{adjustment.proposed.type}</div>
-            <div className="text-white/80">{adjustment.proposed.distance_km}km</div>
-            <div className="text-white/60 text-xs">{adjustment.proposed.pace_target}</div>
+            <div className="text-foreground/80">{adjustment.proposed.distance_km}km</div>
+            <div className="text-muted-foreground text-xs">{adjustment.proposed.pace_target}</div>
           </div>
         </div>
       </div>
 
       {/* Reasoning */}
-      <div className="pt-3 border-t border-white/10">
-        <p className="text-white/60 text-sm leading-relaxed">{adjustment.reasoning}</p>
+      <div className="pt-3 border-t border-border">
+        <p className="text-muted-foreground text-sm leading-relaxed">{adjustment.reasoning}</p>
       </div>
     </div>
   );

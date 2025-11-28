@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Target, Calendar, Sparkles } from 'lucide-react'
+import { AIButton } from '@/components/ui/AIButton'
 
 export default function CoachPage() {
   const [activeTab, setActiveTab] = useState('race')
@@ -114,10 +115,12 @@ export default function CoachPage() {
                   <Button size="lg" variant="outline">
                     Séance spécifique
                   </Button>
-                  <Button size="lg">
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Surprise-moi
-                  </Button>
+                  <AIButton
+                    animationType="none"
+                    label="Surprise-moi"
+                    iconClassName="w-4 h-4 text-purple-500"
+                    className="border border-input shadow-sm bg-foreground text-background hover:bg-foreground/90 px-6 py-2.5"
+                  />
                 </div>
               </div>
             </CardContent>

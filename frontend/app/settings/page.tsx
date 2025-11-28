@@ -9,6 +9,7 @@ import { Upload, Edit2, Plus, X } from 'lucide-react'
 import { ThemeSwitcherCard } from '@/components/ThemeSwitcherCard'
 import { useProfile, useTrainingPreferences } from '@/hooks/useProfile'
 import { useShoes, type Shoe, type ShoeCreate } from '@/hooks/useShoes'
+import { useInjuries, type Injury, type InjuryCreate, type InjuryLocation, type InjurySeverity, type InjuryStatus } from '@/hooks/useInjuries'
 import { ImageCropDialog } from '@/components/ImageCropDialog'
 import {
   Dialog,
@@ -36,6 +37,7 @@ export default function SettingsPage() {
   const { profile, loading: profileLoading, updateProfile, uploadProfilePicture } = useProfile()
   const { preferences, updatePreferences } = useTrainingPreferences()
   const { shoes, loading: shoesLoading, createShoe, updateShoe, deleteShoe, reload: reloadShoes } = useShoes(true)
+  const { injuries, loading: injuriesLoading, createInjury, updateInjury, deleteInjury, reload: reloadInjuries } = useInjuries(true)
 
   // Edit mode
   const [isEditingProfile, setIsEditingProfile] = useState(false)
@@ -51,6 +53,21 @@ export default function SettingsPage() {
     max_km: 800,
     is_default: false,
     description: ''
+  })
+
+  // Injuries dialog
+  const [injuryDialogOpen, setInjuryDialogOpen] = useState(false)
+  const [editingInjury, setEditingInjury] = useState<Injury | null>(null)
+  const [injuryFormData, setInjuryFormData] = useState<InjuryCreate>({
+    injury_type: '',
+    location: 'knee' as InjuryLocation,
+    side: 'left',
+    severity: 'moderate' as InjurySeverity,
+    occurred_at: new Date().toISOString().split('T')[0],
+    recurrence_count: 0,
+    description: '',
+    status: 'monitoring' as InjuryStatus,
+    strengthening_focus: []
   })
 
   // Profile state
@@ -236,6 +253,68 @@ export default function SettingsPage() {
     if (result.success) {
       toast.success('Chaussure archivée')
       reloadShoes()
+    } else {
+      toast.error('Erreur lors de la suppression')
+    }
+  }
+
+  // Injury handlers
+  const handleOpenInjuryDialog = (injury?: Injury) => {
+    if (injury) {
+      setEditingInjury(injury)
+      setInjuryFormData({
+        injury_type: injury.injury_type,
+        location: injury.location,
+        side: injury.side || 'left',
+        severity: injury.severity,
+        occurred_at: injury.occurred_at.split('T')[0],
+        resolved_at: injury.resolved_at ? injury.resolved_at.split('T')[0] : undefined,
+        recurrence_count: injury.recurrence_count,
+        description: injury.description || '',
+        status: injury.status,
+        strengthening_focus: injury.strengthening_focus || []
+      })
+    } else {
+      setEditingInjury(null)
+      setInjuryFormData({
+        injury_type: '',
+        location: 'knee',
+        side: 'left',
+        severity: 'moderate',
+        occurred_at: new Date().toISOString().split('T')[0],
+        recurrence_count: 0,
+        description: '',
+        status: 'monitoring',
+        strengthening_focus: []
+      })
+    }
+    setInjuryDialogOpen(true)
+  }
+
+  const handleSaveInjury = async () => {
+    if (!injuryFormData.injury_type) {
+      toast.error('Type de blessure requis')
+      return
+    }
+
+    const result = editingInjury
+      ? await updateInjury(editingInjury.id, injuryFormData)
+      : await createInjury(injuryFormData)
+
+    if (result.success) {
+      toast.success(editingInjury ? 'Blessure modifiée' : 'Blessure ajoutée')
+      setInjuryDialogOpen(false)
+      reloadInjuries()
+    } else {
+      toast.error('Erreur lors de la sauvegarde')
+    }
+  }
+
+  const handleDeleteInjury = async (injury: Injury) => {
+    const result = await deleteInjury(injury.id)
+    if (result.success) {
+      toast.success('Blessure supprimée')
+      reloadInjuries()
     } else {
       toast.error('Erreur lors de la suppression')
     }
@@ -583,6 +662,111 @@ export default function SettingsPage() {
 
       <Separator />
 
+      {/* Injuries */}
+      <div className="space-y-6">
+        <h3 className="text-2xl font-bold">Blessures</h3>
+
+        {injuriesLoading ? (
+          <p className="text-sm text-muted-foreground">Chargement...</p>
+        ) : injuries.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucune blessure enregistrée</p>
+        ) : (
+          <div className="space-y-2">
+            {injuries.map((injury) => {
+              const statusColors = {
+                active: 'bg-red-500/10 text-red-600 border-red-500/20',
+                monitoring: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
+                resolved: 'bg-green-500/10 text-green-600 border-green-500/20'
+              }
+              const statusLabels = {
+                active: 'Active',
+                monitoring: 'Surveillance',
+                resolved: 'Résolue'
+              }
+              const severityLabels = {
+                minor: 'Légère',
+                moderate: 'Modérée',
+                severe: 'Sévère'
+              }
+              const locationLabels = {
+                ankle: 'Cheville',
+                knee: 'Genou',
+                it_band: 'Bandelette IT',
+                tfl: 'TFL',
+                calf: 'Mollet',
+                achilles: 'Achille',
+                plantar: 'Plantaire',
+                shin: 'Tibia'
+              }
+              const sideLabels = {
+                left: 'G',
+                right: 'D',
+                both: 'Les 2'
+              }
+
+              return (
+                <div
+                  key={injury.id}
+                  className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-all group cursor-pointer"
+                  onClick={() => handleOpenInjuryDialog(injury)}
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{injury.injury_type}</p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full border ${statusColors[injury.status]}`}>
+                        {statusLabels[injury.status]}
+                      </span>
+                      {injury.recurrence_count > 0 && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                          Récurrent ({injury.recurrence_count}x)
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4 mt-1">
+                      <p className="text-sm text-muted-foreground">
+                        {locationLabels[injury.location]}{injury.side ? ` (${sideLabels[injury.side as 'left' | 'right' | 'both']})` : ''} • {severityLabels[injury.severity]}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(injury.occurred_at).toLocaleDateString('fr-FR')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleOpenInjuryDialog(injury)
+                      }}
+                    >
+                      Modifier
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDeleteInjury(injury)
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        <Button variant="outline" size="sm" onClick={() => handleOpenInjuryDialog()}>
+          <Plus className="h-4 w-4 mr-2" />
+          Ajouter une blessure
+        </Button>
+      </div>
+
+      <Separator />
+
       {/* Theme */}
       <div className="space-y-6">
         <h3 className="text-2xl font-bold">Apparence</h3>
@@ -674,6 +858,180 @@ export default function SettingsPage() {
             </Button>
             <Button onClick={handleSaveShoe}>
               {editingShoe ? 'Modifier' : 'Ajouter'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Injury Dialog */}
+      <Dialog open={injuryDialogOpen} onOpenChange={setInjuryDialogOpen}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingInjury ? 'Modifier' : 'Ajouter'} une blessure</DialogTitle>
+            <DialogDescription>
+              Enregistre tes blessures pour un renforcement personnalisé
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Type de blessure</Label>
+              <Input
+                value={injuryFormData.injury_type}
+                onChange={(e) => setInjuryFormData({ ...injuryFormData, injury_type: e.target.value })}
+                placeholder="Tendinite rotulienne, périostite..."
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Localisation</Label>
+                <select
+                  value={injuryFormData.location}
+                  onChange={(e) => setInjuryFormData({ ...injuryFormData, location: e.target.value as InjuryLocation })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="knee">Genou</option>
+                  <option value="ankle">Cheville</option>
+                  <option value="calf">Mollet</option>
+                  <option value="achilles">Achille</option>
+                  <option value="it_band">Bandelette IT</option>
+                  <option value="tfl">TFL</option>
+                  <option value="shin">Tibia</option>
+                  <option value="plantar">Plantaire</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Côté</Label>
+                <select
+                  value={injuryFormData.side}
+                  onChange={(e) => setInjuryFormData({ ...injuryFormData, side: e.target.value as 'left' | 'right' | 'both' })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="left">Gauche</option>
+                  <option value="right">Droit</option>
+                  <option value="both">Les deux</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Gravité</Label>
+                <select
+                  value={injuryFormData.severity}
+                  onChange={(e) => setInjuryFormData({ ...injuryFormData, severity: e.target.value as InjurySeverity })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="minor">Légère</option>
+                  <option value="moderate">Modérée</option>
+                  <option value="severe">Sévère</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Date d'occurrence</Label>
+                <Input
+                  type="date"
+                  value={injuryFormData.occurred_at}
+                  onChange={(e) => setInjuryFormData({ ...injuryFormData, occurred_at: e.target.value })}
+                  max={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Statut</Label>
+                <select
+                  value={injuryFormData.status}
+                  onChange={(e) => setInjuryFormData({ ...injuryFormData, status: e.target.value as InjuryStatus })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="active">Active</option>
+                  <option value="monitoring">Surveillance</option>
+                  <option value="resolved">Résolue</option>
+                </select>
+              </div>
+            </div>
+
+            {injuryFormData.status === 'resolved' && (
+              <div className="space-y-2">
+                <Label>Date de résolution</Label>
+                <Input
+                  type="date"
+                  value={injuryFormData.resolved_at || ''}
+                  onChange={(e) => setInjuryFormData({ ...injuryFormData, resolved_at: e.target.value })}
+                  max={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>Nombre de récurrences</Label>
+              <Input
+                type="number"
+                min="0"
+                value={injuryFormData.recurrence_count}
+                onChange={(e) => setInjuryFormData({ ...injuryFormData, recurrence_count: Number(e.target.value) })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Description (optionnel)</Label>
+              <Input
+                value={injuryFormData.description}
+                onChange={(e) => setInjuryFormData({ ...injuryFormData, description: e.target.value })}
+                placeholder="Douleur lors de la descente, gonflement..."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Focus renforcement</Label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const focus = injuryFormData.strengthening_focus || []
+                    const newFocus = focus.includes('tfl_hanche')
+                      ? focus.filter(f => f !== 'tfl_hanche')
+                      : [...focus, 'tfl_hanche']
+                    setInjuryFormData({ ...injuryFormData, strengthening_focus: newFocus })
+                  }}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                    injuryFormData.strengthening_focus?.includes('tfl_hanche')
+                      ? 'bg-foreground text-background'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  TFL/Hanche
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const focus = injuryFormData.strengthening_focus || []
+                    const newFocus = focus.includes('mollet_cheville')
+                      ? focus.filter(f => f !== 'mollet_cheville')
+                      : [...focus, 'mollet_cheville']
+                    setInjuryFormData({ ...injuryFormData, strengthening_focus: newFocus })
+                  }}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                    injuryFormData.strengthening_focus?.includes('mollet_cheville')
+                      ? 'bg-foreground text-background'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  Mollet/Cheville
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInjuryDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleSaveInjury}>
+              {editingInjury ? 'Modifier' : 'Ajouter'}
             </Button>
           </DialogFooter>
         </DialogContent>

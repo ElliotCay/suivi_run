@@ -24,6 +24,7 @@ import { BadgeToast } from '@/components/BadgeToast'
 import { useWeeklyRecaps } from '@/hooks/useWeeklyRecaps'
 import WeeklyRecapCard from '@/components/WeeklyRecapCard'
 import { Sparkles } from 'lucide-react'
+import { AIButton } from '@/components/ui/AIButton'
 
 interface DashboardSummary {
   week_volume_km: number
@@ -238,7 +239,7 @@ export default function DashboardPage() {
           <h1 className="text-6xl font-serif font-bold tracking-tight">
             Dashboard
           </h1>
-          <p className="text-base text-muted-foreground">
+          <p className="text-xl text-muted-foreground font-sans font-light">
             Vue d'ensemble de votre entraînement
           </p>
         </div>
@@ -265,7 +266,7 @@ export default function DashboardPage() {
         <h1 className="text-6xl font-serif font-bold tracking-tight">
           Dashboard
         </h1>
-        <p className="text-base text-muted-foreground">
+        <p className="text-xl text-muted-foreground font-sans font-light">
           Vue d'ensemble de votre entraînement
         </p>
       </div>
@@ -646,16 +647,14 @@ export default function DashboardPage() {
               <Sparkles className="h-5 w-5 text-amber-500" />
               <h2 className="text-2xl font-serif font-bold">Récap hebdomadaire</h2>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
+            <AIButton
               onClick={() => generateRecap()}
-              className="gap-2"
               disabled={recapLoading}
-            >
-              <Sparkles className="h-4 w-4" />
-              {latestRecap ? 'Générer nouveau' : 'Générer le récap'}
-            </Button>
+              animationType="none"
+              label={latestRecap ? 'Générer nouveau' : 'Générer le récap'}
+              iconClassName="w-4 h-4 text-purple-500"
+              className="border border-input shadow-sm text-sm px-4 py-1.5 h-9"
+            />
           </div>
           {latestRecap ? (
             <WeeklyRecapCard
@@ -673,14 +672,14 @@ export default function DashboardPage() {
                     <p className="text-sm text-muted-foreground mb-4">
                       Générez votre premier récap hebdomadaire pour voir vos progrès
                     </p>
-                    <Button
+                    <AIButton
                       onClick={() => generateRecap()}
-                      className="gap-2"
                       disabled={recapLoading}
-                    >
-                      <Sparkles className="h-4 w-4" />
-                      Générer mon récap
-                    </Button>
+                      animationType="none"
+                      label="Générer mon récap"
+                      iconClassName="w-4 h-4 text-purple-500"
+                      className="border border-input shadow-sm bg-foreground text-background hover:bg-foreground/90 px-6 py-2.5"
+                    />
                   </div>
                 </div>
               </CardContent>

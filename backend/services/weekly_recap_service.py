@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
 
-from models import WeeklyRecap, Workout, User, TrainingPlan
+from models import WeeklyRecap, Workout, User, TrainingPlan, RaceObjective, TrainingBlock
 from services.claude_service import call_claude_api
 from services.readiness_service import calculate_readiness_score
 
@@ -90,7 +90,8 @@ def generate_weekly_recap_prompt(
     workouts: List[Workout],
     metrics: Dict,
     previous_week_volume: float = 0.0,
-    training_plan: Optional[TrainingPlan] = None
+    race_objective: Optional[RaceObjective] = None,
+    current_block: Optional[TrainingBlock] = None
 ) -> str:
     """
     Generate the prompt for Claude Haiku to create the weekly recap.
@@ -100,12 +101,13 @@ def generate_weekly_recap_prompt(
         workouts: List of workouts for the week
         metrics: Calculated metrics dictionary
         previous_week_volume: Volume from previous week for comparison
-        training_plan: Current training plan if any
+        race_objective: Current race objective if any
+        current_block: Current training block if any
 
     Returns:
         Formatted prompt string
     """
-    # Format workouts
+    # Format workouts with user comments
     workout_details = []
     for w in workouts:
         date_str = w.date.strftime("%A")  # Day name (Monday, Tuesday, etc.)
@@ -114,7 +116,13 @@ def generate_weekly_recap_prompt(
         hr = f"{w.avg_hr} bpm" if w.avg_hr else "N/A"
         workout_type = w.workout_type or "Run"
 
-        workout_details.append(f"- {date_str}: {workout_type} {distance} à {pace}, FC {hr}")
+        workout_line = f"- {date_str}: {workout_type} {distance} à {pace}, FC {hr}"
+
+        # Add user comment if available
+        if w.user_comment and w.user_comment.strip():
+            workout_line += f"\n  💬 Ressenti: {w.user_comment.strip()}"
+
+        workout_details.append(workout_line)
 
     workouts_text = "\n".join(workout_details) if workout_details else "Aucune séance cette semaine"
 
@@ -127,10 +135,43 @@ def generate_weekly_recap_prompt(
         else:
             volume_change = f"({change_pct:.0f}% vs semaine dernière)"
 
-    # Training context
+    # Training context from race objective and block
     training_context = ""
-    if training_plan:
-        training_context = f"\nContexte : {training_plan.goal_type} (phase en cours)"
+    if race_objective:
+        distance_display = {
+            'marathon': 'Marathon',
+            'half_marathon': 'Semi-marathon',
+            '10k': '10km',
+            '5k': '5km'
+        }.get(race_objective.distance, race_objective.distance)
+
+        # Calculate weeks until race
+        from datetime import datetime
+        weeks_until = (race_objective.race_date - datetime.now()).days // 7
+
+        race_info = f"{distance_display}"
+        if race_objective.name:
+            race_info = f"{race_objective.name} ({distance_display})"
+
+        training_context = f"\nObjectif : {race_info} dans {weeks_until} semaines"
+
+        if current_block:
+            phase_display = {
+                'base': 'Foncier',
+                'development': 'Développement',
+                'peak': 'Spécifique',
+                'taper': 'Affûtage'
+            }.get(current_block.phase, current_block.phase)
+            training_context += f" (Phase : {phase_display})"
+    elif current_block:
+        # Block without race objective
+        phase_display = {
+            'base': 'Foncier',
+            'development': 'Développement',
+            'peak': 'Spécifique',
+            'taper': 'Affûtage'
+        }.get(current_block.phase, current_block.phase)
+        training_context = f"\nPhase : {phase_display}"
 
     prompt = f"""Tu es un coach running expérimenté. Rédige un résumé de la semaine écoulée pour cet athlète.
 
@@ -146,11 +187,12 @@ FC moyenne : {metrics['avg_heart_rate']} bpm{training_context}
 CONSIGNES :
 1. Sois factuel et direct (pas de superlatifs excessifs)
 2. Mets en avant les progrès concrets (chiffres)
-3. Identifie les erreurs éventuelles (surcharge, allure trop rapide, manque récup)
-4. Donne 1-2 conseils pour la semaine à venir
-5. Format : 3-4 paragraphes courts, ton professionnel mais encourageant
-6. Longueur max : 200 mots
-7. Utilise un ton français naturel (tutoiement)
+3. **IMPORTANT : Si l'athlète mentionne des douleurs, blessures ou difficultés dans ses commentaires, adresse-les de manière prioritaire et donne des conseils adaptés (repos, renforcement, consultation kiné/médecin si nécessaire)**
+4. Identifie les erreurs éventuelles (surcharge, allure trop rapide, manque récup)
+5. Donne 1-2 conseils pour la semaine à venir
+6. Format : 3-4 paragraphes courts, ton professionnel mais encourageant
+7. Longueur max : 250 mots (extensible si blessures à adresser)
+8. Utilise un ton français naturel (tutoiement)
 
 Réponds UNIQUEMENT avec le texte du récapitulatif, sans introduction ni conclusion additionnelle."""
 
@@ -231,11 +273,22 @@ async def generate_weekly_recap(db: Session, user_id: int, week_start: datetime 
     previous_workouts = get_week_workouts(db, user_id, previous_week_start, previous_week_end)
     previous_week_volume = sum(w.distance for w in previous_workouts if w.distance)
 
-    # Get current training plan if any
-    training_plan = db.query(TrainingPlan).filter(
+    # Get current race objective if any (active objectives only)
+    race_objective = db.query(RaceObjective).filter(
         and_(
-            TrainingPlan.user_id == user_id,
-            TrainingPlan.status == "active"
+            RaceObjective.user_id == user_id,
+            RaceObjective.status == "active",
+            RaceObjective.race_date > datetime.now()  # Only future races
+        )
+    ).order_by(RaceObjective.race_date.asc()).first()  # Get the nearest race
+
+    # Get current training block if any
+    current_block = db.query(TrainingBlock).filter(
+        and_(
+            TrainingBlock.user_id == user_id,
+            TrainingBlock.status == "active",
+            TrainingBlock.start_date <= datetime.now(),
+            TrainingBlock.end_date >= datetime.now()
         )
     ).first()
 
@@ -245,7 +298,8 @@ async def generate_weekly_recap(db: Session, user_id: int, week_start: datetime 
         workouts=workouts,
         metrics=metrics,
         previous_week_volume=previous_week_volume,
-        training_plan=training_plan
+        race_objective=race_objective,
+        current_block=current_block
     )
 
     # Call Claude Haiku

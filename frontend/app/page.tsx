@@ -259,7 +259,7 @@ export default function Home() {
               className="mb-8 flex items-center justify-center"
             >
               <div className="relative flex items-center gap-2">
-                <h1 className="text-6xl md:text-7xl font-[family-name:var(--font-branch)] text-white">
+                <h1 className="text-6xl md:text-7xl font-branch text-white">
                   allure
                 </h1>
               </div>

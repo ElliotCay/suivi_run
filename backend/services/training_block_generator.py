@@ -285,13 +285,15 @@ def generate_4_week_block(
     target_volume: Optional[float] = None,
     use_ai_descriptions: bool = True,
     use_sonnet: bool = False,
-    add_recovery_sunday: bool = False
+    add_recovery_sunday: bool = False,
+    num_weeks: int = 4
 ) -> TrainingBlock:
     """
-    Generate a 4-week training block with progressive loading and recovery.
+    Generate a training block with progressive loading and recovery.
 
     Args:
         db: Database session
+        num_weeks: Number of weeks for the block (default: 4, can be 1-4)
         user_id: User ID
         phase: Training phase ("base", "development", "peak")
         days_per_week: Number of running days per week (3-6)
@@ -390,7 +392,7 @@ def generate_4_week_block(
         start_date = today + timedelta(days=days_until_monday)
         start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    end_date = start_date + timedelta(weeks=4) - timedelta(days=1)
+    end_date = start_date + timedelta(weeks=num_weeks) - timedelta(days=1)
 
     # Create training block
     block = TrainingBlock(
@@ -432,15 +434,15 @@ def generate_4_week_block(
     schedule = _get_user_schedule_from_preferences(db, user_id, days_per_week)
     workout_days = sorted(schedule.keys())  # e.g., [1, 3, 5] for Tue/Thu/Sat
 
-    # Generate workouts for 4 weeks
+    # Generate workouts for the block
     workouts = _generate_workouts_for_block(
         db, user_id, block, zones, base_volume, days_per_week, start_date, phase,
-        use_ai_descriptions, use_sonnet, add_recovery_sunday
+        use_ai_descriptions, use_sonnet, add_recovery_sunday, num_weeks
     )
 
     # Generate strengthening reminders (on same days as workouts)
     reminders = _generate_strengthening_reminders(
-        db, user_id, block, start_date, days_per_week, workout_days
+        db, user_id, block, start_date, days_per_week, workout_days, num_weeks
     )
 
     db.commit()
@@ -460,19 +462,32 @@ def _generate_workouts_for_block(
     phase: str,
     use_ai_descriptions: bool = True,
     use_sonnet: bool = False,
-    add_recovery_sunday: bool = False
+    add_recovery_sunday: bool = False,
+    num_weeks: int = 4
 ) -> List[PlannedWorkout]:
-    """Generate all workouts for the 4-week block."""
+    """Generate all workouts for the block (1-4 weeks)."""
     workouts = []
     workouts_plan_for_ai = []  # Store plan for AI generation
 
-    # Week progression: 100%, 105%, 110%, 70% (recovery)
-    week_volumes = [
-        base_volume,
-        base_volume * 1.05,
-        base_volume * 1.10,
-        base_volume * 0.70  # Recovery week
-    ]
+    # Dynamic week progression based on num_weeks
+    # Standard progression: build-up weeks + recovery week
+    if num_weeks == 1:
+        # Single week - no progression
+        week_volumes = [base_volume]
+    elif num_weeks == 2:
+        # Two weeks - slight build + recovery
+        week_volumes = [base_volume, base_volume * 0.80]
+    elif num_weeks == 3:
+        # Three weeks - build + recovery
+        week_volumes = [base_volume, base_volume * 1.05, base_volume * 0.75]
+    else:  # 4 weeks (standard)
+        # Week progression: 100%, 105%, 110%, 70% (recovery)
+        week_volumes = [
+            base_volume,
+            base_volume * 1.05,
+            base_volume * 1.10,
+            base_volume * 0.70  # Recovery week
+        ]
 
     # Get training schedule based on user preferences
     logger.info(f"Generating workouts for {days_per_week} days per week")
@@ -482,7 +497,7 @@ def _generate_workouts_for_block(
     schedule = _get_user_schedule_from_preferences(db, user_id, days_per_week)
 
     # Generate workouts for each week
-    for week_num in range(1, 5):
+    for week_num in range(1, num_weeks + 1):
         week_volume = week_volumes[week_num - 1]
         week_start = start_date + timedelta(weeks=week_num - 1)
 
@@ -531,7 +546,7 @@ def _generate_workouts_for_block(
 
     # Add recovery runs on Sundays if needed
     if should_add_recovery:
-        for week_num in range(1, 5):
+        for week_num in range(1, num_weeks + 1):
             week_start = start_date + timedelta(weeks=week_num - 1)
             sunday_offset = 6  # Sunday
             sunday_date = week_start + timedelta(days=sunday_offset)
@@ -715,7 +730,8 @@ def _generate_strengthening_reminders(
     block: TrainingBlock,
     start_date: datetime,
     days_per_week: int,
-    workout_days: List[int]  # List of day offsets for workouts (e.g., [1, 3, 5])
+    workout_days: List[int],  # List of day offsets for workouts (e.g., [1, 3, 5])
+    num_weeks: int = 4
 ) -> List[StrengtheningReminder]:
     """
     Generate strengthening reminders for the block.
@@ -754,8 +770,8 @@ def _generate_strengthening_reminders(
 
     logger.info(f"Workout days: {sorted(workout_days)}, Strengthening days: {selected_days}")
 
-    # Generate for 4 weeks
-    for week in range(4):
+    # Generate for the block duration
+    for week in range(num_weeks):
         week_start = start_date + timedelta(weeks=week)
 
         # Create strengthening reminders for selected off days

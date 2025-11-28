@@ -58,16 +58,16 @@ def analyze_previous_block(db: Session, user_id: int) -> Optional[Dict]:
     # Get all planned workouts from that block
     planned_workouts = db.query(PlannedWorkout).filter(
         PlannedWorkout.block_id == previous_block.id
-    ).order_by(PlannedWorkout.planned_date).all()
+    ).order_by(PlannedWorkout.scheduled_date).all()
 
     # Analyze each planned workout
     workout_analysis = []
     for planned in planned_workouts:
         analysis_entry = {
-            "planned_date": planned.planned_date.strftime("%Y-%m-%d"),
+            "planned_date": planned.scheduled_date.strftime("%Y-%m-%d"),
             "workout_type": planned.workout_type,
-            "target_distance": planned.target_distance,
-            "target_pace": planned.target_pace,
+            "target_distance": planned.distance_km,
+            "target_pace": planned.target_pace_min if planned.target_pace_min else None,
             "description": planned.description,
             "completed": False,
             "actual_data": None,

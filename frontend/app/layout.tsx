@@ -5,6 +5,7 @@ import Navigation from '@/components/Navigation';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { MissingFeedbackModal } from '@/components/missing-feedback-modal';
 import { ScrollToTop } from '@/components/ScrollToTop';
+import { LayoutWrapper } from '@/components/LayoutWrapper';
 import localFont from 'next/font/local';
 
 const magilio = localFont({
@@ -68,11 +69,9 @@ export default function RootLayout({
         >
           <ScrollToTop />
           <Navigation />
-          <main className="min-h-screen mt-6">
-            <div className="container mx-auto p-8 max-w-7xl">
-              {children}
-            </div>
-          </main>
+          <LayoutWrapper>
+            {children}
+          </LayoutWrapper>
           <Toaster />
           <MissingFeedbackModal />
         </ThemeProvider>

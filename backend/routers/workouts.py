@@ -145,6 +145,60 @@ async def get_workouts_missing_feedback(
     }
 
 
+@router.get("/workouts/recent-analysis")
+async def get_recent_analysis(
+    db: Session = Depends(get_db),
+    user_id: int = 1  # TODO: Get from auth
+):
+    """
+    Get most recent workout analysis (last 24h).
+    Used by /coach page to display post-workout insights.
+
+    Returns:
+        analysis: Most recent WorkoutAnalysis
+        proposal: Associated AdjustmentProposal (if exists)
+    """
+    from datetime import timedelta
+
+    # Get most recent analysis within 24h
+    yesterday = datetime.now() - timedelta(hours=24)
+
+    analysis = db.query(WorkoutAnalysis).join(Workout).filter(
+        Workout.user_id == user_id,
+        WorkoutAnalysis.analyzed_at >= yesterday
+    ).order_by(desc(WorkoutAnalysis.analyzed_at)).first()
+
+    if not analysis:
+        return {"analysis": None, "proposal": None}
+
+    # Get associated proposal if exists
+    proposal = db.query(AdjustmentProposal).filter(
+        AdjustmentProposal.analysis_id == analysis.id
+    ).first()
+
+    return {
+        "analysis": {
+            "id": analysis.id,
+            "workout_id": analysis.workout_id,
+            "performance_vs_plan": analysis.performance_vs_plan,
+            "pace_variance_pct": analysis.pace_variance_pct,
+            "hr_zone_variance": analysis.hr_zone_variance,
+            "fatigue_detected": analysis.fatigue_detected,
+            "injury_risk_score": analysis.injury_risk_score,
+            "injury_risk_factors": analysis.injury_risk_factors,
+            "summary": analysis.summary,
+            "analyzed_at": analysis.analyzed_at.isoformat()
+        },
+        "proposal": {
+            "id": proposal.id,
+            "status": proposal.status,
+            "adjustments": proposal.adjustments,
+            "applied": proposal.applied,
+            "created_at": proposal.created_at.isoformat()
+        } if proposal else None
+    }
+
+
 @router.get("/workouts/{workout_id}", response_model=WorkoutResponse)
 async def get_workout(
     workout_id: int,
@@ -776,60 +830,6 @@ def analyze_workout_performance_endpoint(
         },
         "proposal": None,
         "status": "no_adjustments"
-    }
-
-
-@router.get("/workouts/recent-analysis")
-async def get_recent_analysis(
-    db: Session = Depends(get_db),
-    user_id: int = 1  # TODO: Get from auth
-):
-    """
-    Get most recent workout analysis (last 24h).
-    Used by /coach page to display post-workout insights.
-
-    Returns:
-        analysis: Most recent WorkoutAnalysis
-        proposal: Associated AdjustmentProposal (if exists)
-    """
-    from datetime import timedelta
-
-    # Get most recent analysis within 24h
-    yesterday = datetime.now() - timedelta(hours=24)
-
-    analysis = db.query(WorkoutAnalysis).join(Workout).filter(
-        Workout.user_id == user_id,
-        WorkoutAnalysis.analyzed_at >= yesterday
-    ).order_by(desc(WorkoutAnalysis.analyzed_at)).first()
-
-    if not analysis:
-        return {"analysis": None, "proposal": None}
-
-    # Get associated proposal if exists
-    proposal = db.query(AdjustmentProposal).filter(
-        AdjustmentProposal.analysis_id == analysis.id
-    ).first()
-
-    return {
-        "analysis": {
-            "id": analysis.id,
-            "workout_id": analysis.workout_id,
-            "performance_vs_plan": analysis.performance_vs_plan,
-            "pace_variance_pct": analysis.pace_variance_pct,
-            "hr_zone_variance": analysis.hr_zone_variance,
-            "fatigue_detected": analysis.fatigue_detected,
-            "injury_risk_score": analysis.injury_risk_score,
-            "injury_risk_factors": analysis.injury_risk_factors,
-            "summary": analysis.summary,
-            "analyzed_at": analysis.analyzed_at.isoformat()
-        },
-        "proposal": {
-            "id": proposal.id,
-            "status": proposal.status,
-            "adjustments": proposal.adjustments,
-            "applied": proposal.applied,
-            "created_at": proposal.created_at.isoformat()
-        } if proposal else None
     }
 
 

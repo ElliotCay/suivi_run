@@ -13,7 +13,10 @@
 
 ### Color & Contrast
 - **Sober minimal palette**: Warm off-white (#FAFAF9) background, near-black (#1A1A1A) text
-- **Allure gradient identity**: `linear-gradient(90deg, #ee95b3 → #667abf)` used sparingly for brand moments
+- **Allure gradient identity**: `linear-gradient(90deg, #ee95b3 → #667abf)` **reserved exclusively for AI-powered features**
+  - Use gradient for AI coach suggestions, AI-generated insights, AI analysis cards
+  - Standard features (badges, accents, UI elements) use simple semantic colors (muted, primary)
+  - This maintains visual hierarchy: AI features are premium/special, standard features are sober/minimal
 - **Workout type colors**: Semantic colors for training zones (green=easy, orange=tempo, red=intervals)
 Allure is not just a dashboard; it's a living organism. It breathes, flows, and reacts.
 The aesthetic is **"Liquid Glass"**: deep, transparent layers that feel like water or premium glass, combined with organic motion.

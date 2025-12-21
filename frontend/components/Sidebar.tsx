@@ -20,7 +20,7 @@ const navGroups = [
     label: 'Entraînement',
     items: [
       { href: '/workouts', label: 'Séances', icon: Activity },
-      { href: '/suggestions', label: 'Suggestions', icon: Sparkles },
+      { href: '/planning', label: 'Coach AI', icon: Sparkles },
       { href: '/training-plans', label: 'Plans', icon: Calendar },
     ]
   },

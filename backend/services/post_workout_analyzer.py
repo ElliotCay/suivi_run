@@ -230,7 +230,7 @@ SÉANCE RÉALISÉE:
 - FC moyenne: {workout.avg_hr or 'N/A'} bpm
 - FC max: {workout.max_hr or 'N/A'} bpm
 - Type: {workout.workout_type or 'non classifié'}
-- Commentaire: {workout.user_comment or 'aucun'}
+- Commentaire: {workout.notes or 'aucun'}
 
 FEEDBACK UTILISATEUR:
 {feedback_str}

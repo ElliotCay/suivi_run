@@ -119,8 +119,8 @@ def generate_weekly_recap_prompt(
         workout_line = f"- {date_str}: {workout_type} {distance} à {pace}, FC {hr}"
 
         # Add user comment if available
-        if w.user_comment and w.user_comment.strip():
-            workout_line += f"\n  💬 Ressenti: {w.user_comment.strip()}"
+        if w.notes and w.notes.strip():
+            workout_line += f"\n  💬 Ressenti: {w.notes.strip()}"
 
         workout_details.append(workout_line)
 

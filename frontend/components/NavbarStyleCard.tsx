@@ -35,9 +35,8 @@ interface NavbarStyleCardProps {
 
 export function NavbarStyleCard({ activeStyle, onChange }: NavbarStyleCardProps) {
   return (
-    <div className="w-full max-w-4xl mx-auto p-4">
-      <div className="relative overflow-hidden rounded-[24px] border bg-card shadow-2xl">
-        <div className="grid gap-6 md:grid-cols-[1.5fr,1fr] p-8">
+    <div className="relative overflow-hidden rounded-2xl border border-border bg-background/40 backdrop-blur-sm shadow-2xl">
+      <div className="grid gap-6 md:grid-cols-[1.5fr,1fr] p-6">
           {/* Preview */}
           <MiniNavbarMock activeStyle={activeStyle} />
 
@@ -100,7 +99,6 @@ export function NavbarStyleCard({ activeStyle, onChange }: NavbarStyleCardProps)
             </div>
           </div>
         </div>
-      </div>
     </div>
   )
 }

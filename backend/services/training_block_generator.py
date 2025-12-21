@@ -20,7 +20,8 @@ from models import (
     TrainingZone,
     PersonalRecord,
     Workout,
-    UserPreferences
+    UserPreferences,
+    InjuryHistory
 )
 from services.vdot_calculator import get_best_vdot_from_prs, calculate_training_paces
 from services.ai_workout_generator import generate_personalized_workout_descriptions
@@ -28,6 +29,11 @@ from services.block_adjustment_service import (
     analyze_previous_block,
     generate_block_adjustments_with_ai,
     apply_adjustments_to_paces
+)
+from services.injury_strengthening import (
+    get_injury_summary_for_ai,
+    get_strengthening_priorities,
+    select_strengthening_sessions
 )
 import logging
 
@@ -39,6 +45,7 @@ PHASE_RATIOS = {
     "base": {"easy": 70, "threshold": 20, "interval": 10},
     "development": {"easy": 60, "threshold": 25, "interval": 15},
     "peak": {"easy": 50, "threshold": 30, "interval": 20},
+    "taper": {"easy": 75, "threshold": 15, "interval": 10},  # Volume réduit, intensité maintenue
 }
 
 # French day names
@@ -125,7 +132,12 @@ def calculate_or_update_training_zones(db: Session, user_id: int) -> TrainingZon
     return new_zone
 
 
-def _get_user_schedule_from_preferences(db: Session, user_id: int, days_per_week: int) -> Dict[int, Tuple[str, float]]:
+def _get_user_schedule_from_preferences(
+    db: Session,
+    user_id: int,
+    days_per_week: int,
+    override_preferred_days: Optional[List[str]] = None
+) -> Dict[int, Tuple[str, float]]:
     """
     Get training schedule based on user preferences.
 
@@ -133,15 +145,19 @@ def _get_user_schedule_from_preferences(db: Session, user_id: int, days_per_week
         db: Database session
         user_id: User ID
         days_per_week: Number of training days per week
+        override_preferred_days: Optional list to override DB preferences
 
     Returns:
         Dictionary mapping day_offset -> (workout_type, volume_percentage)
         e.g., {1: ("quality", 0.30), 3: ("easy", 0.25), 5: ("long", 0.45)}
     """
-    # Query user preferences
+    # Query user preferences from DB
     user_prefs = db.query(UserPreferences).filter(
         UserPreferences.user_id == user_id
     ).first()
+
+    # Use override if provided, otherwise use DB preferences
+    preferred_days = override_preferred_days or (user_prefs.preferred_days if user_prefs else None)
 
     # Default schedules if no preferences
     default_schedules = {
@@ -152,13 +168,13 @@ def _get_user_schedule_from_preferences(db: Session, user_id: int, days_per_week
     }
 
     # If no preferences or preferred_days not set, use defaults
-    if not user_prefs or not user_prefs.preferred_days or len(user_prefs.preferred_days) < days_per_week:
+    if not preferred_days or len(preferred_days) < days_per_week:
         logger.info(f"No user preferences found or insufficient preferred days, using default schedule for {days_per_week} days/week")
         return default_schedules.get(days_per_week, default_schedules[3])
 
     # Convert preferred day names to offsets
     day_offsets = []
-    for day_name in user_prefs.preferred_days[:days_per_week]:
+    for day_name in preferred_days[:days_per_week]:
         offset = DAY_NAME_TO_OFFSET.get(day_name.lower())
         if offset is not None:
             day_offsets.append(offset)
@@ -201,7 +217,7 @@ def _get_user_schedule_from_preferences(db: Session, user_id: int, days_per_week
         schedule[day_offsets[4]] = ("long", 0.20)
         schedule[day_offsets[5]] = ("recovery", 0.05)
 
-    logger.info(f"Using user preferences: preferred_days={user_prefs.preferred_days}, schedule={schedule}")
+    logger.info(f"Using user preferences: preferred_days={preferred_days}, schedule={schedule}")
     return schedule
 
 
@@ -249,6 +265,232 @@ def _should_add_sunday_recovery(
     return True
 
 
+def analyze_recent_context(db: Session, user_id: int, weeks: int = 4) -> Dict:
+    """
+    Analyze recent workout comments and injuries to gather context for block generation.
+    This works independently of whether a previous block was completed.
+
+    Args:
+        db: Database session
+        user_id: User ID
+        weeks: Number of weeks to analyze
+
+    Returns:
+        Dictionary with context information including issues found
+    """
+    cutoff_date = datetime.now() - timedelta(weeks=weeks)
+
+    # Get recent workouts with comments
+    workouts = db.query(Workout).filter(
+        Workout.user_id == user_id,
+        Workout.date >= cutoff_date
+    ).order_by(Workout.date.desc()).all()
+
+    # Analyze comments for issues
+    pain_mentions = 0
+    fatigue_mentions = 0
+    too_hard_mentions = 0
+    workouts_with_comments = 0
+    comment_details = []
+
+    pain_keywords = ["douleur", "mal", "blessure", "injury", "pain", "genou", "rotule", "cheville", "mollet", "tendon"]
+    fatigue_keywords = ["fatigué", "épuisé", "fatigue", "tired", "exhausted", "lourd", "jambes lourdes"]
+    hard_keywords = ["trop dur", "impossible", "explosé", "couldn't", "too hard", "difficile", "abandon"]
+
+    for w in workouts:
+        if w.notes:
+            workouts_with_comments += 1
+            comment_lower = w.notes.lower()
+
+            if any(word in comment_lower for word in pain_keywords):
+                pain_mentions += 1
+                comment_details.append({
+                    "date": w.date.strftime("%Y-%m-%d"),
+                    "type": "pain",
+                    "comment": w.notes[:200]
+                })
+            if any(word in comment_lower for word in fatigue_keywords):
+                fatigue_mentions += 1
+                comment_details.append({
+                    "date": w.date.strftime("%Y-%m-%d"),
+                    "type": "fatigue",
+                    "comment": w.notes[:200]
+                })
+            if any(word in comment_lower for word in hard_keywords):
+                too_hard_mentions += 1
+                comment_details.append({
+                    "date": w.date.strftime("%Y-%m-%d"),
+                    "type": "too_hard",
+                    "comment": w.notes[:200]
+                })
+
+    # Get active injuries
+    active_injuries = db.query(InjuryHistory).filter(
+        InjuryHistory.user_id == user_id,
+        (InjuryHistory.status.in_(["active", "monitoring"])) | (InjuryHistory.recurrence_count > 0)
+    ).all()
+
+    injury_details = []
+    for injury in active_injuries:
+        injury_details.append({
+            "location": injury.location,
+            "status": injury.status,
+            "severity": injury.severity,
+            "recurring": injury.recurrence_count > 0,
+            "description": injury.description
+        })
+
+    has_issues = pain_mentions > 0 or fatigue_mentions >= 2 or too_hard_mentions > 0
+    has_injuries = len(active_injuries) > 0
+
+    return {
+        "total_workouts": len(workouts),
+        "workouts_with_comments": workouts_with_comments,
+        "pain_mentions": pain_mentions,
+        "fatigue_mentions": fatigue_mentions,
+        "too_hard_mentions": too_hard_mentions,
+        "comment_details": comment_details,
+        "active_injuries": len(active_injuries),
+        "injury_details": injury_details,
+        "has_issues": has_issues,
+        "has_injuries": has_injuries
+    }
+
+
+def generate_initial_adjustments_from_context(
+    db: Session,
+    user_id: int,
+    recent_context: Dict,
+    next_phase: str
+) -> Dict:
+    """
+    Generate block adjustments based on recent context when no previous block exists.
+    Uses a simpler rule-based approach combined with AI for recommendations.
+
+    Args:
+        db: Database session
+        user_id: User ID
+        recent_context: Output from analyze_recent_context()
+        next_phase: Planned phase for next block
+
+    Returns:
+        Dictionary with adjustment recommendations
+    """
+    from services.claude_service import call_claude_api
+    import json
+
+    # Build context for AI
+    injury_summary = get_injury_summary_for_ai(db, user_id)
+
+    prompt = f"""Tu es un coach running expert. Un nouvel athlète veut commencer un bloc d'entraînement.
+Il n'a pas de bloc précédent complété, mais voici ce que nous savons de son contexte récent (4 dernières semaines).
+
+CONTEXTE RÉCENT:
+- Séances totales: {recent_context['total_workouts']}
+- Séances avec commentaires: {recent_context['workouts_with_comments']}
+- Mentions de douleur: {recent_context['pain_mentions']}
+- Mentions de fatigue: {recent_context['fatigue_mentions']}
+- Séances "trop dures": {recent_context['too_hard_mentions']}
+
+COMMENTAIRES SIGNIFICATIFS:
+{json.dumps(recent_context.get('comment_details', []), indent=2, ensure_ascii=False)}
+
+BLESSURES:
+{injury_summary}
+Détails: {json.dumps(recent_context.get('injury_details', []), indent=2, ensure_ascii=False)}
+
+PHASE PRÉVUE: {next_phase}
+
+CONSIGNES:
+1. Analyse les problèmes potentiels (douleurs, blessures, fatigue)
+2. Propose des ajustements CONSERVATEURS pour le premier bloc
+3. Si blessures actives → réduction d'allure significative (-10 à -20 sec/km)
+4. Si douleurs récurrentes → adapter le volume et éviter certains types de séances
+5. Sois prudent : mieux vaut être conservateur au début
+
+RÉPONDS EN JSON STRICT:
+{{
+  "overall_assessment": "good" | "needs_adjustment" | "needs_significant_reduction",
+  "key_findings": [
+    "Description factuelle des problèmes identifiés"
+  ],
+  "adjustments": {{
+    "pace_adjustments": {{
+      "easy_runs": {{"change_seconds_per_km": 0, "reason": "..."}},
+      "tempo_runs": {{"change_seconds_per_km": 0, "reason": "..."}},
+      "intervals": {{"change_seconds_per_km": 0, "reason": "..."}}
+    }},
+    "volume_adjustments": {{
+      "weekly_volume_change_percent": 0,
+      "reason": "..."
+    }},
+    "workout_modifications": [],
+    "recovery_recommendations": []
+  }},
+  "next_block_strategy": "Description de l'approche recommandée (2-3 phrases)"
+}}
+
+Réponds UNIQUEMENT avec le JSON, sans texte avant ou après."""
+
+    try:
+        response = call_claude_api(prompt, use_sonnet=True)
+        content = response["content"]
+
+        start_idx = content.find("{")
+        end_idx = content.rfind("}") + 1
+
+        if start_idx >= 0 and end_idx > start_idx:
+            adjustments = json.loads(content[start_idx:end_idx])
+            logger.info(f"✅ Initial adjustments generated from context for user {user_id}")
+            return adjustments
+        else:
+            raise ValueError("Invalid JSON in Claude response")
+
+    except Exception as e:
+        logger.error(f"❌ Error generating initial adjustments: {e}")
+
+        # Rule-based fallback
+        assessment = "good"
+        findings = []
+        pace_adj = {"easy_runs": {"change_seconds_per_km": 0, "reason": "Standard"},
+                    "tempo_runs": {"change_seconds_per_km": 0, "reason": "Standard"},
+                    "intervals": {"change_seconds_per_km": 0, "reason": "Standard"}}
+        volume_adj = {"weekly_volume_change_percent": 0, "reason": "Standard progression"}
+
+        if recent_context.get("active_injuries", 0) > 0:
+            assessment = "needs_significant_reduction"
+            findings.append("Blessures actives détectées - approche conservatrice requise")
+            pace_adj = {"easy_runs": {"change_seconds_per_km": 10, "reason": "Blessure active"},
+                        "tempo_runs": {"change_seconds_per_km": 15, "reason": "Blessure active"},
+                        "intervals": {"change_seconds_per_km": 10, "reason": "Blessure active"}}
+            volume_adj = {"weekly_volume_change_percent": -15, "reason": "Réduction pour blessure"}
+
+        elif recent_context.get("pain_mentions", 0) >= 2:
+            assessment = "needs_adjustment"
+            findings.append("Douleurs récurrentes mentionnées dans les commentaires")
+            pace_adj = {"easy_runs": {"change_seconds_per_km": 5, "reason": "Douleurs signalées"},
+                        "tempo_runs": {"change_seconds_per_km": 10, "reason": "Douleurs signalées"},
+                        "intervals": {"change_seconds_per_km": 5, "reason": "Douleurs signalées"}}
+            volume_adj = {"weekly_volume_change_percent": -10, "reason": "Réduction préventive"}
+
+        elif recent_context.get("fatigue_mentions", 0) >= 3:
+            assessment = "needs_adjustment"
+            findings.append("Fatigue fréquemment mentionnée")
+            volume_adj = {"weekly_volume_change_percent": -10, "reason": "Fatigue accumulée"}
+
+        return {
+            "overall_assessment": assessment,
+            "key_findings": findings if findings else ["Pas de problème majeur détecté"],
+            "adjustments": {
+                "pace_adjustments": pace_adj,
+                "volume_adjustments": volume_adj,
+                "workout_modifications": [],
+                "recovery_recommendations": []
+            },
+            "next_block_strategy": "Approche standard avec surveillance des sensations"
+        }
+
+
 def calculate_recent_volume(db: Session, user_id: int, weeks: int = 4) -> float:
     """
     Calculate average weekly volume over recent weeks.
@@ -286,18 +528,28 @@ def generate_4_week_block(
     use_ai_descriptions: bool = True,
     use_sonnet: bool = False,
     add_recovery_sunday: bool = False,
-    num_weeks: int = 4
+    num_weeks: int = 4,
+    preferred_days: Optional[List[str]] = None,
+    preferred_time: Optional[str] = None
 ) -> TrainingBlock:
     """
     Generate a training block with progressive loading and recovery.
 
     Args:
         db: Database session
-        num_weeks: Number of weeks for the block (default: 4, can be 1-4)
         user_id: User ID
         phase: Training phase ("base", "development", "peak")
         days_per_week: Number of running days per week (3-6)
         start_date: Start date (defaults to next Monday)
+        target_volume: Optional target weekly volume in km
+        use_ai_descriptions: Whether to generate AI descriptions
+        use_sonnet: Whether to use Sonnet model for AI descriptions
+        add_recovery_sunday: Whether to add Sunday recovery runs
+        num_weeks: Number of weeks for the block (default: 4, can be 1-4)
+        preferred_days: Optional list of preferred day names (e.g., ["monday", "wednesday", "saturday"])
+                       If not provided, falls back to user preferences in DB
+        preferred_time: Optional preferred workout time (e.g., "18:00")
+                       If not provided, falls back to user preferences in DB or defaults to "18:00"
 
     Returns:
         TrainingBlock with all planned workouts and strengthening reminders
@@ -323,10 +575,16 @@ def generate_4_week_block(
     # Calculate or update training zones
     zones = calculate_or_update_training_zones(db, user_id)
 
-    # 🆕 ANALYZE PREVIOUS BLOCK FOR AUTOMATIC ADJUSTMENTS
+    # 🆕 ANALYZE CONTEXT FOR AUTOMATIC ADJUSTMENTS
+    # This now works even without a completed block - uses recent workouts, comments, and injuries
     previous_block_analysis = analyze_previous_block(db, user_id)
+    recent_context = analyze_recent_context(db, user_id)  # NEW: Always get context
     block_adjustments = None
     adjusted_paces = None
+
+    # Get injury summary for logging
+    injury_summary = get_injury_summary_for_ai(db, user_id)
+    logger.info(f"🏥 {injury_summary}")
 
     if previous_block_analysis:
         logger.info(f"📊 Found previous block to analyze (ID: {previous_block_analysis['block_id']})")
@@ -335,14 +593,32 @@ def generate_4_week_block(
         logger.info(f"   Fatigue episodes: {previous_block_analysis['issue_counts']['fatigue_episodes']}")
         logger.info(f"   Too hard episodes: {previous_block_analysis['issue_counts']['too_hard_episodes']}")
 
-        # Generate AI-powered adjustments
+        # Generate AI-powered adjustments with full context
         block_adjustments = generate_block_adjustments_with_ai(
             db=db,
             user_id=user_id,
             previous_block_analysis=previous_block_analysis,
+            next_phase=phase,
+            recent_context=recent_context  # Pass additional context
+        )
+    elif recent_context and (recent_context.get("has_issues") or recent_context.get("has_injuries")):
+        # NEW: Generate adjustments even without completed block if there are issues/injuries
+        logger.info("ℹ️  No previous block, but found recent context to analyze")
+        logger.info(f"   Recent workouts with comments: {recent_context.get('workouts_with_comments', 0)}")
+        logger.info(f"   Pain mentions: {recent_context.get('pain_mentions', 0)}")
+        logger.info(f"   Fatigue mentions: {recent_context.get('fatigue_mentions', 0)}")
+        logger.info(f"   Active injuries: {recent_context.get('active_injuries', 0)}")
+
+        block_adjustments = generate_initial_adjustments_from_context(
+            db=db,
+            user_id=user_id,
+            recent_context=recent_context,
             next_phase=phase
         )
+    else:
+        logger.info("ℹ️  No previous block and no concerning context - using standard progression")
 
+    if block_adjustments:
         logger.info(f"✅ Block adjustments generated:")
         logger.info(f"   Assessment: {block_adjustments['overall_assessment']}")
         logger.info(f"   Key findings: {block_adjustments['key_findings']}")
@@ -359,8 +635,6 @@ def generate_4_week_block(
                 change = adj.get("change_seconds_per_km", 0)
                 if change != 0:
                     logger.info(f"   {workout_type}: {change:+d} sec/km - {adj.get('reason', '')}")
-    else:
-        logger.info("ℹ️  No previous block found - using standard progression")
 
     # Determine base volume
     if target_volume is not None:
@@ -383,16 +657,47 @@ def generate_4_week_block(
                 base_volume = base_volume * (1 + volume_change_pct / 100)
                 logger.info(f"📉 Volume adjusted by {volume_change_pct:+.0f}% → {base_volume:.1f}km/week")
 
-    # Set start date to next Monday if not provided
+    # Safety check: warn if volume seems high relative to VDOT level
+    # This is informational only - we trust the user's actual training history
+    vdot_volume_guidelines = {
+        # VDOT ranges and suggested max weekly volume (conservative)
+        # These are rough guidelines, not hard limits
+        (30, 35): 30,   # Beginner: ~30km/week max
+        (35, 40): 40,   # Intermediate: ~40km/week max
+        (40, 45): 50,   # Good: ~50km/week max
+        (45, 50): 60,   # Advanced: ~60km/week max
+        (50, 55): 75,   # Very good: ~75km/week max
+        (55, 100): 100, # Elite: higher volumes possible
+    }
+
+    suggested_max = None
+    for (vdot_min, vdot_max), max_vol in vdot_volume_guidelines.items():
+        if vdot_min <= zones.vdot < vdot_max:
+            suggested_max = max_vol
+            break
+
+    if suggested_max and base_volume > suggested_max * 1.2:  # 20% tolerance
+        logger.warning(
+            f"⚠️ Volume élevé par rapport au niveau VDOT: "
+            f"{base_volume:.1f}km/semaine (VDOT {zones.vdot:.1f} → suggestion max ~{suggested_max}km). "
+            f"Basé sur l'historique réel, mais à surveiller pour éviter les blessures."
+        )
+
+    # Set start date to tomorrow if not provided (flexible start)
     if not start_date:
         today = datetime.now()
-        days_until_monday = (7 - today.weekday()) % 7
-        if days_until_monday == 0:
-            days_until_monday = 7  # Start next Monday, not today
-        start_date = today + timedelta(days=days_until_monday)
+        start_date = today + timedelta(days=1)  # Start tomorrow
         start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    end_date = start_date + timedelta(weeks=num_weeks) - timedelta(days=1)
+    # Calculate end date: always end on a Sunday
+    # First, calculate the raw end date (start + num_weeks)
+    raw_end_date = start_date + timedelta(weeks=num_weeks) - timedelta(days=1)
+    # Then adjust to the next Sunday (if not already Sunday)
+    days_until_sunday = (6 - raw_end_date.weekday()) % 7
+    end_date = raw_end_date + timedelta(days=days_until_sunday)
+
+    logger.info(f"Block dates: start={start_date.strftime('%Y-%m-%d')} ({DAYS_FR[start_date.weekday()]}), "
+                f"end={end_date.strftime('%Y-%m-%d')} ({DAYS_FR[end_date.weekday()]})")
 
     # Create training block
     block = TrainingBlock(
@@ -430,20 +735,61 @@ def generate_4_week_block(
         if "marathon" in adjusted_paces:
             zones.marathon_pace_sec = adjusted_paces["marathon"]["pace_sec"]
 
-    # Get user schedule to determine workout days
-    schedule = _get_user_schedule_from_preferences(db, user_id, days_per_week)
+    # Get user schedule to determine workout days (use provided preferred_days or DB preferences)
+    schedule = _get_user_schedule_from_preferences(db, user_id, days_per_week, preferred_days)
     workout_days = sorted(schedule.keys())  # e.g., [1, 3, 5] for Tue/Thu/Sat
+
+    # Get preferred time from user preferences if not provided
+    if preferred_time is None:
+        user_prefs = db.query(UserPreferences).filter(
+            UserPreferences.user_id == user_id
+        ).first()
+        preferred_time = user_prefs.preferred_time if user_prefs else "18:00"
 
     # Generate workouts for the block
     workouts = _generate_workouts_for_block(
         db, user_id, block, zones, base_volume, days_per_week, start_date, phase,
-        use_ai_descriptions, use_sonnet, add_recovery_sunday, num_weeks
+        use_ai_descriptions, use_sonnet, add_recovery_sunday, num_weeks,
+        preferred_days, preferred_time
     )
 
-    # Generate strengthening reminders (on same days as workouts)
-    reminders = _generate_strengthening_reminders(
-        db, user_id, block, start_date, days_per_week, workout_days, num_weeks
-    )
+    # Generate injury-aware strengthening reminders
+    # Use the same approach as race_plan_generator for consistency
+    active_injuries = db.query(InjuryHistory).filter(
+        InjuryHistory.user_id == user_id,
+        (InjuryHistory.status.in_(["active", "monitoring"])) | (InjuryHistory.recurrence_count > 0)
+    ).all()
+
+    if active_injuries:
+        # Use injury-aware strengthening selection
+        logger.info(f"🏥 Using injury-aware strengthening for {len(active_injuries)} active/recurring injuries")
+        strengthening_priorities = get_strengthening_priorities(active_injuries)
+        logger.info(f"   Priorities: {strengthening_priorities}")
+
+        # Find off days for strengthening
+        all_days = set(range(7))
+        workout_days_set = set(workout_days)
+        off_days = sorted(all_days - workout_days_set)
+        preferred_days = [d for d in off_days if d != 6][:2]  # Exclude Sunday, take up to 2 days
+
+        if not preferred_days:
+            preferred_days = [2, 5]  # Default: Wednesday, Saturday
+
+        reminders = select_strengthening_sessions(
+            db=db,
+            user_id=user_id,
+            block_id=block.id,
+            start_date=start_date,
+            end_date=end_date,
+            preferred_days=preferred_days
+        )
+        for reminder in reminders:
+            db.add(reminder)
+    else:
+        # Standard strengthening reminders
+        reminders = _generate_strengthening_reminders(
+            db, user_id, block, start_date, days_per_week, workout_days, num_weeks
+        )
 
     db.commit()
     db.refresh(block)
@@ -463,9 +809,16 @@ def _generate_workouts_for_block(
     use_ai_descriptions: bool = True,
     use_sonnet: bool = False,
     add_recovery_sunday: bool = False,
-    num_weeks: int = 4
+    num_weeks: int = 4,
+    preferred_days: Optional[List[str]] = None,
+    preferred_time: Optional[str] = None
 ) -> List[PlannedWorkout]:
-    """Generate all workouts for the block (1-4 weeks)."""
+    """Generate all workouts for the block (1-4 weeks).
+
+    Args:
+        preferred_days: Optional list to override user preferences for days
+        preferred_time: Workout time (e.g., "18:00"), defaults to "18:00"
+    """
     workouts = []
     workouts_plan_for_ai = []  # Store plan for AI generation
 
@@ -493,22 +846,65 @@ def _generate_workouts_for_block(
     logger.info(f"Generating workouts for {days_per_week} days per week")
     logger.info(f"Week start date: {start_date}, day of week: {start_date.weekday()}")
 
+    # Parse preferred time (default to 18:00)
+    workout_hour = 18
+    workout_minute = 0
+    if preferred_time:
+        try:
+            time_parts = preferred_time.split(":")
+            workout_hour = int(time_parts[0])
+            workout_minute = int(time_parts[1]) if len(time_parts) > 1 else 0
+            logger.info(f"Using preferred workout time: {workout_hour:02d}:{workout_minute:02d}")
+        except (ValueError, IndexError):
+            logger.warning(f"Invalid preferred_time format: {preferred_time}, using default 18:00")
+
     # Use user preferences to determine schedule
-    schedule = _get_user_schedule_from_preferences(db, user_id, days_per_week)
+    schedule = _get_user_schedule_from_preferences(db, user_id, days_per_week, preferred_days)
+
+    # Progressive long run percentages per week (builds up, then recovery)
+    # Week 1: 30%, Week 2: 33%, Week 3: 35%, Week 4 (recovery): 25%
+    long_run_progression = {
+        1: 0.30,
+        2: 0.33,
+        3: 0.35,
+        4: 0.25  # Recovery week - shorter long run
+    }
+
+    # Calculate the Monday of the week containing start_date
+    # This ensures workouts are scheduled on correct weekdays regardless of start_date
+    start_weekday = start_date.weekday()  # 0=Monday, 6=Sunday
+    first_monday = start_date - timedelta(days=start_weekday)
+
+    logger.info(f"Start date weekday: {DAYS_FR[start_weekday]}, first_monday: {first_monday.strftime('%Y-%m-%d')}")
 
     # Generate workouts for each week
     for week_num in range(1, num_weeks + 1):
         week_volume = week_volumes[week_num - 1]
-        week_start = start_date + timedelta(weeks=week_num - 1)
+        # week_start is always a Monday for proper day offset calculation
+        week_monday = first_monday + timedelta(weeks=week_num - 1)
 
         # Alternate quality sessions between threshold and interval
         quality_type = "threshold" if week_num % 2 == 1 else "interval"
 
+        # Get long run percentage for this week
+        long_run_pct = long_run_progression.get(week_num, 0.30)
+
         for day_offset, (workout_type, volume_pct) in schedule.items():
-            workout_date = week_start + timedelta(days=day_offset)
+            # Calculate workout date with preferred time (day_offset is relative to Monday)
+            workout_date = week_monday + timedelta(days=day_offset)
+            workout_date = workout_date.replace(hour=workout_hour, minute=workout_minute, second=0, microsecond=0)
             day_name = DAYS_FR[workout_date.weekday()]
 
-            distance_km = week_volume * volume_pct
+            # Skip workouts that fall before the block start date (for week 1)
+            if workout_date.date() < start_date.date():
+                logger.info(f"Skipping workout on {day_name} {workout_date.strftime('%d/%m')} (before block start)")
+                continue
+
+            # Use progressive long run percentage instead of fixed
+            if workout_type == "long":
+                distance_km = week_volume * long_run_pct
+            else:
+                distance_km = week_volume * volume_pct
 
             # Replace "quality" with actual type
             actual_type = quality_type if workout_type == "quality" else workout_type
@@ -547,9 +943,16 @@ def _generate_workouts_for_block(
     # Add recovery runs on Sundays if needed
     if should_add_recovery:
         for week_num in range(1, num_weeks + 1):
-            week_start = start_date + timedelta(weeks=week_num - 1)
-            sunday_offset = 6  # Sunday
-            sunday_date = week_start + timedelta(days=sunday_offset)
+            # Use first_monday for consistent week calculation
+            week_monday = first_monday + timedelta(weeks=week_num - 1)
+            sunday_date = week_monday + timedelta(days=6)  # Sunday = Monday + 6 days
+            # Apply preferred time to Sunday recovery too
+            sunday_date = sunday_date.replace(hour=workout_hour, minute=workout_minute, second=0, microsecond=0)
+
+            # Skip if before block start date
+            if sunday_date.date() < start_date.date():
+                logger.info(f"Skipping Sunday recovery on {sunday_date.strftime('%d/%m')} (before block start)")
+                continue
 
             # Small recovery distance (3-4km)
             recovery_distance = base_volume * 0.10  # 10% of weekly volume

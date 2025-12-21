@@ -15,7 +15,7 @@ interface WorkoutData {
   max_hr?: number
   elevation_gain?: number
   workout_type?: string
-  user_comment?: string
+  notes?: string
 }
 
 interface ProfileData {
@@ -93,9 +93,9 @@ ${profile.objectives && profile.objectives.length > 0 ? `
 ${profile.objectives.map((obj: any) => `- ${obj.name || 'Objectif'} : ${obj.date ? new Date(obj.date).toLocaleDateString('fr-FR') : 'Date non définie'}`).join('\n')}
 ` : ''}
 
-${workout.user_comment ? `
+${workout.notes ? `
 ### Ressenti
-${workout.user_comment}
+${workout.notes}
 ` : ''}
 
 ## Dernières séances (contexte)

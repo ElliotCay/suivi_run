@@ -5,6 +5,7 @@ Selects appropriate strengthening sessions based on user's injury history.
 Prioritizes prevention and addresses recurring issues.
 """
 
+import math
 from typing import List, Dict
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
@@ -135,7 +136,9 @@ def select_strengthening_sessions(
         preferred_days = [2, 5]  # Wednesday and Saturday
 
     # Calculate total weeks (should be 4 for a block)
-    total_weeks = int((end_date - start_date).days / 7)
+    # Use ceiling to ensure we cover the full block duration
+    # e.g., 27 days = 3.85 weeks -> 4 weeks
+    total_weeks = math.ceil((end_date - start_date).days / 7)
 
     # French day names
     day_names_fr = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]

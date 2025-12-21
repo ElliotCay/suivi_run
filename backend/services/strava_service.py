@@ -199,6 +199,31 @@ def fetch_activity_streams(access_token: str, activity_id: int) -> Dict:
     return response.json()
 
 
+def fetch_activity_details(access_token: str, activity_id: int) -> Dict:
+    """
+    Fetch detailed activity data including description.
+
+    The list endpoint only returns SummaryActivity which doesn't include
+    the description field. This endpoint returns DetailedActivity.
+
+    Args:
+        access_token: Valid Strava access token
+        activity_id: Strava activity ID
+
+    Returns:
+        Detailed activity dictionary with description
+    """
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    response = requests.get(
+        f"{STRAVA_API_BASE}/activities/{activity_id}",
+        headers=headers
+    )
+    response.raise_for_status()
+
+    return response.json()
+
+
 def convert_strava_activity_to_workout(activity: Dict, streams: Optional[Dict] = None) -> Dict:
     """
     Convert Strava activity to our Workout format.
@@ -238,6 +263,10 @@ def convert_strava_activity_to_workout(activity: Dict, streams: Optional[Dict] =
         workout_data["avg_hr"] = int(activity["average_heartrate"])
     if activity.get("max_heartrate"):
         workout_data["max_hr"] = int(activity["max_heartrate"])
+
+    # Import Strava description as notes
+    if activity.get("description"):
+        workout_data["notes"] = activity["description"]
 
     # Calculate best efforts from streams if available
     best_efforts = {}
@@ -363,7 +392,15 @@ def sync_strava_activities(db: Session, user_id: int, limit: int = 30) -> Dict:
                 skip_reasons["already_exists"] += 1
                 continue
 
-            logger.info(f"  -> Activity {activity_id} is new, fetching detailed streams...")
+            logger.info(f"  -> Activity {activity_id} is new, fetching details and streams...")
+
+            # Fetch detailed activity data (includes description)
+            detailed_activity = activity  # Start with summary
+            try:
+                detailed_activity = fetch_activity_details(connection.access_token, activity["id"])
+                logger.info(f"  -> Fetched activity details, description: {bool(detailed_activity.get('description'))}")
+            except Exception as e:
+                logger.warning(f"  -> Failed to fetch activity details for {activity['id']}: {e}")
 
             # Fetch detailed streams for best efforts
             streams = None
@@ -374,9 +411,9 @@ def sync_strava_activities(db: Session, user_id: int, limit: int = 30) -> Dict:
             except Exception as e:
                 logger.warning(f"  -> Failed to fetch streams for activity {activity['id']}: {e}")
 
-            # Convert to workout format
+            # Convert to workout format (use detailed activity for description)
             logger.debug(f"  -> Converting activity {activity_id} to workout format...")
-            workout_data = convert_strava_activity_to_workout(activity, streams)
+            workout_data = convert_strava_activity_to_workout(detailed_activity, streams)
             if not workout_data:
                 logger.warning(f"  -> Skipping activity {activity_id}: Conversion to workout failed")
                 skipped_count += 1
@@ -486,77 +523,3 @@ def sync_strava_activities(db: Session, user_id: int, limit: int = 30) -> Dict:
     }
 
 
-def get_pending_workouts(db: Session, user_id: int, days_back: int = 30) -> List[Dict]:
-    """
-    Get Strava activities not yet imported or categorized.
-
-    Returns activities from Strava that either:
-    1. Haven't been imported yet
-    2. Have been imported but missing feedback/categorization
-
-    Args:
-        db: Database session
-        user_id: User ID
-        days_back: How many days back to check (default 30)
-
-    Returns:
-        List of pending workouts with preview data
-    """
-    # Get valid connection
-    connection = ensure_valid_token(db, user_id)
-    if not connection:
-        return []
-
-    # Fetch recent activities
-    from datetime import timedelta
-    after_timestamp = int((datetime.utcnow() - timedelta(days=days_back)).timestamp())
-
-    activities = fetch_strava_activities(
-        connection.access_token,
-        after=after_timestamp,
-        per_page=100
-    )
-
-    # Filter to only running activities
-    running_activities = [a for a in activities if a.get("type") == "Run"]
-
-    # Get existing workouts
-    existing_workouts = db.query(Workout).filter(
-        Workout.user_id == user_id,
-        Workout.source == "strava"
-    ).all()
-
-    # Create map of existing Strava IDs
-    existing_strava_ids = set()
-    for w in existing_workouts:
-        if w.raw_data and "strava_activity_id" in w.raw_data:
-            existing_strava_ids.add(w.raw_data["strava_activity_id"])
-
-    # Find unimported activities
-    pending = []
-    for activity in running_activities:
-        strava_id = activity["id"]
-
-        if strava_id not in existing_strava_ids:
-            # Activity not imported yet
-            start_date = datetime.fromisoformat(activity["start_date"].replace("Z", "+00:00"))
-            distance_km = float(activity["distance"]) / 1000
-            duration_sec = int(activity["moving_time"])
-            avg_pace_sec = int(duration_sec / distance_km) if distance_km > 0 else None
-
-            pending.append({
-                "strava_id": strava_id,
-                "name": activity.get("name", "Run"),
-                "date": start_date.isoformat(),
-                "distance_km": round(distance_km, 2),
-                "duration_seconds": duration_sec,
-                "avg_pace_sec_per_km": avg_pace_sec,
-                "elevation_gain": activity.get("total_elevation_gain", 0),
-                "avg_hr": activity.get("average_heartrate"),
-                "status": "not_imported"
-            })
-
-    # Sort by date (most recent first)
-    pending.sort(key=lambda x: x["date"], reverse=True)
-
-    return pending

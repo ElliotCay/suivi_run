@@ -18,7 +18,7 @@ from models import Workout, PersonalRecord, TrainingZone
 
 
 def get_recent_workouts_summary(db: Session, user_id: int, days: int = 30) -> str:
-    """Get summary of recent workouts for context."""
+    """Get summary of recent workouts for context, including user comments."""
     cutoff = datetime.now() - timedelta(days=days)
 
     workouts = db.query(Workout).filter(
@@ -39,9 +39,16 @@ def get_recent_workouts_summary(db: Session, user_id: int, days: int = 30) -> st
         else:
             pace_str = "N/A"
         hr_str = f"FC moy: {w.avg_hr}bpm" if w.avg_hr else ""
-        summary.append(
-            f"- {date_str}: {w.distance:.1f}km à {pace_str} {hr_str}"
-        )
+
+        line = f"- {date_str}: {w.distance:.1f}km à {pace_str} {hr_str}"
+
+        # Add user comment if present (very important for context)
+        if w.notes:
+            # Truncate long comments
+            comment = w.notes[:150] + "..." if len(w.notes) > 150 else w.notes
+            line += f"\n  💬 \"{comment}\""
+
+        summary.append(line)
 
     return "\n".join(summary)
 
@@ -118,7 +125,7 @@ Records personnels :
 
 {zones_str}
 
-Séances récentes (30 derniers jours) :
+Séances récentes (30 derniers jours) avec commentaires :
 {recent_workouts}
 
 Phase d'entraînement : {phase}
@@ -135,6 +142,7 @@ Pour CHAQUE séance, génère une description structurée en markdown qui contie
 2. **Objectif de la séance** (2-3 phrases) :
    - Explique POURQUOI cette séance à ce moment du bloc
    - Mentionne les séances récentes du coureur pour contextualiser
+   - **IMPORTANT** : Prends en compte les commentaires de l'athlète (douleurs, fatigue, etc.)
    - Indique comment ça s'inscrit dans la progression
 
 3. **Structure détaillée** (TRÈS IMPORTANT - sois granulaire) :
@@ -146,7 +154,9 @@ Pour CHAQUE séance, génère une description structurée en markdown qui contie
    - Retour au calme : distance précise + allure
 
 4. **Conseils personnalisés** (3-4 bullet points) :
+   - **CRITICAL** : Si l'athlète a mentionné des douleurs (genoux, rotule, etc.) dans ses commentaires, adapte les conseils en conséquence
    - CITE les allures précises des séances récentes (ex: "Tes sorties à 6:10-6:16/km sont parfaites")
+   - Si l'athlète a trouvé des séances "trop dures", recommande des ajustements
    - Anticipe les erreurs courantes pour ce type de séance
    - Donne des repères concrets basés sur l'historique
    - Utilise un ton direct et encourageant ("Résiste à...", "Concentre-toi sur...")

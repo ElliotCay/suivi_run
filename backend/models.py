@@ -66,11 +66,12 @@ class Workout(Base):
     avg_hr = Column(Integer, nullable=True)  # Average heart rate
     max_hr = Column(Integer, nullable=True)  # Maximum heart rate
     elevation_gain = Column(Float, nullable=True)  # Elevation in meters
-    workout_type = Column(String, nullable=True)  # e.g., easy, tempo, interval
+    workout_type = Column(String, nullable=True)  # e.g., facile, tempo, fractionne, longue, recuperation
     source = Column(String, nullable=True)  # e.g., garmin, strava, manual
     raw_data = Column(JSON, nullable=True)  # Store raw imported data
-    user_comment = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)  # Notes/description (from Strava or user)
     weather = Column(JSON, nullable=True)  # Weather conditions
+    is_test = Column(Boolean, default=False, nullable=False)  # Flag for test workouts
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -412,7 +413,7 @@ class PlannedWorkout(Base):
 
     # Detailed structure with paces
     title = Column(String, nullable=False)  # e.g., "Sortie longue 90 min"
-    description = Column(Text, nullable=False)  # Full workout description with paces
+    description = Column(Text, nullable=True)  # Full workout description with paces
     structure = Column(JSON, nullable=True)  # Detailed intervals/structure
 
     # Target paces (in seconds per km)
@@ -589,7 +590,7 @@ class ChatConversation(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    block_id = Column(Integer, ForeignKey("training_blocks.id"), nullable=False)
+    block_id = Column(Integer, ForeignKey("training_blocks.id"), nullable=True)  # Nullable for block_generation mode
 
     # Conversation scope
     scope_mode = Column(String, default="block_start", nullable=False)  # "block_start" or "rolling_4weeks"

@@ -481,10 +481,10 @@ export default function MoodboardPage() {
                         />
                       </div>
                       <div className="flex items-baseline gap-2 font-normal text-foreground">
-                        <span className={`font-[family-name:var(${approach.font})] ${approach.strideSize}`}>
+                        <span className={`font-[family-name:var(${approach.font})] ${'strideSize' in approach ? approach.strideSize : 'text-4xl'}`}>
                           Stride
                         </span>
-                        <span className={`font-[family-name:var(${approach.font})] ${approach.aiSize} uppercase tracking-wider`}>
+                        <span className={`font-[family-name:var(${approach.font})] ${'aiSize' in approach ? approach.aiSize : 'text-2xl'} uppercase tracking-wider`}>
                           AI
                         </span>
                       </div>
@@ -509,10 +509,10 @@ export default function MoodboardPage() {
                         />
                       </div>
                       <div className="flex items-baseline gap-3 font-normal text-foreground">
-                        <span className={`font-[family-name:var(${approach.font})] ${approach.strideSize}`}>
+                        <span className={`font-[family-name:var(${approach.font})] ${'strideSize' in approach ? approach.strideSize : 'text-4xl'}`}>
                           Stride
                         </span>
-                        <span className={`font-[family-name:var(${approach.font})] ${approach.aiSize} uppercase tracking-wider`}>
+                        <span className={`font-[family-name:var(${approach.font})] ${'aiSize' in approach ? approach.aiSize : 'text-2xl'} uppercase tracking-wider`}>
                           AI
                         </span>
                       </div>
@@ -542,7 +542,7 @@ export default function MoodboardPage() {
                         </span>
                         {approach.showGradient === false ? (
                           <span className={`font-[family-name:var(${approach.font})]`}>AI</span>
-                        ) : approach.showGradient === 'subtle' ? (
+                        ) : (approach.showGradient as unknown) === 'subtle' ? (
                           <span
                             className={`font-[family-name:var(${approach.font})]`}
                             style={{
@@ -576,7 +576,7 @@ export default function MoodboardPage() {
                       <span className={`font-[family-name:var(${approach.font})] ${approach.textSize}`}>
                         Stride
                       </span>
-                      <span className={`font-[family-name:var(${approach.font})] ${approach.aiSize} uppercase tracking-wider`}>
+                      <span className={`font-[family-name:var(${approach.font})] ${'aiSize' in approach ? approach.aiSize : 'text-2xl'} uppercase tracking-wider`}>
                         AI
                       </span>
                     </div>

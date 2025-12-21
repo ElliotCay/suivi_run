@@ -14,7 +14,7 @@ const navItems = [
     { href: '/workouts', label: 'Séances', icon: Activity },
     { href: '/records', label: 'Records', icon: Award },
     { href: '/training-block', label: 'Bloc 4 sem.', icon: CalendarDays },
-    { href: '/suggestions', label: 'Coach AI', icon: Sparkles },
+    { href: '/planning', label: 'Coach AI', icon: Sparkles },
     { href: '/settings', label: 'Plus', icon: Settings },
 ]
 
@@ -168,8 +168,9 @@ export default function NavbarCompact({ onScrollStateChange }: NavbarCompactProp
                                 >
                                     {isActive && (
                                         <motion.span
-                                            layoutId="activeNav"
-                                            className="absolute inset-0 rounded-full bg-primary -z-10 shadow-[0_0_12px_rgba(0,0,0,0.15)]"
+                                            layoutId="activeNavCompact"
+                                            className="absolute inset-0 rounded-full bg-primary shadow-[0_0_12px_rgba(0,0,0,0.15)]"
+                                            style={{ zIndex: -1 }}
                                             transition={{ type: "spring", stiffness: 400, damping: 35 }}
                                         />
                                     )}

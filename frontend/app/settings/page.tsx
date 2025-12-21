@@ -438,21 +438,21 @@ export default function SettingsPage() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Poids</p>
-              <p className="text-3xl font-bold tabular-nums">{weight}<span className="text-xl text-muted-foreground ml-1">kg</span></p>
+            <div className="p-6 rounded-2xl bg-background/40 border border-border backdrop-blur-sm hover:bg-background/60 transition-colors">
+              <p className="text-sm text-muted-foreground mb-2 font-sans">Poids</p>
+              <p className="text-3xl font-bold tabular-nums font-mono">{weight}<span className="text-xl text-muted-foreground ml-1 font-sans">kg</span></p>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Taille</p>
-              <p className="text-3xl font-bold tabular-nums">{height}<span className="text-xl text-muted-foreground ml-1">cm</span></p>
+            <div className="p-6 rounded-2xl bg-background/40 border border-border backdrop-blur-sm hover:bg-background/60 transition-colors">
+              <p className="text-sm text-muted-foreground mb-2 font-sans">Taille</p>
+              <p className="text-3xl font-bold tabular-nums font-mono">{height}<span className="text-xl text-muted-foreground ml-1 font-sans">cm</span></p>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">FCmax</p>
-              <p className="text-3xl font-bold tabular-nums">{fcmax}<span className="text-xl text-muted-foreground ml-1">bpm</span></p>
+            <div className="p-6 rounded-2xl bg-background/40 border border-border backdrop-blur-sm hover:bg-background/60 transition-colors">
+              <p className="text-sm text-muted-foreground mb-2 font-sans">FCmax</p>
+              <p className="text-3xl font-bold tabular-nums font-mono">{fcmax}<span className="text-xl text-muted-foreground ml-1 font-sans">bpm</span></p>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">VMA</p>
-              <p className="text-3xl font-bold tabular-nums">{vma}<span className="text-xl text-muted-foreground ml-1">km/h</span></p>
+            <div className="p-6 rounded-2xl bg-background/40 border border-border backdrop-blur-sm hover:bg-background/60 transition-colors">
+              <p className="text-sm text-muted-foreground mb-2 font-sans">VMA</p>
+              <p className="text-3xl font-bold tabular-nums font-mono">{vma}<span className="text-xl text-muted-foreground ml-1 font-sans">km/h</span></p>
             </div>
           </div>
         </div>
@@ -463,18 +463,19 @@ export default function SettingsPage() {
             <h3 className="text-2xl font-bold">Modifier le profil</h3>
           </div>
 
-          <div className="space-y-4">
+          <div className="p-8 rounded-2xl bg-background/40 border border-border backdrop-blur-sm space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">Nom</label>
+                <label className="text-sm text-muted-foreground font-sans">Nom</label>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Ton nom"
+                  className="focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/30 font-sans"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">
+                <label className="text-sm text-muted-foreground font-sans">
                   Date de naissance {age > 0 && `(${age} ans)`}
                 </label>
                 <Input
@@ -482,58 +483,44 @@ export default function SettingsPage() {
                   value={birthDate}
                   onChange={(e) => setBirthDate(e.target.value)}
                   max={new Date().toISOString().split('T')[0]}
+                  className="focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/30 font-sans"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">Poids (kg)</label>
+                <label className="text-sm text-muted-foreground font-sans">Poids (kg)</label>
                 <Input
                   type="number"
                   value={weight}
                   onChange={(e) => setWeight(Number(e.target.value))}
+                  className="focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/30 font-mono"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">Taille (cm)</label>
+                <label className="text-sm text-muted-foreground font-sans">Taille (cm)</label>
                 <Input
                   type="number"
                   value={height}
                   onChange={(e) => setHeight(Number(e.target.value))}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">FCmax (bpm)</label>
-                <Input
-                  type="number"
-                  value={fcmax}
-                  onChange={(e) => setFcmax(Number(e.target.value))}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">VMA (km/h)</label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={vma}
-                  onChange={(e) => setVma(Number(e.target.value))}
+                  className="focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/30 font-mono"
                 />
               </div>
             </div>
-          </div>
 
-          <div className="flex gap-3">
-            <Button onClick={handleSaveProfile} disabled={savingProfile}>
-              {savingProfile ? 'Enregistrement...' : 'Sauvegarder'}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setIsEditingProfile(false)}
-              disabled={savingProfile}
-            >
-              Annuler
-            </Button>
+            <div className="flex gap-3 pt-2">
+              <Button onClick={handleSaveProfile} disabled={savingProfile}>
+                {savingProfile ? 'Enregistrement...' : 'Sauvegarder'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setIsEditingProfile(false)}
+                disabled={savingProfile}
+              >
+                Annuler
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -544,19 +531,19 @@ export default function SettingsPage() {
       <div className="space-y-6">
         <h3 className="text-2xl font-bold">Préférences d'entraînement</h3>
 
-        <div className="space-y-4">
+        <div className="p-6 rounded-2xl bg-background/40 border border-border backdrop-blur-sm space-y-4">
           <div>
             <p className="text-sm text-muted-foreground mb-3">Jours préférés</p>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               {DAYS.map((day) => (
                 <button
                   key={day.value}
                   onClick={() => toggleDay(day.value)}
                   className={`
-                    h-12 w-12 rounded-lg text-sm font-medium transition-all
+                    h-12 w-12 rounded-xl text-sm font-medium transition-all duration-300
                     ${preferredDays.includes(day.value)
-                      ? 'bg-foreground text-background'
-                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                      ? 'bg-foreground text-background shadow-lg scale-105'
+                      : 'bg-card border border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:scale-105'
                     }
                   `}
                 >
@@ -578,6 +565,7 @@ export default function SettingsPage() {
                   preferred_time: e.target.value
                 })
               }}
+              className="focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/30 font-mono text-center text-lg h-12"
             />
           </div>
         </div>
@@ -589,48 +577,50 @@ export default function SettingsPage() {
       <div className="space-y-6">
         <h3 className="text-2xl font-bold">Chaussures</h3>
 
-        {shoesLoading ? (
-          <p className="text-sm text-muted-foreground">Chargement...</p>
-        ) : shoes.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucune paire enregistrée</p>
-        ) : (
-          <div className="space-y-2">
+        <div className="p-6 rounded-2xl bg-background/40 border border-border backdrop-blur-sm">
+          {shoesLoading ? (
+            <p className="text-sm text-muted-foreground">Chargement...</p>
+          ) : shoes.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aucune paire enregistrée</p>
+          ) : (
+            <div className="space-y-2">
             {shoes.map((shoe) => (
               <div
                 key={shoe.id}
-                className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-all group cursor-pointer"
+                className="flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:bg-accent transition-all duration-300 group cursor-pointer hover:scale-[1.01] hover:shadow-lg"
                 onClick={() => handleOpenShoeDialog(shoe)}
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="font-medium">{shoe.brand} {shoe.model}</p>
+                    <p className="font-medium font-sans text-lg">{shoe.brand} {shoe.model}</p>
                     {shoe.is_default && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">
                         Défaut
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-4 mt-1">
-                    <p className="text-sm text-muted-foreground tabular-nums">
+                  <div className="flex items-center gap-4 mt-2">
+                    <p className="text-sm text-muted-foreground tabular-nums font-mono">
                       {Math.round(shoe.total_km)} / {shoe.max_km} km
                     </p>
                     <div className="flex-1 max-w-xs h-1.5 bg-muted rounded-full overflow-hidden">
                       <div
-                        className={`h-full transition-all ${shoe.wear_percentage >= 90
-                          ? 'bg-red-500'
+                        className={`h-full transition-all duration-500 ${shoe.wear_percentage >= 90
+                          ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]'
                           : shoe.wear_percentage >= 70
-                            ? 'bg-orange-500'
-                            : 'bg-green-500'
+                            ? 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]'
+                            : 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]'
                           }`}
                         style={{ width: `${Math.min(shoe.wear_percentage, 100)}%` }}
                       />
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <Button
                     variant="ghost"
                     size="sm"
+                    className="hover:bg-white/10"
                     onClick={(e) => {
                       e.stopPropagation()
                       handleOpenShoeDialog(shoe)
@@ -641,6 +631,7 @@ export default function SettingsPage() {
                   <Button
                     variant="ghost"
                     size="sm"
+                    className="hover:bg-red-500/20 hover:text-red-400"
                     onClick={(e) => {
                       e.stopPropagation()
                       handleDeleteShoe(shoe)
@@ -652,12 +643,13 @@ export default function SettingsPage() {
               </div>
             ))}
           </div>
-        )}
+          )}
 
-        <Button variant="outline" size="sm" onClick={() => handleOpenShoeDialog()}>
-          <Plus className="h-4 w-4 mr-2" />
-          Ajouter une paire
-        </Button>
+          <Button variant="outline" size="sm" onClick={() => handleOpenShoeDialog()} className="mt-4">
+            <Plus className="h-4 w-4 mr-2" />
+            Ajouter une paire
+          </Button>
+        </div>
       </div>
 
       <Separator />
@@ -666,12 +658,13 @@ export default function SettingsPage() {
       <div className="space-y-6">
         <h3 className="text-2xl font-bold">Blessures</h3>
 
-        {injuriesLoading ? (
-          <p className="text-sm text-muted-foreground">Chargement...</p>
-        ) : injuries.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucune blessure enregistrée</p>
-        ) : (
-          <div className="space-y-2">
+        <div className="p-6 rounded-2xl bg-background/40 border border-border backdrop-blur-sm">
+          {injuriesLoading ? (
+            <p className="text-sm text-muted-foreground">Chargement...</p>
+          ) : injuries.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aucune blessure enregistrée</p>
+          ) : (
+            <div className="space-y-2">
             {injuries.map((injury) => {
               const statusColors = {
                 active: 'bg-red-500/10 text-red-600 border-red-500/20',
@@ -707,34 +700,35 @@ export default function SettingsPage() {
               return (
                 <div
                   key={injury.id}
-                  className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-all group cursor-pointer"
+                  className="flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:bg-accent transition-all duration-300 group cursor-pointer hover:scale-[1.01] hover:shadow-lg"
                   onClick={() => handleOpenInjuryDialog(injury)}
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="font-medium">{injury.injury_type}</p>
+                      <p className="font-medium font-sans text-lg">{injury.injury_type}</p>
                       <span className={`text-xs px-2 py-0.5 rounded-full border ${statusColors[injury.status]}`}>
                         {statusLabels[injury.status]}
                       </span>
                       {injury.recurrence_count > 0 && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">
                           Récurrent ({injury.recurrence_count}x)
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-4 mt-1">
-                      <p className="text-sm text-muted-foreground">
+                    <div className="flex items-center gap-4 mt-2">
+                      <p className="text-sm text-muted-foreground font-sans">
                         {locationLabels[injury.location]}{injury.side ? ` (${sideLabels[injury.side as 'left' | 'right' | 'both']})` : ''} • {severityLabels[injury.severity]}
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground font-mono">
                         {new Date(injury.occurred_at).toLocaleDateString('fr-FR')}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <Button
                       variant="ghost"
                       size="sm"
+                      className="hover:bg-white/10"
                       onClick={(e) => {
                         e.stopPropagation()
                         handleOpenInjuryDialog(injury)
@@ -745,6 +739,7 @@ export default function SettingsPage() {
                     <Button
                       variant="ghost"
                       size="sm"
+                      className="hover:bg-red-500/20 hover:text-red-400"
                       onClick={(e) => {
                         e.stopPropagation()
                         handleDeleteInjury(injury)
@@ -757,12 +752,13 @@ export default function SettingsPage() {
               )
             })}
           </div>
-        )}
+          )}
 
-        <Button variant="outline" size="sm" onClick={() => handleOpenInjuryDialog()}>
-          <Plus className="h-4 w-4 mr-2" />
-          Ajouter une blessure
-        </Button>
+          <Button variant="outline" size="sm" onClick={() => handleOpenInjuryDialog()} className="mt-4">
+            <Plus className="h-4 w-4 mr-2" />
+            Ajouter une blessure
+          </Button>
+        </div>
       </div>
 
       <Separator />
@@ -771,11 +767,13 @@ export default function SettingsPage() {
       <div className="space-y-6">
         <h3 className="text-2xl font-bold">Apparence</h3>
 
-        <ThemeSwitcherCard />
-        <NavbarStyleCard
-          activeStyle={navbarStyle}
-          onChange={handleNavbarStyleChange}
-        />
+        <div className="space-y-6">
+          <ThemeSwitcherCard />
+          <NavbarStyleCard
+            activeStyle={navbarStyle}
+            onChange={handleNavbarStyleChange}
+          />
+        </div>
       </div>
 
       {/* Image Crop Dialog */}
@@ -793,7 +791,7 @@ export default function SettingsPage() {
 
       {/* Shoe Dialog */}
       <Dialog open={shoeDialogOpen} onOpenChange={setShoeDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md bg-background/95 backdrop-blur-xl border-border">
           <DialogHeader>
             <DialogTitle>{editingShoe ? 'Modifier' : 'Ajouter'} une paire</DialogTitle>
             <DialogDescription>
@@ -865,7 +863,7 @@ export default function SettingsPage() {
 
       {/* Injury Dialog */}
       <Dialog open={injuryDialogOpen} onOpenChange={setInjuryDialogOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto bg-background/95 backdrop-blur-xl border-border">
           <DialogHeader>
             <DialogTitle>{editingInjury ? 'Modifier' : 'Ajouter'} une blessure</DialogTitle>
             <DialogDescription>
@@ -997,11 +995,10 @@ export default function SettingsPage() {
                       : [...focus, 'tfl_hanche']
                     setInjuryFormData({ ...injuryFormData, strengthening_focus: newFocus })
                   }}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
-                    injuryFormData.strengthening_focus?.includes('tfl_hanche')
-                      ? 'bg-foreground text-background'
-                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                  }`}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${injuryFormData.strengthening_focus?.includes('tfl_hanche')
+                    ? 'bg-foreground text-background'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
                 >
                   TFL/Hanche
                 </button>
@@ -1014,11 +1011,10 @@ export default function SettingsPage() {
                       : [...focus, 'mollet_cheville']
                     setInjuryFormData({ ...injuryFormData, strengthening_focus: newFocus })
                   }}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${
-                    injuryFormData.strengthening_focus?.includes('mollet_cheville')
-                      ? 'bg-foreground text-background'
-                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                  }`}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-all ${injuryFormData.strengthening_focus?.includes('mollet_cheville')
+                    ? 'bg-foreground text-background'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
                 >
                   Mollet/Cheville
                 </button>

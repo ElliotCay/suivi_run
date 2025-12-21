@@ -366,3 +366,97 @@ def validate_and_apply(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to apply adjustments"
         )
+
+
+@router.post("/conversations/{conversation_id}/reject")
+def reject_proposal(
+    conversation_id: int,
+    db: Session = Depends(get_db),
+    user_id: int = 1  # TODO: Get from auth
+):
+    """
+    Reject a proposal and continue the conversation.
+
+    Args:
+        conversation_id: Conversation ID
+        db: Database session
+        user_id: User ID (from auth)
+
+    Returns:
+        Success message
+    """
+
+    # Verify conversation belongs to user
+    conversation = db.query(ChatConversation).filter(
+        ChatConversation.id == conversation_id
+    ).first()
+
+    if not conversation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found"
+        )
+
+    if conversation.user_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this conversation"
+        )
+
+    # Reset state to active and clear proposed changes
+    conversation.state = "active"
+    conversation.proposed_changes = None
+    db.commit()
+
+    logger.info(f"Rejected proposal for conversation {conversation_id}")
+
+    return {"message": "Proposal rejected, conversation continues"}
+
+
+@router.delete("/conversations/{conversation_id}")
+def delete_conversation(
+    conversation_id: int,
+    db: Session = Depends(get_db),
+    user_id: int = 1  # TODO: Get from auth
+):
+    """
+    Delete a conversation and all its messages.
+
+    Args:
+        conversation_id: Conversation ID
+        db: Database session
+        user_id: User ID (from auth)
+
+    Returns:
+        Success message
+    """
+
+    # Verify conversation belongs to user
+    conversation = db.query(ChatConversation).filter(
+        ChatConversation.id == conversation_id
+    ).first()
+
+    if not conversation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found"
+        )
+
+    if conversation.user_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this conversation"
+        )
+
+    # Delete all messages first
+    db.query(ChatMessage).filter(
+        ChatMessage.conversation_id == conversation_id
+    ).delete()
+
+    # Delete conversation
+    db.delete(conversation)
+    db.commit()
+
+    logger.info(f"Deleted conversation {conversation_id} and all its messages")
+
+    return {"message": "Conversation deleted successfully"}

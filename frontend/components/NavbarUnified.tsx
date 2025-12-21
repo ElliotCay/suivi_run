@@ -15,7 +15,7 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
   { href: '/workouts', label: 'Séances', icon: Activity },
   { href: '/records', label: 'Records', icon: Award },
-  { href: '/suggestions', label: 'Coach AI', icon: Sparkles },
+  { href: '/planning', label: 'Coach AI', icon: Sparkles },
   { href: '/settings', label: 'Plus', icon: Settings },
 ]
 

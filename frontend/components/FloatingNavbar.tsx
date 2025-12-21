@@ -13,7 +13,7 @@ const navItems = [
     { href: '/workouts', label: 'Séances', icon: Activity },
     { href: '/records', label: 'Records', icon: Award },
     { href: '/training-block', label: 'Bloc 4 sem.', icon: CalendarDays },
-    { href: '/suggestions', label: 'Coach AI', icon: Sparkles },
+    { href: '/planning', label: 'Coach AI', icon: Sparkles },
     { href: '/settings', label: 'Plus', icon: Settings },
 ]
 

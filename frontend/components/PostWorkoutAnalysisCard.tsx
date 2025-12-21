@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles, TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle } from "lucide-react";
+import { Sparkles, TrendingUp, TrendingDown, Minus, AlertCircle, CheckCircle, Activity, Heart, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,18 @@ interface WorkoutAnalysis {
   injury_risk_factors: string[] | null;
   summary: string;
   analyzed_at: string;
+}
+
+interface Workout {
+  id: number;
+  date: string;
+  distance: number;
+  duration: number;
+  avg_pace: number;
+  avg_hr: number | null;
+  max_hr: number | null;
+  workout_type: string | null;
+  notes: string | null;
 }
 
 interface AdjustmentProposal {
@@ -36,17 +48,111 @@ interface AdjustmentProposal {
 
 interface PostWorkoutAnalysisCardProps {
   analysis: WorkoutAnalysis;
+  workout?: Workout | null;
   proposal?: AdjustmentProposal | null;
   onValidate?: (proposalId: number) => void;
   onReject?: (proposalId: number) => void;
 }
 
+// Helper functions
+function formatPace(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+
+function formatDuration(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours > 0) {
+    return `${hours}h${minutes.toString().padStart(2, '0')}`;
+  }
+  return `${minutes} min`;
+}
+
+function parseHRZoneVariance(variance: string | null): { text: string; alert: boolean } {
+  if (!variance) return { text: "Conforme", alert: false };
+
+  // Parse patterns like "zone_3_au_lieu_de_seuil"
+  const match = variance.match(/zone_(\d+)_au_lieu_de_(.+)/);
+  if (match) {
+    const [_, actualZone, expectedZone] = match;
+    const zoneMap: Record<string, string> = {
+      "seuil": "Seuil",
+      "facile": "Facile",
+      "endurance": "Endurance",
+      "1": "Z1",
+      "2": "Z2",
+      "3": "Z3",
+      "4": "Z4",
+      "5": "Z5"
+    };
+    const actual = zoneMap[actualZone] || `Z${actualZone}`;
+    const expected = zoneMap[expectedZone] || expectedZone;
+
+    // Alert if zone is higher than expected
+    const alert = parseInt(actualZone) > 3;
+
+    return {
+      text: `${actual} (vs ${expected})`,
+      alert
+    };
+  }
+
+  return { text: variance, alert: false };
+}
+
+function extractActionFromSummary(summary: string): string | null {
+  // Extract key actionable advice from summary
+  const actionPatterns = [
+    /planifie.*?(séance facile|repos|récupération)/i,
+    /recommande.*?(séance facile|repos|récupération)/i,
+    /impératif.*?(séance facile|repos|récupération)/i,
+  ];
+
+  for (const pattern of actionPatterns) {
+    const match = summary.match(pattern);
+    if (match) {
+      return match[0];
+    }
+  }
+
+  return null;
+}
+
+function getInjuryRiskContext(score: number): { level: string; color: string; message: string } {
+  if (score < 3) {
+    return {
+      level: "Faible",
+      color: "text-green-500",
+      message: "Risque minimal"
+    };
+  } else if (score < 6) {
+    return {
+      level: "Modéré",
+      color: "text-amber-500",
+      message: "Sois vigilant"
+    };
+  } else {
+    return {
+      level: "Élevé",
+      color: "text-red-500",
+      message: "Attention !"
+    };
+  }
+}
+
 export function PostWorkoutAnalysisCard({
   analysis,
+  workout,
   proposal,
   onValidate,
   onReject,
 }: PostWorkoutAnalysisCardProps) {
+  const hrZone = parseHRZoneVariance(analysis.hr_zone_variance);
+  const injuryRisk = getInjuryRiskContext(analysis.injury_risk_score);
+  const actionAdvice = extractActionFromSummary(analysis.summary);
+
   return (
     <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-6 group">
       {/* Gradient border on hover */}
@@ -61,7 +167,7 @@ export function PostWorkoutAnalysisCard({
         }}
       />
 
-      <div className="relative z-10 space-y-4">
+      <div className="relative z-10 space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -76,40 +182,81 @@ export function PostWorkoutAnalysisCard({
         {/* Performance badge */}
         <PerformanceBadge status={analysis.performance_vs_plan} />
 
+        {/* Workout summary (if available) */}
+        {workout && (
+          <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-1.5">
+              <Activity className="h-4 w-4 text-muted-foreground" />
+              <span className="font-mono font-bold">{workout.distance.toFixed(1)}km</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Zap className="h-4 w-4 text-muted-foreground" />
+              <span className="font-mono font-bold">{formatPace(workout.avg_pace)}/km</span>
+            </div>
+            {workout.avg_hr && (
+              <div className="flex items-center gap-1.5">
+                <Heart className="h-4 w-4 text-muted-foreground" />
+                <span className="font-mono font-bold">{workout.avg_hr} bpm</span>
+              </div>
+            )}
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <span className="font-sans">{formatDuration(workout.duration)}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Action recommendation (if exists) */}
+        {actionAdvice && (
+          <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-sans text-sm font-semibold text-amber-600 dark:text-amber-400">
+                  Action recommandée
+                </p>
+                <p className="font-sans text-sm text-muted-foreground capitalize">
+                  {actionAdvice}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Summary */}
-        <p className="font-sans text-sm text-muted-foreground leading-relaxed">
-          {analysis.summary}
-        </p>
+        <div className="space-y-2">
+          <p className="font-sans text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Analyse détaillée
+          </p>
+          <p className="font-sans text-sm text-foreground/90 leading-relaxed">
+            {analysis.summary}
+          </p>
+        </div>
 
         {/* Metrics grid */}
         <div className="grid grid-cols-3 gap-3">
           <MetricCard
-            label="Allure vs plan"
-            value={
+            label="Allure"
+            value={workout ? formatPace(workout.avg_pace) + "/km" : "N/A"}
+            subValue={
               analysis.pace_variance_pct !== null
-                ? `${analysis.pace_variance_pct > 0 ? "+" : ""}${analysis.pace_variance_pct.toFixed(1)}%`
-                : "N/A"
+                ? `${analysis.pace_variance_pct > 0 ? "+" : ""}${analysis.pace_variance_pct.toFixed(1)}% vs plan`
+                : undefined
             }
             positive={analysis.pace_variance_pct !== null && analysis.pace_variance_pct < 0}
-            icon={
-              analysis.pace_variance_pct === null ? (
-                <Minus className="h-4 w-4" />
-              ) : analysis.pace_variance_pct < 0 ? (
-                <TrendingUp className="h-4 w-4" />
-              ) : (
-                <TrendingDown className="h-4 w-4" />
-              )
-            }
+            icon={<Zap className="h-4 w-4" />}
           />
           <MetricCard
             label="Zone FC"
-            value={analysis.hr_zone_variance || "Conforme"}
-            icon={<Minus className="h-4 w-4" />}
+            value={hrZone.text}
+            alert={hrZone.alert}
+            icon={<Heart className="h-4 w-4" />}
           />
           <MetricCard
             label="Risque blessure"
             value={`${analysis.injury_risk_score.toFixed(1)}/10`}
+            subValue={injuryRisk.level}
             alert={analysis.injury_risk_score > 6}
+            positive={analysis.injury_risk_score < 3}
             icon={<AlertCircle className="h-4 w-4" />}
           />
         </div>
@@ -168,12 +315,14 @@ function PerformanceBadge({
 function MetricCard({
   label,
   value,
+  subValue,
   positive,
   alert,
   icon,
 }: {
   label: string;
   value: string;
+  subValue?: string;
   positive?: boolean;
   alert?: boolean;
   icon?: React.ReactNode;
@@ -181,8 +330,8 @@ function MetricCard({
   return (
     <div
       className={cn(
-        "rounded-xl border p-3 space-y-1 bg-background/50",
-        alert ? "border-red-500/20 bg-red-500/5" : "border-white/10"
+        "rounded-xl border p-3 space-y-1.5 bg-background/50",
+        alert ? "border-red-500/20 bg-red-500/5" : positive ? "border-green-500/20 bg-green-500/5" : "border-white/10"
       )}
     >
       <div className="flex items-center justify-between">
@@ -201,14 +350,21 @@ function MetricCard({
           </span>
         )}
       </div>
-      <p
-        className={cn(
-          "font-mono text-lg font-bold tabular-nums",
-          alert ? "text-red-500" : positive ? "text-green-500" : ""
+      <div className="space-y-0.5">
+        <p
+          className={cn(
+            "font-mono text-base font-bold tabular-nums leading-none",
+            alert ? "text-red-500" : positive ? "text-green-500" : ""
+          )}
+        >
+          {value}
+        </p>
+        {subValue && (
+          <p className="font-sans text-xs text-muted-foreground">
+            {subValue}
+          </p>
         )}
-      >
-        {value}
-      </p>
+      </div>
     </div>
   );
 }

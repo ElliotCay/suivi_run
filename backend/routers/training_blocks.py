@@ -191,6 +191,7 @@ async def delete_training_block(
 ):
     """
     Delete a training block and all associated workouts and reminders.
+    Also deletes future calendar events from iCloud.
 
     Args:
         block_id: Block ID
@@ -203,13 +204,28 @@ async def delete_training_block(
     if not block:
         raise HTTPException(status_code=404, detail="Training block not found")
 
+    # Delete future calendar events from iCloud
+    calendar_stats = {"deleted": 0, "errors": 0}
+    try:
+        from services.icloud_calendar_sync import iCloudCalendarSync
+        calendar_sync = iCloudCalendarSync()
+        if calendar_sync.connect():
+            calendar_stats = calendar_sync.delete_future_events()
+            logger.info(f"Deleted {calendar_stats['deleted']} calendar events")
+    except Exception as e:
+        logger.warning(f"Could not delete calendar events: {e}")
+
     # Delete the block (cascade will delete workouts and reminders)
     db.delete(block)
     db.commit()
 
     logger.info(f"Deleted training block {block_id} for user {user_id}")
 
-    return {"message": "Training block deleted successfully", "block_id": block_id}
+    return {
+        "message": "Training block deleted successfully",
+        "block_id": block_id,
+        "calendar_events_deleted": calendar_stats.get("deleted", 0)
+    }
 
 
 @router.patch("/training/blocks/{block_id}/status")

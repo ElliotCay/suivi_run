@@ -54,7 +54,7 @@ class WorkoutBase(BaseModel):
     date: Optional[datetime] = None
     workout_type: Optional[str] = None
     user_rating: Optional[int] = Field(None, ge=1, le=5)
-    user_comment: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class WorkoutUpdate(WorkoutBase):
@@ -76,9 +76,10 @@ class WorkoutResponse(BaseModel):
     workout_type: Optional[str] = None
     source: Optional[str] = None
     user_rating: Optional[int] = None
-    user_comment: Optional[str] = None
+    notes: Optional[str] = None
     weather: Optional[Dict[str, Any]] = None
     raw_data: Optional[Dict[str, Any]] = None  # Contains GPX splits and detailed metrics
+    is_test: bool = False
     created_at: datetime
 
     class Config:
@@ -117,7 +118,7 @@ class SuggestionBase(BaseModel):
 
 class SuggestionGenerateRequest(BaseModel):
     use_sonnet: bool = True
-    workout_type: Optional[str] = None  # "facile", "tempo", "fractionne", "longue", or None for auto
+    workout_type: Optional[str] = None  # "easy", "threshold", "interval", "long", "recovery", or None for auto
     generate_week: bool = False  # If True, generates 3 workouts for a complete week
 
 
@@ -351,7 +352,7 @@ class PlannedWorkoutResponse(BaseModel):
     workout_type: str
     distance_km: Optional[float]
     title: str
-    description: str
+    description: Optional[str] = None
     target_pace_min: Optional[int]
     target_pace_max: Optional[int]
     status: str
@@ -487,9 +488,9 @@ class ChatConversationResponse(BaseModel):
 
 
 class WorkoutAdjustment(BaseModel):
-    workout_id: int
-    action: str  # "modify", "delete", "reschedule"
-    current: Dict[str, Any]
+    workout_id: Optional[int] = None  # None for create actions
+    action: str  # "modify", "delete", "reschedule", "create"
+    current: Optional[Dict[str, Any]] = None  # None for create actions
     proposed: Optional[Dict[str, Any]] = None  # None for delete actions
     reasoning: str
 

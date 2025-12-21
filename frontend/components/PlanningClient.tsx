@@ -6,11 +6,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Calendar, Target, Loader2 } from 'lucide-react'
+import { Calendar, Target, Loader2, Sparkles } from 'lucide-react'
 import { AIButton } from '@/components/ui/AIButton'
 import { toast } from 'sonner'
 import axios from 'axios'
 import TrainingBlockClient, { TrainingBlock } from '@/components/TrainingBlockClient'
+import BlockGenerationChatModal from '@/components/BlockGenerationChatModal'
 import { useRouter } from 'next/navigation'
 
 interface RaceObjective {
@@ -46,6 +47,7 @@ export default function PlanningClient({ initialPlan, initialRaceObjective }: Pl
   const [selectedMode, setSelectedMode] = useState<'simple' | 'race' | null>(null)
   const [generating, setGenerating] = useState(false)
   const [showRaceForm, setShowRaceForm] = useState(false)
+  const [showBlockChatModal, setShowBlockChatModal] = useState(false)
 
   // Race form state
   const [raceForm, setRaceForm] = useState({
@@ -57,21 +59,24 @@ export default function PlanningClient({ initialPlan, initialRaceObjective }: Pl
     days_per_week: 4
   })
 
+  const handleBlockCreated = (blockId: number) => {
+    // Refresh the page to show the new block
+    router.refresh()
+  }
+
   const generateSimpleBlock = async () => {
     setGenerating(true)
     try {
-      // Calculate next Monday
-      const today = new Date()
-      const daysUntilMonday = (8 - today.getDay()) % 7 || 7
-      const nextMonday = new Date(today)
-      nextMonday.setDate(today.getDate() + daysUntilMonday)
-      nextMonday.setHours(0, 0, 0, 0)
+      // Start tomorrow (flexible start - block will always end on a Sunday)
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      tomorrow.setHours(0, 0, 0, 0)
 
       const response = await axios.post('http://127.0.0.1:8000/api/planning/generate-preparation', {
         mode: 'simple',
         phase: 'base',
         days_per_week: 3,
-        start_date: nextMonday.toISOString()
+        start_date: tomorrow.toISOString()
       })
 
       toast.success('Bloc 4 semaines généré avec succès !')
@@ -117,17 +122,16 @@ export default function PlanningClient({ initialPlan, initialRaceObjective }: Pl
 
       const raceObjectiveId = raceObjectiveResponse.data.id
 
-      // Step 2: Calculate start date (next Monday)
-      const daysUntilMonday = (8 - today.getDay()) % 7 || 7
-      const nextMonday = new Date(today)
-      nextMonday.setDate(today.getDate() + daysUntilMonday)
-      nextMonday.setHours(0, 0, 0, 0)
+      // Step 2: Calculate start date (tomorrow - flexible start, block ends on Sunday)
+      const tomorrow = new Date(today)
+      tomorrow.setDate(today.getDate() + 1)
+      tomorrow.setHours(0, 0, 0, 0)
 
       // Step 3: Generate race preparation plan
       await axios.post('http://127.0.0.1:8000/api/planning/generate-preparation', {
         mode: 'race',
         race_objective_id: raceObjectiveId,
-        start_date: nextMonday.toISOString(),
+        start_date: tomorrow.toISOString(),
         days_per_week: raceForm.days_per_week
       })
 
@@ -315,12 +319,19 @@ export default function PlanningClient({ initialPlan, initialRaceObjective }: Pl
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 items-start">
         {/* Simple Block Mode */}
         <Card
-          className={`cursor-pointer transition-all hover:shadow-lg bg-white/5 backdrop-blur-xl border-white/10 hover:border-white/20 ${
-            selectedMode === 'simple' ? 'border-white/30' : ''
+          className={`group relative cursor-pointer transition-all duration-300 ease-out bg-white/5 backdrop-blur-xl hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/20 animate-in fade-in slide-in-from-bottom-4 duration-500 ${
+            generating && selectedMode === 'simple'
+              ? 'border border-transparent'
+              : 'border border-white/10 hover:border-white/20'
           }`}
+          style={{
+            background: generating && selectedMode === 'simple'
+              ? 'linear-gradient(var(--background), var(--background)) padding-box, linear-gradient(90deg, #ee95b3, #667abf) border-box'
+              : undefined,
+          }}
           onClick={() => setSelectedMode('simple')}
         >
           <CardContent className="p-8 space-y-4">
@@ -351,16 +362,16 @@ export default function PlanningClient({ initialPlan, initialRaceObjective }: Pl
               <AIButton
                 onClick={(e) => {
                   e.stopPropagation()
-                  generateSimpleBlock()
+                  setShowBlockChatModal(true)
                 }}
                 disabled={generating}
                 animationType="none"
-                label={generating ? "Génération..." : "Démarrer"}
+                label="Discuter avec l'IA"
                 iconClassName="w-4 h-4 text-purple-500"
                 className="w-full border border-input shadow-sm bg-foreground text-background hover:bg-foreground/90"
-                showIcon={!generating}
+                showIcon={true}
               >
-                {generating && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                <Sparkles className="h-4 w-4 mr-2" />
               </AIButton>
             )}
           </CardContent>
@@ -368,9 +379,16 @@ export default function PlanningClient({ initialPlan, initialRaceObjective }: Pl
 
         {/* Race Prep Mode */}
         <Card
-          className={`cursor-pointer transition-all hover:shadow-lg bg-white/5 backdrop-blur-xl border-white/10 hover:border-white/20 ${
-            selectedMode === 'race' ? 'border-white/30' : ''
+          className={`group relative cursor-pointer transition-all duration-300 ease-out bg-white/5 backdrop-blur-xl hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/20 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100 ${
+            generating && selectedMode === 'race'
+              ? 'border border-transparent'
+              : 'border border-white/10 hover:border-white/20'
           }`}
+          style={{
+            background: generating && selectedMode === 'race'
+              ? 'linear-gradient(var(--background), var(--background)) padding-box, linear-gradient(90deg, #ee95b3, #667abf) border-box'
+              : undefined,
+          }}
           onClick={() => setSelectedMode('race')}
         >
           <CardContent className="p-8 space-y-4">
@@ -493,15 +511,12 @@ export default function PlanningClient({ initialPlan, initialRaceObjective }: Pl
         </Card>
       </div>
 
-      {!selectedMode && (
-        <Card className="bg-muted/30 border-white/5">
-          <CardContent className="py-8 text-center">
-            <p className="text-sm text-muted-foreground">
-              Sélectionne un mode pour commencer ton entraînement
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      {/* Block Generation Chat Modal */}
+      <BlockGenerationChatModal
+        isOpen={showBlockChatModal}
+        onClose={() => setShowBlockChatModal(false)}
+        onBlockCreated={handleBlockCreated}
+      />
     </div>
   )
 }

@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Label } from '@/components/ui/label'
-import { MessageCircle } from 'lucide-react'
+import { ArrowLeft, MessageCircle, Activity } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { motion } from 'framer-motion'
 import axios from 'axios'
+import { toast } from 'sonner'
 import WorkoutAnalysisModal from '@/components/WorkoutAnalysisModal'
 
 interface GpxSplit {
@@ -43,7 +43,7 @@ interface Workout {
   elevation_gain: number
   workout_type: string | null
   user_rating: number | null
-  user_comment: string | null
+  notes: string | null
   start_time: string
   end_time: string
   raw_data?: {
@@ -51,12 +51,36 @@ interface Workout {
   }
 }
 
+// Workout type colors
+const workoutTypeColors: Record<string, string> = {
+  facile: 'bg-emerald-500',
+  tempo: 'bg-orange-500',
+  fractionne: 'bg-red-500',
+  longue: 'bg-blue-500',
+  recuperation: 'bg-slate-400'
+}
+
+const workoutTypeLabels: Record<string, string> = {
+  facile: 'Facile / Endurance',
+  tempo: 'Tempo / Allure soutenue',
+  fractionne: 'Fractionne',
+  longue: 'Sortie longue',
+  recuperation: 'Recuperation'
+}
+
+// Helper to get pace color based on comparison to average
+const getPaceColor = (splitPace: number, avgPace: number): string => {
+  const diff = (splitPace - avgPace) / avgPace
+  if (diff < -0.03) return 'text-emerald-500'
+  if (diff > 0.03) return 'text-orange-500'
+  return ''
+}
+
 export default function WorkoutDetailPage() {
   const params = useParams()
   const router = useRouter()
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [loading, setLoading] = useState(true)
-  const [rating, setRating] = useState<number>(0)
   const [comment, setComment] = useState('')
   const [workoutType, setWorkoutType] = useState('')
   const [saving, setSaving] = useState(false)
@@ -70,8 +94,7 @@ export default function WorkoutDetailPage() {
     try {
       const response = await axios.get(`http://127.0.0.1:8000/api/workouts/${params.id}`)
       setWorkout(response.data)
-      setRating(response.data.user_rating || 0)
-      setComment(response.data.user_comment || '')
+      setComment(response.data.notes || '')
       setWorkoutType(response.data.workout_type || '')
     } catch (error) {
       console.error('Error loading workout:', error)
@@ -84,15 +107,14 @@ export default function WorkoutDetailPage() {
     setSaving(true)
     try {
       await axios.patch(`http://127.0.0.1:8000/api/workouts/${params.id}`, {
-        user_rating: rating || null,
-        user_comment: comment || null,
+        notes: comment || null,
         workout_type: workoutType || null
       })
-      alert('Entraînement mis à jour!')
+      toast.success('Seance mise a jour !')
       loadWorkout()
     } catch (error) {
       console.error('Error saving:', error)
-      alert('Erreur lors de la sauvegarde')
+      toast.error('Erreur lors de la sauvegarde')
     } finally {
       setSaving(false)
     }
@@ -100,8 +122,7 @@ export default function WorkoutDetailPage() {
 
   const handleBlockAdjustment = (adjustment: any) => {
     console.log('Block adjustment accepted:', adjustment)
-    // TODO: Implement actual block adjustment logic
-    alert(`Ajustement appliqué: ${adjustment.suggestion}`)
+    alert(`Ajustement applique: ${adjustment.suggestion}`)
   }
 
   const formatDate = (dateStr: string) => {
@@ -128,199 +149,384 @@ export default function WorkoutDetailPage() {
   const formatPace = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
     const secs = Math.floor(seconds % 60)
-    return `${mins}:${String(secs).padStart(2, '0')}/km`
+    return `${mins}:${String(secs).padStart(2, '0')}`
   }
 
-  if (loading) return <div className="container mx-auto py-8">Chargement...</div>
-  if (!workout) return <div className="container mx-auto py-8">Entraînement non trouvé</div>
+  // Loading state
+  if (loading) {
+    return (
+      <div className="container mx-auto py-8 flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <div className="relative">
+          <div className="w-12 h-12 rounded-full border-2 border-muted border-t-[#ee95b3] animate-spin" />
+        </div>
+        <p className="text-sm text-muted-foreground animate-pulse font-sans">Chargement...</p>
+      </div>
+    )
+  }
+
+  // Empty state
+  if (!workout) {
+    return (
+      <div className="container mx-auto py-8 flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center">
+          <Activity className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <p className="text-lg font-serif font-bold">Entrainement non trouve</p>
+        <button
+          onClick={() => router.back()}
+          className="px-4 py-2 rounded-xl text-sm border border-border hover:bg-muted/50 transition-all font-sans"
+        >
+          Retour
+        </button>
+      </div>
+    )
+  }
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex items-center justify-between mb-4">
-        <Button onClick={() => router.back()} variant="outline">
-          ← Retour
-        </Button>
+    <motion.div
+      className="container mx-auto py-8 space-y-8"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => router.back()}
+          className="px-4 py-2 rounded-xl font-medium transition-all duration-200
+            border border-border hover:bg-muted/50
+            flex items-center gap-2 text-sm font-sans"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Retour
+        </button>
 
-      <Button
-        onClick={() => setAnalysisModalOpen(true)}
-        className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+        <button
+          onClick={() => setAnalysisModalOpen(true)}
+          className="group px-4 py-2 rounded-xl font-medium transition-all duration-300 border-[1.5px] border-transparent hover:shadow-lg hover:shadow-pink-500/20 hover:-translate-y-0.5 flex items-center gap-2 font-sans"
+          style={{
+            backgroundImage: 'linear-gradient(hsl(var(--background)), hsl(var(--background))), linear-gradient(90deg, #ee95b3, #667abf)',
+            backgroundOrigin: 'border-box',
+            backgroundClip: 'padding-box, border-box'
+          }}
+        >
+          <MessageCircle className="h-4 w-4" />
+          Analyser avec Claude
+        </button>
+      </div>
+
+      {/* Title with workout type indicator */}
+      <div className="space-y-3">
+        <motion.h1
+          className="text-5xl md:text-6xl font-serif font-bold tracking-tight"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+        >
+          {formatDate(workout.date)}
+        </motion.h1>
+        {workout.workout_type && (
+          <motion.div
+            className="flex items-center gap-2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.3 }}
+          >
+            <div className={cn("w-2 h-2 rounded-full", workoutTypeColors[workout.workout_type] || 'bg-muted-foreground')} />
+            <span className="text-sm font-sans text-muted-foreground uppercase tracking-wider">
+              {workoutTypeLabels[workout.workout_type] || workout.workout_type}
+            </span>
+          </motion.div>
+        )}
+      </div>
+
+      {/* Main Card - Metrics + Notes */}
+      <motion.div
+        className="rounded-2xl border border-border bg-card p-6 md:p-8 transition-shadow duration-200 hover:shadow-sm"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
       >
-        <MessageCircle className="mr-2 h-4 w-4" />
-        💬 Analyser avec Claude
-      </Button>
-    </div>
+        {/* Metrics Section */}
+        <div className="space-y-6">
+          <h2 className="font-serif text-2xl font-bold tracking-tight">Metriques</h2>
 
-    <h1 className="text-6xl font-serif font-bold tracking-tight mb-6">
-      {formatDate(workout.date)}
-    </h1>
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Métriques</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Distance</p>
-                <p className="text-2xl font-bold">{workout.distance.toFixed(2)} km</p>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+            {/* Distance */}
+            <div className="space-y-1">
+              <p className="text-xs font-sans text-muted-foreground uppercase tracking-wider">Distance</p>
+              <div className="flex items-baseline gap-1">
+                <span className="font-mono font-bold text-3xl tabular-nums">{workout.distance.toFixed(2)}</span>
+                <span className="text-sm font-sans text-muted-foreground">km</span>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Durée</p>
-                <p className="text-2xl font-bold">{formatDuration(workout.duration)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Allure moyenne</p>
-                <p className="text-xl font-bold">{formatPace(workout.avg_pace)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">FC moyenne</p>
-                <p className="text-xl font-bold">{workout.avg_hr} bpm</p>
-              </div>
-              {workout.max_hr && (
-                <div>
-                  <p className="text-sm text-muted-foreground">FC max</p>
-                  <p className="text-xl font-bold">{workout.max_hr} bpm</p>
-                </div>
-              )}
-              {workout.elevation_gain && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Dénivelé</p>
-                  <p className="text-xl font-bold">{workout.elevation_gain.toFixed(0)} m</p>
-                </div>
-              )}
             </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Mes notes</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>Type de sortie</Label>
+            {/* Duration */}
+            <div className="space-y-1">
+              <p className="text-xs font-sans text-muted-foreground uppercase tracking-wider">Duree</p>
+              <span className="font-mono font-bold text-3xl tabular-nums">{formatDuration(workout.duration)}</span>
+            </div>
+
+            {/* Pace */}
+            <div className="space-y-1">
+              <p className="text-xs font-sans text-muted-foreground uppercase tracking-wider">Allure moyenne</p>
+              <div className="flex items-baseline gap-1">
+                <span className="font-mono font-bold text-3xl tabular-nums italic">{formatPace(workout.avg_pace)}</span>
+                <span className="text-sm font-sans text-muted-foreground">/km</span>
+              </div>
+            </div>
+
+            {/* Avg HR */}
+            <div className="space-y-1">
+              <p className="text-xs font-sans text-muted-foreground uppercase tracking-wider">FC moyenne</p>
+              <div className="flex items-baseline gap-1">
+                <span className="font-mono font-bold text-2xl tabular-nums">{workout.avg_hr}</span>
+                <span className="text-sm font-sans text-muted-foreground">bpm</span>
+              </div>
+            </div>
+
+            {/* Max HR */}
+            {workout.max_hr && (
+              <div className="space-y-1">
+                <p className="text-xs font-sans text-muted-foreground uppercase tracking-wider">FC max</p>
+                <div className="flex items-baseline gap-1">
+                  <span className="font-mono font-bold text-2xl tabular-nums">{workout.max_hr}</span>
+                  <span className="text-sm font-sans text-muted-foreground">bpm</span>
+                </div>
+              </div>
+            )}
+
+            {/* Elevation */}
+            {workout.elevation_gain && (
+              <div className="space-y-1">
+                <p className="text-xs font-sans text-muted-foreground uppercase tracking-wider">Denivele</p>
+                <div className="flex items-baseline gap-1">
+                  <span className="font-mono font-bold text-2xl tabular-nums">{workout.elevation_gain.toFixed(0)}</span>
+                  <span className="text-sm font-sans text-muted-foreground">m</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Separator */}
+        <div className="my-8 border-t border-border" />
+
+        {/* Notes Section */}
+        <div className="space-y-6">
+          <h2 className="font-serif text-2xl font-bold tracking-tight">Mes notes</h2>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Workout Type Select */}
+            <div className="space-y-2">
+              <label className="text-xs font-sans text-muted-foreground uppercase tracking-wider">
+                Type de sortie
+              </label>
               <Select value={workoutType} onValueChange={setWorkoutType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner..." />
+                <SelectTrigger className="border-border bg-background hover:bg-muted/50 transition-colors">
+                  <SelectValue placeholder="Selectionner..." />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="facile">Facile / Endurance</SelectItem>
-                  <SelectItem value="tempo">Tempo / Allure soutenue</SelectItem>
-                  <SelectItem value="fractionne">Fractionné</SelectItem>
-                  <SelectItem value="longue">Sortie longue</SelectItem>
-                  <SelectItem value="recuperation">Récupération</SelectItem>
+                <SelectContent className="bg-background border-border">
+                  <SelectItem value="facile">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                      Facile / Endurance
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="tempo">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-orange-500" />
+                      Tempo / Allure soutenue
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="fractionne">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-red-500" />
+                      Fractionne
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="longue">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-blue-500" />
+                      Sortie longue
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="recuperation">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-slate-400" />
+                      Recuperation
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div>
-              <Label>Note (1-5 étoiles)</Label>
-              <div className="flex gap-2 mt-2">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    onClick={() => setRating(star)}
-                    className={`text-2xl transition-all hover:scale-110 ${star <= rating ? 'text-yellow-500' : 'text-gray-300'}`}
-                  >
-                    {star <= rating ? '★' : '☆'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <Label>Commentaire</Label>
+            {/* Comment Textarea */}
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-xs font-sans text-muted-foreground uppercase tracking-wider">
+                Commentaire
+              </label>
               <Textarea
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                placeholder="Comment s'est passée cette séance ? Ressenti, douleurs, conditions..."
-                rows={4}
+                placeholder="Comment s'est passee cette seance ? Ressenti, douleurs, conditions..."
+                rows={3}
+                className="border-border bg-background resize-none
+                  focus:bg-muted/30 transition-colors
+                  placeholder:text-muted-foreground/50"
               />
             </div>
+          </div>
 
-            <Button onClick={handleSave} disabled={saving} className="w-full">
-              {saving ? 'Sauvegarde...' : 'Sauvegarder'}
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+          {/* Save Button */}
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className={cn(
+              "px-6 h-10 rounded-xl font-medium transition-all duration-200 font-sans text-sm",
+              "bg-foreground text-background",
+              "hover:opacity-90",
+              "disabled:opacity-50 disabled:cursor-not-allowed"
+            )}
+          >
+            {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+          </button>
+        </div>
+      </motion.div>
 
       {/* GPX Splits Section */}
       {workout.raw_data?.gpx?.splits && workout.raw_data.gpx.splits.length > 0 && (
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Splits kilomètre par kilomètre</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {workout.raw_data.gpx.splits.map((split) => {
-                const minutes = Math.floor(split.pace / 60)
-                const seconds = Math.floor(split.pace % 60)
-                const paceStr = `${minutes}:${String(seconds).padStart(2, '0')}/km`
+        <motion.div
+          className="rounded-2xl border border-border bg-card p-6 md:p-8 transition-shadow duration-200 hover:shadow-sm"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          <div className="space-y-6">
+            <h2 className="font-serif text-2xl font-bold tracking-tight">Splits kilometre par kilometre</h2>
+
+            <div className="space-y-1">
+              {workout.raw_data.gpx.splits.map((split, index) => {
+                const paceColor = getPaceColor(split.pace, workout.avg_pace)
 
                 return (
-                  <div key={split.km} className="flex items-center justify-between border-b pb-2 last:border-0">
+                  <motion.div
+                    key={split.km}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                    className={cn(
+                      "flex items-center justify-between py-3 px-4 rounded-xl transition-colors duration-200",
+                      index % 2 === 0 ? 'bg-muted/30' : 'bg-transparent',
+                      "hover:bg-muted/50"
+                    )}
+                  >
+                    {/* Kilometer number */}
                     <div className="flex items-center gap-3">
-                      <span className="text-lg font-semibold text-muted-foreground w-8">
+                      <span className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center font-mono font-bold text-lg">
                         {split.km}
                       </span>
-                      <span className="text-sm text-muted-foreground">km</span>
+                      <span className="text-xs text-muted-foreground uppercase tracking-wider font-sans">km</span>
                     </div>
-                    <div className="flex items-center gap-4">
+
+                    {/* Time and Pace */}
+                    <div className="flex items-center gap-6">
                       <div className="text-right">
-                        <p className="text-sm text-muted-foreground">Temps</p>
-                        <p className="font-semibold">{Math.floor(split.time / 60)}:{String(Math.floor(split.time % 60)).padStart(2, '0')}</p>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider font-sans">Temps</p>
+                        <p className="font-mono font-semibold tabular-nums">
+                          {Math.floor(split.time / 60)}:{String(Math.floor(split.time % 60)).padStart(2, '0')}
+                        </p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground">Allure</p>
-                        <p className="font-semibold">{paceStr}</p>
+                      <div className="text-right min-w-[80px]">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider font-sans">Allure</p>
+                        <p className={cn(
+                          "font-mono font-semibold italic tabular-nums",
+                          paceColor
+                        )}>
+                          {formatPace(split.pace)}/km
+                        </p>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 )
               })}
             </div>
 
+            {/* Pace Variability Footer */}
             {workout.raw_data.gpx.pace_variability !== undefined && (
-              <div className="mt-4 pt-4 border-t text-sm text-muted-foreground">
-                Variabilité d'allure: {(workout.raw_data.gpx.pace_variability * 100).toFixed(1)}%
+              <div className="flex items-center gap-3 pt-4 border-t border-border">
+                <span className="text-sm text-muted-foreground font-sans">Variabilite d'allure:</span>
+                <span className={cn(
+                  "font-mono font-semibold text-sm",
+                  workout.raw_data.gpx.pace_variability > 0.15
+                    ? "text-orange-500"
+                    : workout.raw_data.gpx.pace_variability < 0.05
+                      ? "text-emerald-500"
+                      : "text-muted-foreground"
+                )}>
+                  {(workout.raw_data.gpx.pace_variability * 100).toFixed(1)}%
+                </span>
                 {workout.raw_data.gpx.pace_variability > 0.15 && (
-                  <span className="ml-2 text-orange-600">(haute variabilité - possiblement du fractionné)</span>
+                  <span className="text-xs text-orange-500/80 italic font-sans">
+                    (haute variabilite - possiblement du fractionne)
+                  </span>
                 )}
                 {workout.raw_data.gpx.pace_variability < 0.05 && (
-                  <span className="ml-2 text-green-600">(allure très stable)</span>
+                  <span className="text-xs text-emerald-500/80 italic font-sans">
+                    (allure tres stable)
+                  </span>
                 )}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </motion.div>
       )}
 
       {/* Track Laps Section */}
       {workout.raw_data?.gpx?.laps && workout.raw_data.gpx.laps.length > 0 && (
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Tours de piste (400m)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {workout.raw_data.gpx.laps.map((lap) => {
-                const minutes = Math.floor(lap.time / 60)
-                const seconds = Math.floor(lap.time % 60)
-                const timeStr = `${minutes}:${String(seconds).padStart(2, '0')}`
-
-                return (
-                  <div key={lap.lap} className="border rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground">Tour {lap.lap}</p>
-                    <p className="text-lg font-bold">{timeStr}</p>
-                  </div>
-                )
-              })}
+        <motion.div
+          className="rounded-2xl border border-border bg-card p-6 md:p-8 transition-shadow duration-200 hover:shadow-sm"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+        >
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="font-serif text-2xl font-bold tracking-tight">Tours de piste</h2>
+              <span className="text-sm text-muted-foreground font-mono">400m</span>
             </div>
-          </CardContent>
-        </Card>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {workout.raw_data.gpx.laps.map((lap, index) => (
+                <motion.div
+                  key={lap.lap}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.03 }}
+                  className={cn(
+                    "relative rounded-xl p-4 transition-all duration-200",
+                    "bg-muted/30 border border-transparent",
+                    "hover:bg-muted/50 hover:border-border"
+                  )}
+                >
+                  {/* Lap number badge */}
+                  <div className="absolute top-2 right-2">
+                    <span className="text-xs font-mono text-muted-foreground/50">
+                      #{lap.lap}
+                    </span>
+                  </div>
+
+                  {/* Time */}
+                  <div className="pt-2">
+                    <p className="font-mono font-bold text-2xl italic tabular-nums">
+                      {Math.floor(lap.time / 60)}:{String(Math.floor(lap.time % 60)).padStart(2, '0')}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
       )}
 
       {/* Analysis Modal */}
@@ -330,6 +536,6 @@ export default function WorkoutDetailPage() {
         onOpenChange={setAnalysisModalOpen}
         onBlockAdjustment={handleBlockAdjustment}
       />
-    </div>
+    </motion.div>
   )
 }

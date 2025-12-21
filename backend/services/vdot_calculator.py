@@ -147,6 +147,102 @@ def get_best_vdot_from_prs(prs: list) -> Tuple[float, str]:
     return best_vdot, best_distance
 
 
+def get_weighted_vdot_from_prs(prs: list, recency_days: int = 365) -> Tuple[float, Dict]:
+    """
+    Calculate weighted VDOT from multiple PRs with intelligent weighting.
+
+    Weighting strategy:
+    - Distance weight: Favor 5K-15K distances (most reliable for threshold prediction)
+    - Recency weight: Favor recent PRs (within recency_days)
+    - Consistency weight: If multiple PRs give similar VDOT, increase confidence
+
+    Args:
+        prs: List of personal records with 'distance', 'time_seconds', 'created_at'
+        recency_days: PRs older than this get reduced weight (default: 365 days)
+
+    Returns:
+        Tuple of (weighted_vdot, metadata_dict)
+        metadata includes: vdot_range, primary_distances, confidence_score
+    """
+    from datetime import datetime, timedelta
+
+    if not prs:
+        raise ValueError("No personal records provided")
+
+    # Distance reliability weights (0.0 to 1.0)
+    # 5K-15K are most reliable for threshold/tempo prediction
+    DISTANCE_WEIGHTS = {
+        "500m": 0.3,    # Too short, sprint-oriented
+        "1km": 0.4,     # Short, limited endurance component
+        "1500m": 0.5,
+        "2km": 0.6,
+        "3km": 0.7,
+        "5km": 1.0,     # Ideal for VDOT calculation
+        "10km": 1.0,    # Ideal for VDOT calculation
+        "15km": 0.95,   # Very good
+        "semi": 0.85,   # Good but fatigue/pacing issues possible
+        "marathon": 0.7 # Less reliable (heat, wall, pacing strategies)
+    }
+
+    weighted_sum = 0.0
+    weight_sum = 0.0
+    vdots = []
+    now = datetime.utcnow()
+
+    for pr in prs:
+        try:
+            # Calculate VDOT for this PR
+            vdot = calculate_vdot_from_pr(pr.distance, pr.time_seconds)
+            vdots.append((vdot, pr.distance))
+
+            # Distance weight
+            distance_weight = DISTANCE_WEIGHTS.get(pr.distance, 0.5)
+
+            # Recency weight (exponential decay)
+            if hasattr(pr, 'created_at') and pr.created_at is not None:
+                age_days = (now - pr.created_at).days
+                recency_weight = max(0.3, 1.0 - (age_days / recency_days))
+            else:
+                recency_weight = 0.5  # Unknown age, give medium weight
+
+            # Combined weight
+            total_weight = distance_weight * recency_weight
+
+            weighted_sum += vdot * total_weight
+            weight_sum += total_weight
+
+        except (ValueError, AttributeError) as e:
+            continue
+
+    if weight_sum == 0:
+        raise ValueError("Could not calculate VDOT from any PR")
+
+    # Calculate weighted average
+    weighted_vdot = weighted_sum / weight_sum
+
+    # Calculate metadata
+    vdot_values = [v[0] for v in vdots]
+    vdot_range = (min(vdot_values), max(vdot_values)) if vdot_values else (0, 0)
+    vdot_std = (max(vdot_values) - min(vdot_values)) / 2 if len(vdot_values) > 1 else 0
+
+    # Confidence score (0-1): higher when VDOTs are consistent and based on good distances
+    confidence = 1.0
+    if vdot_std > 3:  # Large spread in VDOTs
+        confidence *= 0.7
+    if len(vdots) < 3:  # Few PRs
+        confidence *= 0.8
+
+    metadata = {
+        "vdot_range": vdot_range,
+        "vdot_std": round(vdot_std, 1),
+        "num_prs": len(vdots),
+        "primary_distances": [d for v, d in sorted(vdots, reverse=True)[:3]],
+        "confidence_score": round(confidence, 2)
+    }
+
+    return round(weighted_vdot, 1), metadata
+
+
 def calculate_training_paces(vdot: float) -> Dict[str, Dict[str, any]]:
     """
     Calculate training pace zones based on VDOT using Jack Daniels' lookup tables.

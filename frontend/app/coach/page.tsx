@@ -23,6 +23,18 @@ interface WorkoutAnalysis {
   analyzed_at: string
 }
 
+interface Workout {
+  id: number
+  date: string
+  distance: number
+  duration: number
+  avg_pace: number
+  avg_hr: number | null
+  max_hr: number | null
+  workout_type: string | null
+  notes: string | null
+}
+
 interface AdjustmentProposal {
   id: number
   status: "pending" | "auto_applied" | "validated" | "rejected"
@@ -34,6 +46,7 @@ interface AdjustmentProposal {
 export default function CoachPage() {
   const [activeTab, setActiveTab] = useState('race')
   const [recentAnalysis, setRecentAnalysis] = useState<WorkoutAnalysis | null>(null)
+  const [recentWorkout, setRecentWorkout] = useState<Workout | null>(null)
   const [recentProposal, setRecentProposal] = useState<AdjustmentProposal | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -46,6 +59,7 @@ export default function CoachPage() {
       const response = await api.get('/api/workouts/recent-analysis')
       if (response.data.analysis) {
         setRecentAnalysis(response.data.analysis)
+        setRecentWorkout(response.data.workout)
         setRecentProposal(response.data.proposal)
       }
     } catch (error) {
@@ -93,6 +107,7 @@ export default function CoachPage() {
       {!loading && recentAnalysis && (
         <PostWorkoutAnalysisCard
           analysis={recentAnalysis}
+          workout={recentWorkout}
           proposal={recentProposal}
           onValidate={handleValidate}
           onReject={handleReject}

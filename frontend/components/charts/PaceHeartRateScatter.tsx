@@ -131,7 +131,7 @@ export default function PaceHeartRateScatter({ data }: PaceHeartRateScatterProps
                   data={trendLineData}
                   fill="hsl(var(--chart-4))"
                   line={{ stroke: 'hsl(var(--chart-4))', strokeWidth: 2 }}
-                  shape={() => null}
+                  shape={() => <></>}
                 />
               )}
             </ScatterChart>

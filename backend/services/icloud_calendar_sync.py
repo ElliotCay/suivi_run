@@ -355,6 +355,70 @@ class iCloudCalendarSync:
             logger.error(f"Erreur lors de la suppression de l'événement {calendar_uid}: {e}")
             return False
 
+    def delete_future_events(self, from_date: datetime = None) -> Dict[str, int]:
+        """
+        Supprime tous les événements futurs du calendrier "Entraînements Course".
+
+        Comme ce calendrier est dédié uniquement aux entraînements générés,
+        on peut simplement supprimer tous les événements à partir d'aujourd'hui.
+
+        Args:
+            from_date: Date à partir de laquelle supprimer (défaut: aujourd'hui)
+
+        Returns:
+            Dictionnaire avec les statistiques de suppression
+        """
+        stats = {
+            'deleted': 0,
+            'errors': 0
+        }
+
+        if not self._calendar:
+            logger.error("❌ Calendrier non initialisé pour la suppression")
+            return stats
+
+        if from_date is None:
+            from_date = datetime.now(self.timezone).replace(hour=0, minute=0, second=0, microsecond=0)
+
+        logger.info(f"🗑️ Suppression des événements à partir du {from_date.strftime('%d/%m/%Y')} dans '{self.calendar_name}'")
+
+        try:
+            # Récupérer tous les événements du calendrier
+            all_events = list(self._calendar.events())
+            logger.info(f"📅 {len(all_events)} événements trouvés dans le calendrier")
+
+            for event in all_events:
+                try:
+                    # Parser l'événement pour obtenir sa date
+                    ical_data = event.data
+
+                    # Chercher DTSTART dans les données iCal
+                    import re
+                    dtstart_match = re.search(r'DTSTART[^:]*:(\d{8})', ical_data)
+
+                    if dtstart_match:
+                        date_str = dtstart_match.group(1)
+                        event_date = datetime.strptime(date_str, '%Y%m%d')
+                        event_date = self.timezone.localize(event_date)
+
+                        # Supprimer si l'événement est aujourd'hui ou après
+                        if event_date.date() >= from_date.date():
+                            event.delete()
+                            stats['deleted'] += 1
+                            logger.debug(f"✅ Événement du {event_date.strftime('%d/%m/%Y')} supprimé")
+
+                except Exception as e:
+                    logger.debug(f"Erreur lors du traitement d'un événement: {e}")
+                    stats['errors'] += 1
+                    continue
+
+            logger.info(f"🗑️ Suppression terminée: {stats['deleted']} événements supprimés, {stats['errors']} erreurs")
+            return stats
+
+        except Exception as e:
+            logger.error(f"❌ Erreur lors de la récupération des événements: {e}")
+            return stats
+
     def sync_suggestions(self, suggestions: List[Dict], db) -> Dict[str, int]:
         """
         Synchronise une liste de suggestions avec le calendrier

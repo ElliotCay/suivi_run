@@ -9,9 +9,10 @@ from typing import Dict, Any
 import base64
 
 from database import get_db
-from models import User, Workout
+from models import User, Workout, TrainingZone
 from schemas import UserResponse, UserUpdate
 from services.readiness_service import calculate_readiness_score
+from services.vdot_calibration import get_calibrated_vdot, update_user_training_zones
 import logging
 
 logger = logging.getLogger(__name__)
@@ -181,3 +182,109 @@ async def upload_profile_picture(
     logger.info(f"Updated profile picture for user {user_id}")
 
     return user
+
+
+@router.post("/profile/recalculate-zones")
+async def recalculate_training_zones(
+    db: Session = Depends(get_db),
+    user_id: int = 1  # TODO: Get from auth
+):
+    """
+    Recalculate user's training zones using calibrated VDOT.
+
+    Uses weighted average of PRs + recent workout performances to determine
+    realistic training paces.
+
+    Returns:
+        Updated training zones with calibration metadata
+    """
+    try:
+        # Get calibrated VDOT with metadata
+        calibrated_vdot, metadata = get_calibrated_vdot(user_id, db)
+
+        # Update training zones
+        zone = update_user_training_zones(user_id, db, force_recalculate=True)
+
+        logger.info(f"Recalculated training zones for user {user_id}: VDOT {calibrated_vdot}")
+
+        return {
+            "success": True,
+            "vdot": calibrated_vdot,
+            "zones": {
+                "easy": {
+                    "min": f"{zone.easy_min_pace_sec//60}:{zone.easy_min_pace_sec%60:02d}",
+                    "max": f"{zone.easy_max_pace_sec//60}:{zone.easy_max_pace_sec%60:02d}"
+                },
+                "marathon": f"{zone.marathon_pace_sec//60}:{zone.marathon_pace_sec%60:02d}",
+                "threshold": {
+                    "min": f"{zone.threshold_min_pace_sec//60}:{zone.threshold_min_pace_sec%60:02d}",
+                    "max": f"{zone.threshold_max_pace_sec//60}:{zone.threshold_max_pace_sec%60:02d}"
+                },
+                "interval": {
+                    "min": f"{zone.interval_min_pace_sec//60}:{zone.interval_min_pace_sec%60:02d}",
+                    "max": f"{zone.interval_max_pace_sec//60}:{zone.interval_max_pace_sec%60:02d}"
+                },
+                "repetition": {
+                    "min": f"{zone.repetition_min_pace_sec//60}:{zone.repetition_min_pace_sec%60:02d}",
+                    "max": f"{zone.repetition_max_pace_sec//60}:{zone.repetition_max_pace_sec%60:02d}"
+                }
+            },
+            "calibration_metadata": metadata
+        }
+
+    except ValueError as e:
+        logger.error(f"Error recalculating zones for user {user_id}: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error recalculating zones: {e}")
+        raise HTTPException(status_code=500, detail="Failed to recalculate training zones")
+
+
+@router.get("/profile/training-zones")
+async def get_training_zones(
+    db: Session = Depends(get_db),
+    user_id: int = 1  # TODO: Get from auth
+):
+    """
+    Get current training zones for the user.
+
+    Returns zones in both seconds/km and MM:SS format.
+    """
+    zone = db.query(TrainingZone).filter(TrainingZone.user_id == user_id).first()
+
+    if not zone:
+        raise HTTPException(status_code=404, detail="Training zones not found. Please add PRs and recalculate.")
+
+    return {
+        "vdot": zone.vdot,
+        "zones": {
+            "easy": {
+                "min_sec": zone.easy_min_pace_sec,
+                "max_sec": zone.easy_max_pace_sec,
+                "min": f"{zone.easy_min_pace_sec//60}:{zone.easy_min_pace_sec%60:02d}",
+                "max": f"{zone.easy_max_pace_sec//60}:{zone.easy_max_pace_sec%60:02d}"
+            },
+            "marathon": {
+                "sec": zone.marathon_pace_sec,
+                "pace": f"{zone.marathon_pace_sec//60}:{zone.marathon_pace_sec%60:02d}"
+            },
+            "threshold": {
+                "min_sec": zone.threshold_min_pace_sec,
+                "max_sec": zone.threshold_max_pace_sec,
+                "min": f"{zone.threshold_min_pace_sec//60}:{zone.threshold_min_pace_sec%60:02d}",
+                "max": f"{zone.threshold_max_pace_sec//60}:{zone.threshold_max_pace_sec%60:02d}"
+            },
+            "interval": {
+                "min_sec": zone.interval_min_pace_sec,
+                "max_sec": zone.interval_max_pace_sec,
+                "min": f"{zone.interval_min_pace_sec//60}:{zone.interval_min_pace_sec%60:02d}",
+                "max": f"{zone.interval_max_pace_sec//60}:{zone.interval_max_pace_sec%60:02d}"
+            },
+            "repetition": {
+                "min_sec": zone.repetition_min_pace_sec,
+                "max_sec": zone.repetition_max_pace_sec,
+                "min": f"{zone.repetition_min_pace_sec//60}:{zone.repetition_min_pace_sec%60:02d}",
+                "max": f"{zone.repetition_max_pace_sec//60}:{zone.repetition_max_pace_sec%60:02d}"
+            }
+        }
+    }

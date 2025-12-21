@@ -32,12 +32,28 @@ class AnalyzeWorkoutResponse(BaseModel):
     conversation_id: Optional[str] = None
 
 
+class AnalyzeMultipleWorkoutsRequest(BaseModel):
+    """Request to analyze multiple workouts in a date range."""
+    message: str
+    start_date: str  # YYYY-MM-DD
+    end_date: str    # YYYY-MM-DD
+    conversation_history: Optional[List[dict]] = None
+
+
+class AnalyzeMultipleWorkoutsResponse(BaseModel):
+    """Response from multi-workout analysis."""
+    response: str
+    workouts_analyzed: int
+    date_range: dict
+    conversation_id: Optional[str] = None
+
+
 @router.get("/workouts", response_model=List[WorkoutResponse])
 async def get_workouts(
     db: Session = Depends(get_db),
     user_id: int = 1,  # TODO: Get from auth
     skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(50, ge=1, le=2000),
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     workout_type: Optional[str] = None,
@@ -114,7 +130,7 @@ async def get_workouts_missing_feedback(
     # Filter out workouts that already have feedback
     # A workout has feedback if it has:
     # 1. A WorkoutFeedback entry, OR
-    # 2. A user_comment, OR
+    # 2. A notes, OR
     # 3. A user_rating
     workouts_with_feedback_ids = set(
         f.completed_workout_id for f in db.query(WorkoutFeedback).filter(
@@ -135,7 +151,7 @@ async def get_workouts_missing_feedback(
         for w in workouts
         if (
             w.id not in workouts_with_feedback_ids
-            and not w.user_comment  # No comment
+            and not w.notes  # No comment
         )
     ]
 
@@ -176,6 +192,9 @@ async def get_recent_analysis(
         AdjustmentProposal.analysis_id == analysis.id
     ).first()
 
+    # Get the workout data
+    workout = db.query(Workout).filter(Workout.id == analysis.workout_id).first()
+
     return {
         "analysis": {
             "id": analysis.id,
@@ -189,6 +208,17 @@ async def get_recent_analysis(
             "summary": analysis.summary,
             "analyzed_at": analysis.analyzed_at.isoformat()
         },
+        "workout": {
+            "id": workout.id,
+            "date": workout.date.isoformat(),
+            "distance": workout.distance,
+            "duration": workout.duration,
+            "avg_pace": workout.avg_pace,
+            "avg_hr": workout.avg_hr,
+            "max_hr": workout.max_hr,
+            "workout_type": workout.workout_type,
+            "notes": workout.notes
+        } if workout else None,
         "proposal": {
             "id": proposal.id,
             "status": proposal.status,
@@ -244,6 +274,48 @@ async def update_workout(
     logger.info(f"Updated workout {workout_id}")
 
     return workout
+
+
+@router.delete("/workouts/{workout_id}")
+async def delete_workout(
+    workout_id: int,
+    db: Session = Depends(get_db),
+    user_id: int = 1,  # TODO: Get from auth
+):
+    """
+    Delete a workout (only allowed for test workouts).
+    """
+    workout = db.query(Workout).filter(
+        and_(Workout.id == workout_id, Workout.user_id == user_id)
+    ).first()
+
+    if not workout:
+        raise HTTPException(status_code=404, detail="Workout not found")
+
+    # Only allow deletion of test workouts
+    if not workout.is_test:
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot delete non-test workouts. Only test workouts can be deleted."
+        )
+
+    # Delete related workout_analyses first (cascade delete)
+    if workout.analysis:
+        # Also delete any adjustment proposals related to this analysis
+        proposals = db.query(AdjustmentProposal).filter(
+            AdjustmentProposal.analysis_id == workout.analysis.id
+        ).all()
+        for proposal in proposals:
+            db.delete(proposal)
+
+        db.delete(workout.analysis)
+
+    db.delete(workout)
+    db.commit()
+
+    logger.info(f"Deleted test workout {workout_id}")
+
+    return {"message": "Workout deleted successfully", "id": workout_id}
 
 
 @router.get("/workouts/stats/weekly")
@@ -554,7 +626,7 @@ async def analyze_workout(
         "avg_pace": f"{int(workout.avg_pace // 60)}:{int(workout.avg_pace % 60):02d}/km" if workout.avg_pace else None,
         "avg_hr": workout.avg_hr,
         "max_hr": workout.max_hr,
-        "user_comment": workout.user_comment or "Aucun commentaire",
+        "notes": workout.notes or "Aucun commentaire",
         "best_efforts": {k: f"{int(v['time_seconds'] // 60)}:{int(v['time_seconds'] % 60):02d} ({v['pace_seconds_per_km']//60}:{int(v['pace_seconds_per_km']%60):02d}/km)"
                         for k, v in best_efforts.items()} if best_efforts else None
     }
@@ -577,7 +649,7 @@ async def analyze_workout(
             "type": w.workout_type,
             "distance_km": round(w.distance, 2) if w.distance else None,
             "avg_pace": f"{int(w.avg_pace // 60)}:{int(w.avg_pace % 60):02d}/km" if w.avg_pace else None,
-            "comment": w.user_comment[:50] + "..." if w.user_comment and len(w.user_comment) > 50 else w.user_comment
+            "comment": w.notes[:50] + "..." if w.notes and len(w.notes) > 50 else w.notes
         })
 
     # Build conversation context
@@ -660,6 +732,150 @@ Réponds maintenant:"""
 
     except Exception as e:
         logger.error(f"Workout analysis error: {e}")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+
+@router.post("/workouts/analyze-range", response_model=AnalyzeMultipleWorkoutsResponse)
+async def analyze_workouts_range(
+    request: AnalyzeMultipleWorkoutsRequest,
+    db: Session = Depends(get_db),
+    user_id: int = 1,  # TODO: Get from auth
+):
+    """
+    Analyze multiple workouts in a date range with Claude.
+
+    Provides interactive chat-based analysis for a period of training:
+    - Reviews overall training load and progression
+    - Analyzes patterns across multiple sessions
+    - Reviews user comments and feedback from all workouts
+    - Detects recurring issues or improvements
+    - Allows follow-up questions and discussion
+
+    Args:
+        request: Date range, user message and optional conversation history
+        user_id: User ID (from auth)
+        db: Database session
+
+    Returns:
+        AI analysis of the training period
+    """
+    from services.claude_service import call_claude_api
+    import json
+
+    # Parse dates
+    try:
+        start = datetime.fromisoformat(request.start_date)
+        end = datetime.fromisoformat(request.end_date)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+
+    # Get workouts in range
+    workouts = db.query(Workout).filter(
+        and_(
+            Workout.user_id == user_id,
+            Workout.date >= start,
+            Workout.date <= end
+        )
+    ).order_by(Workout.date).all()
+
+    if not workouts:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No workouts found between {request.start_date} and {request.end_date}"
+        )
+
+    # Format workouts data with comments
+    workouts_data = []
+    total_distance = 0
+    total_duration = 0
+
+    for w in workouts:
+        total_distance += w.distance or 0
+        total_duration += w.duration or 0
+
+        workout_entry = {
+            "date": w.date.strftime("%A %d %B"),
+            "type": w.workout_type or "Non classifié",
+            "distance_km": round(w.distance, 2) if w.distance else None,
+            "duration_min": round(w.duration / 60, 1) if w.duration else None,
+            "avg_pace": f"{int(w.avg_pace // 60)}:{int(w.avg_pace % 60):02d}/km" if w.avg_pace else None,
+            "avg_hr": w.avg_hr,
+            "user_rating": w.user_rating,
+            "notes": w.notes or None
+        }
+        workouts_data.append(workout_entry)
+
+    # Calculate summary stats
+    num_days = (end - start).days + 1
+    summary = {
+        "period": f"{request.start_date} au {request.end_date}",
+        "days": num_days,
+        "num_workouts": len(workouts),
+        "total_distance_km": round(total_distance, 2),
+        "total_duration_hours": round(total_duration / 3600, 1),
+        "avg_workouts_per_week": round(len(workouts) / (num_days / 7), 1) if num_days >= 7 else len(workouts)
+    }
+
+    # Build conversation context
+    conversation_context = ""
+    if request.conversation_history:
+        for msg in request.conversation_history:
+            role = msg.get('role', 'user')
+            content = msg.get('content', '')
+            conversation_context += f"\n{role.upper()}: {content}\n"
+
+    # Build prompt
+    prompt = f"""Tu es un coach running expérimenté qui analyse une période d'entraînement.
+
+RÉSUMÉ DE LA PÉRIODE:
+{json.dumps(summary, indent=2, ensure_ascii=False)}
+
+DÉTAIL DES SÉANCES:
+{json.dumps(workouts_data, indent=2, ensure_ascii=False)}
+
+{"CONVERSATION PRÉCÉDENTE:" if conversation_context else ""}
+{conversation_context}
+
+MESSAGE DE L'UTILISATEUR:
+{request.message}
+
+CONSIGNES:
+1. Analyse factuelle basée sur les données de TOUTES les séances
+2. Identifie les patterns: progression, régularité, types de séances
+3. Prends en compte TOUS les commentaires utilisateur pour détecter:
+   - Fatigue récurrente
+   - Douleurs ou blessures
+   - Difficultés mentales
+   - Points positifs et progrès
+4. Évalue la charge d'entraînement (volume, intensité)
+5. Donne des insights sur la période (tendances, points d'attention)
+6. Si l'utilisateur pose une question de suivi, réponds en contexte
+7. Tutoiement, ton professionnel et direct
+
+FORMAT DE RÉPONSE:
+- Réponse conversationnelle structurée (max 400 mots)
+- Utilise des points clés pour la lisibilité
+
+Réponds maintenant:"""
+
+    try:
+        # Call Claude (use Sonnet for better analysis on larger context)
+        response = call_claude_api(prompt, use_sonnet=True)
+        content = response["content"]
+
+        return AnalyzeMultipleWorkoutsResponse(
+            response=content,
+            workouts_analyzed=len(workouts),
+            date_range={
+                "start": request.start_date,
+                "end": request.end_date,
+                "days": num_days
+            },
+            conversation_id=f"range_{request.start_date}_{request.end_date}"
+        )
+
+    except Exception as e:
+        logger.error(f"Multi-workout analysis error: {e}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 
 

@@ -79,7 +79,7 @@ export default function Navbar({ mode }: NavbarProps) {
     // --- Mode Logic ---
 
     const isClassic = mode === 'classic'
-    const isCompact = mode === 'compact' || mode === 'floating-compact'
+    const isCompact = mode === 'compact'
 
     // Compact logic: 
     // - If NOT scrolled: behave like floating (all visible)

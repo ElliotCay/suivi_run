@@ -14,6 +14,49 @@ logger = logging.getLogger(__name__)
 # Lazy initialization of Anthropic client
 _client = None
 
+# Mapping of workout type variants to canonical values
+WORKOUT_TYPE_MAPPING = {
+    # Easy variants
+    "easy": "easy",
+    "facile": "easy",
+    "endurance": "easy",
+    "footing": "easy",
+    # Recovery variants
+    "recovery": "recovery",
+    "récupération": "recovery",
+    "recuperation": "recovery",
+    # Long run variants
+    "long": "long",
+    "longue": "long",
+    "sortie longue": "long",
+    "long run": "long",
+    # Threshold variants
+    "threshold": "threshold",
+    "tempo": "threshold",
+    "seuil": "threshold",
+    "allure seuil": "threshold",
+    # Interval variants
+    "interval": "interval",
+    "intervals": "interval",
+    "fractionné": "interval",
+    "fractionne": "interval",
+    "vma": "interval",
+    "vo2max": "interval",
+    "speed": "interval",
+}
+
+
+def normalize_workout_type(workout_type: str) -> str:
+    """
+    Normalize workout type to one of the valid values expected by the app.
+    Handles French variants and common synonyms.
+
+    Valid values: easy, recovery, long, threshold, interval
+    """
+    if not workout_type:
+        return "easy"
+    return WORKOUT_TYPE_MAPPING.get(workout_type.lower().strip(), "easy")
+
 def _get_client():
     """Get or create Anthropic client."""
     global _client
@@ -119,9 +162,16 @@ RÈGLES STRICTES POUR LE FORMAT:
    - PAS de numéros, PAS de tirets dans le JSON
    - Juste des phrases séparées par \n
 
+TYPES VALIDES (utilise EXACTEMENT ces valeurs):
+- "easy" = endurance facile
+- "recovery" = récupération
+- "long" = sortie longue
+- "threshold" = seuil/tempo
+- "interval" = fractionné/VMA
+
 EXEMPLE EXACT:
 {{
-  "type": "facile",
+  "type": "easy",
   "distance_km": 7.0,
   "allure_cible": "6:00-6:15/km",
   "structure": "Échauffement: 10 minutes de marche dynamique et mobilisations articulaires\nCorps de séance: 5km en allure facile conversationnelle, FC sous 170 bpm\nRetour au calme: 5 minutes de marche légère suivies d'étirements doux",
@@ -320,13 +370,20 @@ Conçois-moi une semaine type complète avec 3 séances :
 2. Une séance qualité (tempo OU fractionné selon ce qui est le plus adapté)
 3. Une sortie longue
 
+TYPES VALIDES (utilise EXACTEMENT ces valeurs pour "type"):
+- "easy" = endurance facile
+- "recovery" = récupération
+- "long" = sortie longue
+- "threshold" = seuil/tempo
+- "interval" = fractionné/VMA
+
 RÉPONDS EN FORMAT JSON STRICT (sans markdown) avec un tableau de 3 séances:
 {{
   "week_description": "Description courte de l'objectif de cette semaine",
   "workouts": [
     {{
       "day": "Lundi",
-      "type": "facile",
+      "type": "easy",
       "distance_km": 7.0,
       "allure_cible": "6:00-6:15/km",
       "structure": "Échauffement: description\nCorps de séance: description\nRetour au calme: description",
@@ -334,7 +391,7 @@ RÉPONDS EN FORMAT JSON STRICT (sans markdown) avec un tableau de 3 séances:
     }},
     {{
       "day": "Jeudi",
-      "type": "tempo",
+      "type": "threshold",
       "distance_km": 8.0,
       "allure_cible": "5:30-5:40/km",
       "structure": "Échauffement: description\nCorps de séance: description\nRetour au calme: description",
@@ -342,7 +399,7 @@ RÉPONDS EN FORMAT JSON STRICT (sans markdown) avec un tableau de 3 séances:
     }},
     {{
       "day": "Dimanche",
-      "type": "longue",
+      "type": "long",
       "distance_km": 10.0,
       "allure_cible": "6:00-6:15/km",
       "structure": "Échauffement: description\nCorps de séance: description\nRetour au calme: description",
@@ -353,7 +410,7 @@ RÉPONDS EN FORMAT JSON STRICT (sans markdown) avec un tableau de 3 séances:
 
 RÈGLES STRICTES:
 - Le volume total des 3 séances doit être proche de {volume}km
-- Respecter la structure: facile / qualité / longue
+- Respecter la structure: easy / qualité (threshold ou interval) / long
 - Chaque séance doit avoir une structure en 3 parties
 - Chaque raison doit être concise (3-4 lignes par séance)
 """
@@ -361,7 +418,7 @@ RÈGLES STRICTES:
 
 
 def parse_suggestion_response(content: str) -> Dict[str, Any]:
-    """Parse Claude response to extract JSON."""
+    """Parse Claude response to extract JSON and normalize workout types."""
     try:
         # Remove markdown code blocks if present
         content = content.strip()
@@ -382,25 +439,63 @@ def parse_suggestion_response(content: str) -> Dict[str, Any]:
                 try:
                     nested = json.loads(parsed["structure"])
                     # Use the nested JSON as the main response
-                    return nested
+                    parsed = nested
                 except:
                     pass
 
+            # Normalize workout types in the response
+            parsed = _normalize_workout_types_in_response(parsed)
             return parsed
         else:
-            return json.loads(content)
+            parsed = json.loads(content)
+            return _normalize_workout_types_in_response(parsed)
 
     except json.JSONDecodeError as e:
         logger.error(f"Failed to parse Claude response as JSON: {e}")
         logger.error(f"Content: {content}")
         # Return a default structure
         return {
-            "type": "facile",
+            "type": "easy",
             "distance_km": 6.0,
             "allure_cible": "6:00/km",
             "structure": "Échauffement: 10 min de marche\nCorps de séance: 5km facile\nRetour au calme: 5 min étirements",
             "raison": "Consolidation\nPrévention blessure\nPréparation séance qualité"
         }
+
+
+def _normalize_workout_types_in_response(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Recursively normalize workout types in a parsed Claude response.
+    Handles single workout, week plan, and full training plan formats.
+    """
+    # Single workout format
+    if "type" in data and isinstance(data["type"], str):
+        data["type"] = normalize_workout_type(data["type"])
+
+    # Week plan format with workouts array
+    if "workouts" in data and isinstance(data["workouts"], list):
+        for workout in data["workouts"]:
+            if isinstance(workout, dict) and "type" in workout:
+                workout["type"] = normalize_workout_type(workout["type"])
+
+    # Full training plan format with weeks array
+    if "weeks" in data and isinstance(data["weeks"], list):
+        for week in data["weeks"]:
+            if isinstance(week, dict) and "sessions" in week:
+                for session in week["sessions"]:
+                    if isinstance(session, dict) and "type" in session:
+                        session["type"] = normalize_workout_type(session["type"])
+
+    # Chat adjustment format with adjustments array
+    if "adjustments" in data and isinstance(data["adjustments"], list):
+        for adj in data["adjustments"]:
+            if isinstance(adj, dict):
+                if "proposed" in adj and isinstance(adj["proposed"], dict) and "type" in adj["proposed"]:
+                    adj["proposed"]["type"] = normalize_workout_type(adj["proposed"]["type"])
+                if "current" in adj and isinstance(adj["current"], dict) and "type" in adj["current"]:
+                    adj["current"]["type"] = normalize_workout_type(adj["current"]["type"])
+
+    return data
 
 
 def build_training_plan_prompt(
@@ -478,6 +573,13 @@ RÈGLES STRICTES:
 - Progression graduelle: 80% facile en phase base → 70% en build → 60% en peak
 - Toujours 1 jour repos entre runs
 
+TYPES VALIDES (utilise EXACTEMENT ces valeurs pour "type"):
+- "easy" = endurance facile
+- "recovery" = récupération
+- "long" = sortie longue
+- "threshold" = seuil/tempo
+- "interval" = fractionné/VMA
+
 RÉPONDS EN FORMAT JSON STRICT (sans markdown):
 {{
   "plan_name": "Plan {goal_type.upper()} - {weeks_count} semaines",
@@ -490,7 +592,7 @@ RÉPONDS EN FORMAT JSON STRICT (sans markdown):
         {{
           "day": "Lundi",
           "order": 1,
-          "type": "facile",
+          "type": "easy",
           "distance_km": 7.0,
           "pace_target": "6:00-6:15/km",
           "structure": "Échauffement: description\nCorps de séance: description\nRetour au calme: description",
@@ -499,7 +601,7 @@ RÉPONDS EN FORMAT JSON STRICT (sans markdown):
         {{
           "day": "Jeudi",
           "order": 2,
-          "type": "tempo",
+          "type": "threshold",
           "distance_km": 8.0,
           "pace_target": "5:30-5:40/km",
           "structure": "Échauffement: description\nCorps de séance: description\nRetour au calme: description",
@@ -508,7 +610,7 @@ RÉPONDS EN FORMAT JSON STRICT (sans markdown):
         {{
           "day": "Dimanche",
           "order": 3,
-          "type": "longue",
+          "type": "long",
           "distance_km": 10.0,
           "pace_target": "6:00-6:15/km",
           "structure": "Échauffement: description\nCorps de séance: description\nRetour au calme: description",
@@ -522,7 +624,7 @@ RÉPONDS EN FORMAT JSON STRICT (sans markdown):
 IMPORTANT:
 - Génère EXACTEMENT {weeks_count} semaines
 - Volume total/semaine doit progresser de {volume}km à {volume * 1.5:.0f}km environ
-- Types de séances: facile, tempo, fractionne, longue
+- Types de séances: easy, threshold, interval, long, recovery
 - Chaque semaine doit avoir EXACTEMENT 3 séances
 - Respecter la périodisation (phases base/build/peak/taper)
 """

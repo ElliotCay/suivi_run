@@ -1,8 +1,16 @@
 """
 Workout characterization service using best efforts and training zones.
 
-This service automatically determines the workout type (easy, threshold, interval, long, recovery)
+This service automatically determines the workout type (facile, tempo, fractionne, longue, recuperation)
 by analyzing best efforts from Strava instead of relying on global average pace.
+
+French workout types used:
+- facile: Easy/endurance runs
+- tempo: Threshold/tempo runs
+- fractionne: Interval/speed work
+- longue: Long runs
+- recuperation: Recovery runs
+- course: Race efforts
 """
 
 import logging
@@ -47,7 +55,7 @@ def characterize_workout_from_best_efforts(
 
     Returns:
         Tuple of (workout_type, analysis_details)
-        workout_type: "easy", "threshold", "interval", "long", "recovery", "race"
+        workout_type: "facile", "tempo", "fractionne", "longue", "recuperation", "course"
         analysis_details: Dict with characterization reasoning
     """
 
@@ -95,22 +103,22 @@ def characterize_workout_from_best_efforts(
 
     # --- CHARACTERIZATION LOGIC ---
 
-    # 1. RACE: Short distance (<= 15km) + very high intensity + low variance
+    # 1. COURSE (Race): Short distance (<= 15km) + very high intensity + low variance
     if distance_km <= 15 and pace_variance < 5:
         if "5km" in analysis["best_efforts"]:
             km5_pace = analysis["best_efforts"]["5km"]["pace_sec_per_km"]
             # If 5km best effort is within 3% of average pace, likely a race pace effort
             if abs(km5_pace - avg_pace_sec) / avg_pace_sec < 0.03:
                 if zones and avg_pace_sec < zones.interval_max_pace_sec:
-                    analysis["reasoning"] = "Race pace detected: short distance, sustained high intensity, minimal pace variation"
-                    logger.info(f"  -> Characterized as RACE")
-                    return "race", analysis
+                    analysis["reasoning"] = "Course détectée : distance courte, intensité élevée soutenue, variation d'allure minimale"
+                    logger.info(f"  -> Characterized as COURSE")
+                    return "course", analysis
 
-    # 2. INTERVAL/VMA: High pace variance (20%+) or very fast best efforts
+    # 2. FRACTIONNE (Interval/VMA): High pace variance (20%+) or very fast best efforts
     if pace_variance >= 20:
-        analysis["reasoning"] = f"Interval training detected: high pace variance ({pace_variance:.1f}%), indicating speed variations"
-        logger.info(f"  -> Characterized as INTERVAL (high variance)")
-        return "interval", analysis
+        analysis["reasoning"] = f"Fractionné détecté : forte variation d'allure ({pace_variance:.1f}%), indiquant des changements de vitesse"
+        logger.info(f"  -> Characterized as FRACTIONNE (high variance)")
+        return "fractionne", analysis
 
     # If we have fast short efforts (500m, 1km) significantly faster than average
     if "1km" in analysis["best_efforts"]:
@@ -118,19 +126,19 @@ def characterize_workout_from_best_efforts(
         pace_diff_pct = ((avg_pace_sec - km1_pace) / avg_pace_sec) * 100
 
         if pace_diff_pct >= 15:  # 1km effort is 15%+ faster than average
-            analysis["reasoning"] = f"Interval training detected: 1km best effort is {pace_diff_pct:.1f}% faster than average pace"
-            logger.info(f"  -> Characterized as INTERVAL (fast 1km effort)")
-            return "interval", analysis
+            analysis["reasoning"] = f"Fractionné détecté : meilleur effort 1km {pace_diff_pct:.1f}% plus rapide que l'allure moyenne"
+            logger.info(f"  -> Characterized as FRACTIONNE (fast 1km effort)")
+            return "fractionne", analysis
 
-    # 3. THRESHOLD/TEMPO: Sustained effort at threshold pace
+    # 3. TEMPO (Threshold): Sustained effort at threshold pace
     if zones:
         # Check if average pace is in threshold zone
         if zones.threshold_min_pace_sec <= avg_pace_sec <= zones.threshold_max_pace_sec:
             # If distance is >= 5km and pace is sustained
             if distance_km >= 5 and pace_variance < 10:
-                analysis["reasoning"] = f"Threshold run detected: sustained pace in tempo zone ({zones.threshold_min_pace_sec}s-{zones.threshold_max_pace_sec}s per km), low variance"
-                logger.info(f"  -> Characterized as THRESHOLD")
-                return "threshold", analysis
+                analysis["reasoning"] = f"Tempo détecté : allure soutenue en zone seuil ({zones.threshold_min_pace_sec}s-{zones.threshold_max_pace_sec}s par km), faible variation"
+                logger.info(f"  -> Characterized as TEMPO")
+                return "tempo", analysis
 
         # Alternative: check if 5km or 10km best effort is at threshold pace
         for effort_label in ["5km", "10km"]:
@@ -138,49 +146,49 @@ def characterize_workout_from_best_efforts(
                 effort_pace = analysis["best_efforts"][effort_label]["pace_sec_per_km"]
                 if zones.threshold_min_pace_sec <= effort_pace <= zones.threshold_max_pace_sec:
                     if abs(effort_pace - avg_pace_sec) / avg_pace_sec < 0.10:  # Within 10% of avg
-                        analysis["reasoning"] = f"Threshold run detected: {effort_label} best effort at tempo pace"
-                        logger.info(f"  -> Characterized as THRESHOLD (via {effort_label})")
-                        return "threshold", analysis
+                        analysis["reasoning"] = f"Tempo détecté : meilleur effort {effort_label} à allure seuil"
+                        logger.info(f"  -> Characterized as TEMPO (via {effort_label})")
+                        return "tempo", analysis
 
-    # 4. LONG RUN: Distance >= 12km at easy-to-moderate pace
+    # 4. LONGUE (Long run): Distance >= 12km at easy-to-moderate pace
     if distance_km >= 12:
         if zones:
             # Check if pace is in easy or marathon zone
             if avg_pace_sec >= zones.easy_min_pace_sec or \
                (zones.marathon_pace_sec - 30 <= avg_pace_sec <= zones.marathon_pace_sec + 30):
-                analysis["reasoning"] = f"Long run detected: {distance_km:.1f}km at controlled pace"
-                logger.info(f"  -> Characterized as LONG")
-                return "long", analysis
+                analysis["reasoning"] = f"Sortie longue détectée : {distance_km:.1f}km à allure contrôlée"
+                logger.info(f"  -> Characterized as LONGUE")
+                return "longue", analysis
         else:
             # Without zones, use distance threshold
             if pace_variance < 10:  # Consistent pace
-                analysis["reasoning"] = f"Long run detected: {distance_km:.1f}km at consistent pace"
-                logger.info(f"  -> Characterized as LONG")
-                return "long", analysis
+                analysis["reasoning"] = f"Sortie longue détectée : {distance_km:.1f}km à allure régulière"
+                logger.info(f"  -> Characterized as LONGUE")
+                return "longue", analysis
 
-    # 5. RECOVERY: Very slow pace
+    # 5. RECUPERATION (Recovery): Very slow pace
     if zones and avg_pace_sec > zones.easy_max_pace_sec + 30:
-        analysis["reasoning"] = f"Recovery run detected: pace slower than easy zone"
-        logger.info(f"  -> Characterized as RECOVERY")
-        return "recovery", analysis
+        analysis["reasoning"] = f"Récupération détectée : allure plus lente que la zone facile"
+        logger.info(f"  -> Characterized as RECUPERATION")
+        return "recuperation", analysis
 
-    # 6. EASY RUN: Default for moderate pace with low variance
+    # 6. FACILE (Easy run): Default for moderate pace with low variance
     if zones:
         if zones.easy_min_pace_sec <= avg_pace_sec <= zones.easy_max_pace_sec:
-            analysis["reasoning"] = f"Easy run detected: pace in endurance zone ({zones.easy_min_pace_sec}s-{zones.easy_max_pace_sec}s per km)"
-            logger.info(f"  -> Characterized as EASY")
-            return "easy", analysis
+            analysis["reasoning"] = f"Footing facile détecté : allure en zone endurance ({zones.easy_min_pace_sec}s-{zones.easy_max_pace_sec}s par km)"
+            logger.info(f"  -> Characterized as FACILE")
+            return "facile", analysis
 
     # If distance is < 12km and pace is moderate with low variance
     if distance_km < 12 and pace_variance < 15:
-        analysis["reasoning"] = f"Easy run detected: moderate distance ({distance_km:.1f}km) at steady pace"
-        logger.info(f"  -> Characterized as EASY (default)")
-        return "easy", analysis
+        analysis["reasoning"] = f"Footing facile détecté : distance modérée ({distance_km:.1f}km) à allure régulière"
+        logger.info(f"  -> Characterized as FACILE (default)")
+        return "facile", analysis
 
     # Default fallback
-    analysis["reasoning"] = "Unable to characterize precisely, defaulting to easy run"
-    logger.info(f"  -> Characterized as EASY (fallback)")
-    return "easy", analysis
+    analysis["reasoning"] = "Classification imprécise, footing facile par défaut"
+    logger.info(f"  -> Characterized as FACILE (fallback)")
+    return "facile", analysis
 
 
 def _characterize_without_best_efforts(
@@ -204,27 +212,27 @@ def _characterize_without_best_efforts(
 
     # Long run detection
     if distance_km >= 12:
-        analysis["reasoning"] = f"Long run detected (fallback): {distance_km:.1f}km"
-        return "long", analysis
+        analysis["reasoning"] = f"Sortie longue détectée (fallback) : {distance_km:.1f}km"
+        return "longue", analysis
 
     # Use training zones if available
     if zones and avg_pace_sec > 0:
         if avg_pace_sec < zones.interval_min_pace_sec:
-            analysis["reasoning"] = "Interval pace detected (fallback)"
-            return "interval", analysis
+            analysis["reasoning"] = "Allure fractionné détectée (fallback)"
+            return "fractionne", analysis
         elif zones.threshold_min_pace_sec <= avg_pace_sec <= zones.threshold_max_pace_sec:
-            analysis["reasoning"] = "Threshold pace detected (fallback)"
-            return "threshold", analysis
+            analysis["reasoning"] = "Allure tempo détectée (fallback)"
+            return "tempo", analysis
         elif zones.easy_min_pace_sec <= avg_pace_sec <= zones.easy_max_pace_sec:
-            analysis["reasoning"] = "Easy pace detected (fallback)"
-            return "easy", analysis
+            analysis["reasoning"] = "Allure facile détectée (fallback)"
+            return "facile", analysis
         elif avg_pace_sec > zones.easy_max_pace_sec + 30:
-            analysis["reasoning"] = "Recovery pace detected (fallback)"
-            return "recovery", analysis
+            analysis["reasoning"] = "Allure récupération détectée (fallback)"
+            return "recuperation", analysis
 
     # Default
-    analysis["reasoning"] = "Easy run (fallback, no zones available)"
-    return "easy", analysis
+    analysis["reasoning"] = "Footing facile (fallback, pas de zones disponibles)"
+    return "facile", analysis
 
 
 def _distance_label_to_km(label: str) -> Optional[float]:

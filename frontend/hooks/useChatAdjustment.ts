@@ -10,8 +10,9 @@
 
 import { useState, useCallback } from 'react';
 import axios from 'axios';
+import api from '@/lib/api';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000';
 
 export interface ChatMessage {
   id: number;
@@ -41,7 +42,7 @@ export interface ChatConversation {
 
 export interface WorkoutAdjustment {
   workout_id: number;
-  action: 'modify' | 'delete' | 'reschedule';
+  action: 'modify' | 'delete' | 'reschedule' | 'create';
   current: {
     date: string;
     type: string;
@@ -207,6 +208,19 @@ export function useChatAdjustment() {
       throw new Error('No active conversation');
     }
 
+    // Add user message immediately for instant feedback
+    const userMsg: ChatMessage = {
+      id: Date.now(),
+      conversation_id: conversation.id,
+      role: 'user',
+      content,
+      is_cached: false,
+      cache_creation_tokens: 0,
+      cache_read_tokens: 0,
+      created_at: new Date().toISOString()
+    };
+    setMessages(prev => [...prev, userMsg]);
+
     setIsLoading(true);
     setError(null);
 
@@ -218,18 +232,7 @@ export function useChatAdjustment() {
 
       const result = response.data;
 
-      // Add user message and AI response to messages
-      const userMsg: ChatMessage = {
-        id: Date.now(), // Temporary ID
-        conversation_id: conversation.id,
-        role: 'user',
-        content,
-        is_cached: false,
-        cache_creation_tokens: 0,
-        cache_read_tokens: 0,
-        created_at: new Date().toISOString()
-      };
-
+      // Add AI response to messages
       const aiMsg: ChatMessage = {
         id: result.message_id,
         conversation_id: conversation.id,
@@ -241,7 +244,7 @@ export function useChatAdjustment() {
         created_at: new Date().toISOString()
       };
 
-      setMessages(prev => [...prev, userMsg, aiMsg]);
+      setMessages(prev => [...prev, aiMsg]);
 
       // Update conversation tokens
       setConversation(prev => prev ? {
@@ -364,12 +367,27 @@ export function useChatAdjustment() {
   /**
    * Reset conversation state
    */
-  const resetConversation = useCallback(() => {
-    setConversation(null);
-    setMessages([]);
-    setProposal(null);
-    setError(null);
-  }, []);
+  const resetConversation = useCallback(async () => {
+    if (!conversation) return;
+
+    try {
+      // Delete conversation on server
+      await api.delete(`/api/chat/conversations/${conversation.id}`);
+
+      // Reset local state
+      setConversation(null);
+      setMessages([]);
+      setProposal(null);
+      setError(null);
+    } catch (err: any) {
+      console.error('Error deleting conversation:', err);
+      // Reset local state anyway
+      setConversation(null);
+      setMessages([]);
+      setProposal(null);
+      setError(null);
+    }
+  }, [conversation]);
 
   return {
     // State

@@ -151,6 +151,12 @@ export default function TrainingBlockClient({ initialBlock }: TrainingBlockClien
   const [editingDate, setEditingDate] = useState<string>("")
   const [generatingNextBlock, setGeneratingNextBlock] = useState(false)
   const [isChatModalOpen, setIsChatModalOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  // Prevent hydration mismatch for Radix UI components
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     if (!initialBlock) {
@@ -433,15 +439,8 @@ export default function TrainingBlockClient({ initialBlock }: TrainingBlockClien
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Page Header */}
-      <div className="flex items-start justify-between">
-        <div className="space-y-2">
-          <h1 className="text-6xl font-serif font-bold tracking-tight">Bloc d'entraînement</h1>
-          <p className="text-base text-muted-foreground">
-            Planification et suivi de votre programme
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+      {/* Actions Header - No title, integrated into parent page */}
+      <div className="flex items-center justify-end gap-2">
           <Button
             variant="outline"
             onClick={syncToCalendar}
@@ -464,6 +463,7 @@ export default function TrainingBlockClient({ initialBlock }: TrainingBlockClien
             Terminer et générer le suivant
           </Button>
 
+        {mounted && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">
@@ -483,7 +483,7 @@ export default function TrainingBlockClient({ initialBlock }: TrainingBlockClien
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
+        )}
       </div>
 
       {/* Main Training Block Card */}

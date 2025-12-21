@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useChatAdjustment, type WorkoutAdjustment } from '@/hooks/useChatAdjustment';
 import { Loader2, Send, CheckCircle2, MessageSquare } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface TrainingBlockChatModalProps {
   blockId: number;
@@ -164,13 +166,23 @@ export default function TrainingBlockChatModal({
             </button>
           </div>
 
-          {/* Token Counter */}
+          {/* Token Counter & Reset Button */}
           {conversation && (
-            <div className="flex items-center gap-2 mt-3 text-xs font-mono text-muted-foreground/60">
-              <span>Tokens utilisés:</span>
-              <span className="text-muted-foreground">{conversation.total_tokens}</span>
-              <span>•</span>
-              <span>Messages: {messages.length}/{20}</span>
+            <div className="flex items-center justify-between mt-3">
+              <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground/60">
+                <span>Tokens utilisés:</span>
+                <span className="text-muted-foreground">{conversation.total_tokens}</span>
+                <span>•</span>
+                <span>Messages: {messages.length}/{20}</span>
+              </div>
+              <Button
+                onClick={resetConversation}
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Réinitialiser
+              </Button>
             </div>
           )}
         </DialogHeader>
@@ -211,9 +223,15 @@ export default function TrainingBlockChatModal({
                           : 'bg-muted/50 backdrop-blur-md border border-border'
                         }`}
                     >
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                        {msg.content}
-                      </p>
+                      <div className="text-sm leading-relaxed prose prose-sm max-w-none dark:prose-invert prose-p:my-3 prose-ul:my-2 prose-li:my-1 prose-headings:text-sm prose-headings:font-semibold prose-headings:my-3 prose-strong:font-medium prose-strong:text-sm">
+                        {msg.role === 'user' ? (
+                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                        ) : (
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {msg.content}
+                          </ReactMarkdown>
+                        )}
+                      </div>
                       {msg.is_cached && msg.role === 'assistant' && (
                         <span className="text-xs text-muted-foreground mt-2 block font-mono">
                           cached
@@ -348,11 +366,36 @@ function WorkoutDiff({ adjustment }: { adjustment: WorkoutAdjustment }) {
         return <span className="px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded">Supprimé</span>;
       case 'reschedule':
         return <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs rounded">Reporté</span>;
+      case 'create':
+        return <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded">Créé</span>;
       default:
         return null;
     }
   };
 
+  // Create action: show only proposed workout
+  if (adjustment.action === 'create') {
+    if (!adjustment.proposed) return null;
+    return (
+      <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <span className="font-mono text-sm text-green-400">Nouvelle séance</span>
+          {getActionBadge(adjustment.action)}
+        </div>
+        <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-3 space-y-1 font-mono text-sm">
+          <div className="text-muted-foreground">{adjustment.proposed.date}</div>
+          <div className="text-green-400">{adjustment.proposed.type}</div>
+          <div className="text-foreground/80">{adjustment.proposed.distance_km}km</div>
+          <div className="text-muted-foreground text-xs">{adjustment.proposed.pace_target || 'N/A'}</div>
+        </div>
+        <div className="pt-3 border-t border-border">
+          <p className="text-muted-foreground text-sm leading-relaxed">{adjustment.reasoning}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Delete action: show only reasoning
   if (adjustment.action === 'delete') {
     return (
       <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
@@ -361,6 +404,20 @@ function WorkoutDiff({ adjustment }: { adjustment: WorkoutAdjustment }) {
           {getActionBadge(adjustment.action)}
         </div>
         <p className="text-muted-foreground text-sm">{adjustment.reasoning}</p>
+      </div>
+    );
+  }
+
+  // Safety check: ensure current and proposed exist
+  if (!adjustment.current || !adjustment.proposed) {
+    return (
+      <div className="bg-muted/30 backdrop-blur-md border border-border rounded-xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <span className="font-mono text-sm text-muted-foreground">ID {adjustment.workout_id}</span>
+          {getActionBadge(adjustment.action)}
+        </div>
+        <p className="text-muted-foreground text-sm">{adjustment.reasoning}</p>
+        <p className="text-xs text-red-400 mt-2">⚠️ Données d'ajustement incomplètes</p>
       </div>
     );
   }
@@ -382,7 +439,7 @@ function WorkoutDiff({ adjustment }: { adjustment: WorkoutAdjustment }) {
             <div className="text-muted-foreground">{adjustment.current.date}</div>
             <div className="text-red-400">{adjustment.current.type}</div>
             <div className="text-foreground/80">{adjustment.current.distance_km}km</div>
-            <div className="text-muted-foreground text-xs">{adjustment.current.pace_target}</div>
+            <div className="text-muted-foreground text-xs">{adjustment.current.pace_target || 'N/A'}</div>
           </div>
         </div>
 
@@ -393,7 +450,7 @@ function WorkoutDiff({ adjustment }: { adjustment: WorkoutAdjustment }) {
             <div className="text-muted-foreground">{adjustment.proposed.date}</div>
             <div className="text-green-400">{adjustment.proposed.type}</div>
             <div className="text-foreground/80">{adjustment.proposed.distance_km}km</div>
-            <div className="text-muted-foreground text-xs">{adjustment.proposed.pace_target}</div>
+            <div className="text-muted-foreground text-xs">{adjustment.proposed.pace_target || 'N/A'}</div>
           </div>
         </div>
       </div>

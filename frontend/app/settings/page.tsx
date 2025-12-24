@@ -776,6 +776,67 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      <Separator />
+
+      {/* Dev Tools */}
+      <div className="space-y-6">
+        <h3 className="text-2xl font-bold">Outils de développement</h3>
+
+        <div className="p-6 rounded-2xl bg-background/40 border border-border backdrop-blur-sm">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <a
+              href="/design-system"
+              className="p-4 rounded-xl border border-border bg-card hover:bg-accent transition-all duration-200 group"
+            >
+              <p className="font-medium font-sans">Design System</p>
+              <p className="text-xs text-muted-foreground mt-1">Composants et styles</p>
+            </a>
+            <a
+              href="/playground/buttons"
+              className="p-4 rounded-xl border border-border bg-card hover:bg-accent transition-all duration-200 group"
+            >
+              <p className="font-medium font-sans">Buttons</p>
+              <p className="text-xs text-muted-foreground mt-1">Tests de boutons</p>
+            </a>
+            <a
+              href="/moodboard"
+              className="p-4 rounded-xl border border-border bg-card hover:bg-accent transition-all duration-200 group"
+            >
+              <p className="font-medium font-sans">Moodboard</p>
+              <p className="text-xs text-muted-foreground mt-1">Inspiration design</p>
+            </a>
+            <a
+              href="/typography-test"
+              className="p-4 rounded-xl border border-border bg-card hover:bg-accent transition-all duration-200 group"
+            >
+              <p className="font-medium font-sans">Typography</p>
+              <p className="text-xs text-muted-foreground mt-1">Test de typographie</p>
+            </a>
+            <a
+              href="/icon-comparison"
+              className="p-4 rounded-xl border border-border bg-card hover:bg-accent transition-all duration-200 group"
+            >
+              <p className="font-medium font-sans">Icons</p>
+              <p className="text-xs text-muted-foreground mt-1">Comparaison d'icônes</p>
+            </a>
+            <a
+              href="/cinematic"
+              className="p-4 rounded-xl border border-border bg-card hover:bg-accent transition-all duration-200 group"
+            >
+              <p className="font-medium font-sans">Cinematic</p>
+              <p className="text-xs text-muted-foreground mt-1">Démo cinématique</p>
+            </a>
+            <a
+              href="/test"
+              className="p-4 rounded-xl border border-border bg-card hover:bg-accent transition-all duration-200 group"
+            >
+              <p className="font-medium font-sans">Test</p>
+              <p className="text-xs text-muted-foreground mt-1">Page de test</p>
+            </a>
+          </div>
+        </div>
+      </div>
+
       {/* Image Crop Dialog */}
       {imageToCrop && (
         <ImageCropDialog

@@ -170,4 +170,20 @@ export async function getReadinessScore() {
   });
 }
 
+/**
+ * Ask a natural language query about training data
+ */
+export async function askNaturalQuery(
+  message: string,
+  conversationHistory: Array<{ role: string; content: string }> = []
+) {
+  return handleApiRequest(async () => {
+    const response = await apiClient.post('/api/queries/ask', {
+      message,
+      conversation_history: conversationHistory
+    });
+    return response.data;
+  });
+}
+
 export default apiClient;

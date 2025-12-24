@@ -8,10 +8,11 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import Link from 'next/link'
 import axios from 'axios'
-import { Sparkles, Loader2, Activity, RefreshCw, Trash2, Calendar, MessageSquare } from 'lucide-react'
+import { Sparkles, Loader2, Activity, RefreshCw, Trash2, Calendar, MessageSquare, HelpCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import EmptyState from '@/components/EmptyState'
 import MultiWorkoutAnalysisModal from '@/components/MultiWorkoutAnalysisModal'
+import NaturalQueryModal from '@/components/NaturalQueryModal'
 
 interface Workout {
   id: number
@@ -37,6 +38,9 @@ export default function WorkoutsPage() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false)
+
+  // Natural language query modal
+  const [queryModalOpen, setQueryModalOpen] = useState(false)
 
   useEffect(() => {
     loadWorkouts()
@@ -215,6 +219,16 @@ export default function WorkoutsPage() {
               <RefreshCw className="h-4 w-4" />
             )}
             {syncing ? 'Sync...' : 'Sync Strava'}
+          </button>
+
+          {/* Natural Query Button */}
+          <button
+            onClick={() => setQueryModalOpen(true)}
+            className={`${buttonBaseClass} border-[1.5px] border-transparent hover:shadow-lg hover:shadow-pink-500/20`}
+            style={gradientBorderStyle}
+          >
+            <HelpCircle className="h-4 w-4" />
+            Poser une question
           </button>
 
           {/* Analyze Period Button */}
@@ -414,6 +428,12 @@ export default function WorkoutsPage() {
         onOpenChange={setAnalysisModalOpen}
         startDate={startDate}
         endDate={endDate}
+      />
+
+      {/* Natural Language Query Modal */}
+      <NaturalQueryModal
+        open={queryModalOpen}
+        onOpenChange={setQueryModalOpen}
       />
     </div>
   )

@@ -125,7 +125,7 @@ export default function WorkoutAnalysisModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col border border-white/10 bg-white/5 backdrop-blur-xl">
+      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col border border-border bg-background/95 backdrop-blur-xl">
         <DialogHeader>
           <DialogTitle className="font-serif text-3xl font-bold tracking-tight">
             Analyse de séance
@@ -146,7 +146,7 @@ export default function WorkoutAnalysisModal({
                 className={`max-w-[80%] rounded-xl px-5 py-3 ${
                   message.role === 'user'
                     ? 'bg-gradient-to-r from-[#ee95b3] to-[#667abf] text-white'
-                    : 'bg-white/10 border border-white/10 backdrop-blur-md'
+                    : 'bg-muted/50 border border-border'
                 }`}
               >
                 <p className="font-sans text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
@@ -156,7 +156,7 @@ export default function WorkoutAnalysisModal({
 
           {loading && (
             <div className="flex justify-start">
-              <div className="bg-white/10 border border-white/10 backdrop-blur-md rounded-xl px-5 py-3 flex items-center gap-2">
+              <div className="bg-muted/50 border border-border rounded-xl px-5 py-3 flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin text-[#ee95b3]" />
                 <p className="font-sans text-sm text-muted-foreground">Claude analyse...</p>
               </div>
@@ -207,7 +207,7 @@ export default function WorkoutAnalysisModal({
                 </button>
                 <button
                   onClick={handleRejectAdjustment}
-                  className="flex-1 border border-white/10 font-sans text-sm font-medium px-4 py-2 rounded-lg hover:bg-white/5 transition-colors"
+                  className="flex-1 border border-border font-sans text-sm font-medium px-4 py-2 rounded-lg hover:bg-muted/50 transition-colors"
                 >
                   Ignorer
                 </button>
@@ -216,14 +216,14 @@ export default function WorkoutAnalysisModal({
           </div>
         )}
 
-        {/* Input area - glass aesthetic */}
-        <div className="flex gap-3 pt-4 border-t border-white/10">
+        {/* Input area */}
+        <div className="flex gap-3 pt-4 border-t border-border">
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyPress}
             placeholder="Pose une question ou discute de la séance... (Entrée pour envoyer)"
-            className="min-h-[60px] bg-white/5 border-white/10 backdrop-blur-md font-sans text-sm resize-none focus:border-white/20 transition-colors"
+            className="min-h-[60px] bg-muted/30 border-border font-sans text-sm resize-none focus:border-ring transition-colors"
             disabled={loading}
           />
           <button

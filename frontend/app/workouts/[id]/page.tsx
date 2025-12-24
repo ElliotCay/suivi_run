@@ -48,6 +48,7 @@ interface Workout {
   end_time: string
   raw_data?: {
     gpx?: GpxData
+    strava_name?: string
   }
 }
 
@@ -215,29 +216,39 @@ export default function WorkoutDetailPage() {
         </button>
       </div>
 
-      {/* Title with workout type indicator */}
-      <div className="space-y-3">
+      {/* Title with date and workout type */}
+      <div className="space-y-2">
         <motion.h1
-          className="text-5xl md:text-6xl font-serif font-bold tracking-tight"
+          className="text-4xl md:text-5xl font-serif font-bold tracking-tight"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
         >
-          {formatDate(workout.date)}
+          {workout.raw_data?.strava_name || formatDate(workout.date)}
         </motion.h1>
-        {workout.workout_type && (
-          <motion.div
-            className="flex items-center gap-2"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, delay: 0.3 }}
-          >
-            <div className={cn("w-2 h-2 rounded-full", workoutTypeColors[workout.workout_type] || 'bg-muted-foreground')} />
-            <span className="text-sm font-sans text-muted-foreground uppercase tracking-wider">
-              {workoutTypeLabels[workout.workout_type] || workout.workout_type}
-            </span>
-          </motion.div>
-        )}
+        <motion.div
+          className="flex items-center gap-2 text-sm text-muted-foreground"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+        >
+          {/* Date (only show if we have a strava name, otherwise it's already the title) */}
+          {workout.raw_data?.strava_name && (
+            <>
+              <span className="font-sans">{formatDate(workout.date)}</span>
+              {workout.workout_type && <span className="text-muted-foreground/50">·</span>}
+            </>
+          )}
+          {/* Workout type */}
+          {workout.workout_type && (
+            <div className="flex items-center gap-2">
+              <div className={cn("w-2 h-2 rounded-full", workoutTypeColors[workout.workout_type] || 'bg-muted-foreground')} />
+              <span className="font-sans uppercase tracking-wider">
+                {workoutTypeLabels[workout.workout_type] || workout.workout_type}
+              </span>
+            </div>
+          )}
+        </motion.div>
       </div>
 
       {/* Main Card - Metrics + Notes */}
@@ -384,8 +395,7 @@ export default function WorkoutDetailPage() {
             disabled={saving}
             className={cn(
               "px-6 h-10 rounded-xl font-medium transition-all duration-200 font-sans text-sm",
-              "bg-foreground text-background",
-              "hover:opacity-90",
+              "border border-border bg-muted/50 hover:bg-muted",
               "disabled:opacity-50 disabled:cursor-not-allowed"
             )}
           >

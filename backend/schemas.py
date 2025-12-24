@@ -611,3 +611,24 @@ class GeneratePlanningResponse(BaseModel):
     race_objective: Optional[RaceObjectiveResponse] = None
     blocks: List[TrainingBlockResponse]
     periodization_summary: PeriodizationSummary
+
+
+# Natural Language Query schemas
+class QueryRequest(BaseModel):
+    message: str = Field(..., min_length=1, description="Question en langage naturel")
+    conversation_history: Optional[List[Dict[str, str]]] = Field(default=[], description="Historique de la conversation")
+
+
+class QueryResultData(BaseModel):
+    type: str = Field(..., description="Type de résultat: table, metrics, ou text")
+    data: Optional[Any] = Field(None, description="Données brutes")
+    columns: Optional[List[str]] = Field(None, description="Noms des colonnes (pour type=table)")
+
+
+class QueryResponse(BaseModel):
+    response: str = Field(..., description="Réponse en langage naturel")
+    results: Optional[QueryResultData] = Field(None, description="Résultats structurés")
+    sql_query: Optional[str] = Field(None, description="Requête SQL générée")
+    tokens_used: int = Field(..., description="Tokens utilisés par Claude")
+    is_cached: bool = Field(..., description="True si le cache a été utilisé")
+    error: Optional[str] = Field(None, description="Message d'erreur si échec")

@@ -72,7 +72,9 @@
       "Bash(defaults read:*)",
       "Bash(while read f)",
       "Bash(do cp \"$f\" moodboard.png)",
-      "Bash(timeout 5 python:*)"
+      "Bash(timeout 5 python:*)",
+      "Bash(timeout 60 curl:*)",
+      "Bash(do echo \"=== $db ===\")"
     ],
     "deny": [],
     "ask": []
